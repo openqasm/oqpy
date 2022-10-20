@@ -1,0 +1,132 @@
+[tool.poetry]
+name = "oqpy"
+version = "0.1.0"
+description = "Generating OpenQASM 3 + OpenPulse in Python"
+authors = ["OQpy Contributors <oqpy-contributors@amazon.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/openqasm/oqpy"
+keywords = ["openqasm", "quantum"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<3.11"
+typing-extensions = {version = "^4.3.0", python = "<3.8"}
+openpulse = "0.4.0"
+numpy = "1.21.6"
+mypy-extensions = "^0.4.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^6.2"
+black = "^22.3.0"
+pylint = "^2.12"
+mypy = "^0.961"
+twine = "^4.0.1"
+pytest-benchmark = "^3.4.1"
+numpy = "^1.21.3"
+pytest-cov = "^3.0.0"
+isort = "^5.10.1"
+pydocstyle = "^6.1.1"
+sphinx = "^5.3.0"
+sphinx-rtd-theme = "^1.0.0"
+myst-parser = "^0.18.1"
+openqasm-pygments = "^0.1.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.pylint.reports]
+score = ["no"]
+reports = ["no"]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.messages_control]
+output-format = "colorized"
+# something inspired by VSCode's defaults but with a few more thrown in
+disable = ["all"]
+enable = [
+    "E",  # all errors
+    "F",  # all fatal
+    "anomalous-backslash-in-string",
+    "assert-on-tuple",
+    "bad-format-string",
+    "bad-indentation",
+    "bad-open-mode",
+    "binary-op-exception",
+    "consider-merging-isinstance",
+    "dangerous-default-value",
+    "duplicate-key",
+    "expression-not-assigned",
+    "global-variable-not-assigned",
+    "lost-exception",
+    "mixed-line-endings",
+    "pointless-statement",
+    "redefined-builtin",
+    "simplifiable-if-statement",
+    "trailing-whitespace",
+    "unnecessary-pass",
+    "unreachable",
+    "unused-import",
+    "unnecessary-semicolon",
+    "unused-variable",
+    "wrong-import-order",
+    "wrong-import-position",
+]
+
+[tool.mypy]
+exclude = ["tests"]
+ignore_missing_imports = true
+show_error_codes = true
+warn_unreachable = true
+# --strict flags
+warn_unused_configs = true
+# disable because of Model subclassing
+# disallow_subclassing_any = true
+disallow_any_generics = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# disable because overly pedantic
+# warn_return_any = true
+# disable because of API exporting
+# no_implicit_reexport = true
+strict_equality = true
+
+[tool.coverage.run]
+source = ["oqpy"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "# pragma: no cover",
+    "@abstractmethod",
+]
+show_missing = true
+
+[tool.isort]
+profile = "black"
+skip = ["__init__.py"]
+
+[tool.pydocstyle]
+convention = "google"
+add_ignore = [
+    "D104",  # package docstrings
+    "D107",  # __init__() docstrings
+    "D105",  # magic method docstrings
+]
