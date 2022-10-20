@@ -51,15 +51,7 @@ jobs:
           poetry --version
           poetry config virtualenvs.in-project true
 
-      - name: Load cached venv
-        id: cached-venv
-        uses: actions/cache@v2
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-venv.outputs.cache-hit != 'true'
         run: poetry install --no-root
 
       - name: Run black
@@ -102,15 +94,7 @@ jobs:
           poetry --version
           poetry config virtualenvs.in-project true
 
-      - name: Load cached venv
-        id: cached-venv
-        uses: actions/cache@v2
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-venv.outputs.cache-hit != 'true'
         run: poetry install --no-root
 
       - name: Install OQpy using pip
