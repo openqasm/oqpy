@@ -13,7 +13,7 @@ OpenQASM 3 and OpenPulse grammars.
 OpenQASM is an imperative programming language designed for near-term quantum computing algorithms
 and applications. [OpenQASM 3][openqasm3-docs] extends the original specification by adding support
 for classical logic, explicit timing, and pulse-level definitions. The latter is enabled via the use
-of [_calibration grammars_][pulse-docs] which allow quantum hardware builders to extend the language
+of [_calibration grammars_][pulses-docs] which allow quantum hardware builders to extend the language
 to support hardware-specific directives via `cal` and `defcal` blocks. One such grammar is
 [OpenPulse][openpulse-docs], which provides the instructions required for pulse-based control of
 many common quantum computing architectures (e.g. superconducting qubits).
