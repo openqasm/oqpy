@@ -862,6 +862,36 @@ def test_subroutine_order():
     _check_respects_type_hints(prog)
 
 
+def test_barrier_delay_arguments():
+    port = PortVar("portname")
+    frame = FrameVar(port, 1e9, name="frame0")
+    frame1 = FrameVar(port, 1.5e9, name="frame1")
+    prog = Program()
+    prog.barrier()
+    prog.delay(1e-7)
+    prog.barrier([])
+    prog.delay(2e-7, [])
+    prog.barrier([frame, frame1])
+    prog.delay(3e-7, frame1)
+    prog.delay(4e-7, [frame, frame1])
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port portname;
+        frame frame0 = newframe(portname, 1000000000.0, 0);
+        frame frame1 = newframe(portname, 1500000000.0, 0);
+        barrier;
+        delay[100.0ns];
+        barrier frame0, frame1;
+        delay[300.0ns] frame1;
+        delay[400.0ns] frame0, frame1;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+
 def test_box_and_timings():
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
 
@@ -1501,8 +1531,8 @@ def test_expression_convertible():
         """
         OPENQASM 3.0;
         duration a1 = 100.0ns;
-        duration a2 = 100.0ns;
         frame f1;
+        duration a2 = 100.0ns;
         a1 = 2;
         delay[a2] f1;
         """
