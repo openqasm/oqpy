@@ -8,8 +8,8 @@ python-versions = "*"
 
 [[package]]
 name = "antlr4-python3-runtime"
-version = "4.9.2"
-description = "ANTLR 4.9.2 runtime for Python 3.7"
+version = "4.11.1"
+description = "ANTLR 4.11.1 runtime for Python 3"
 category = "main"
 optional = false
 python-versions = "*"
@@ -1026,7 +1026,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.11"
-content-hash = "869f1e51d6df139c001eac38282b3e074582c2d7c15da7be9a1e9aeba08b0ad7"
+content-hash = "e5136841e04d28968604ea2dcfa8743a8fb2b61c15343062be1f4f6d97c493db"
 
 [metadata.files]
 alabaster = [
@@ -1034,7 +1034,8 @@ alabaster = [
     {file = "alabaster-0.7.12.tar.gz", hash = "sha256:a661d72d58e6ea8a57f7a86e37d86716863ee5e92788398526d58b26a4e4dc02"},
 ]
 antlr4-python3-runtime = [
-    {file = "antlr4-python3-runtime-4.9.2.tar.gz", hash = "sha256:31f5abdc7faf16a1a6e9bf2eb31565d004359b821b09944436a34361929ae85a"},
+    {file = "antlr4-python3-runtime-4.11.1.tar.gz", hash = "sha256:a53de701312f9bdacc5258a6872cd6c62b90d3a90ae25e494026f76267333b60"},
+    {file = "antlr4_python3_runtime-4.11.1-py3-none-any.whl", hash = "sha256:ff1954eda1ca9072c02bf500387d0c86cb549bef4dbb3b64f39468b547ec5f6b"},
 ]
 astroid = [
     {file = "astroid-2.11.5-py3-none-any.whl", hash = "sha256:14ffbb4f6aa2cf474a0834014005487f7ecd8924996083ab411e7fa0b508ce0b"},
