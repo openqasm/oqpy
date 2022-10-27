@@ -82,7 +82,7 @@ class Program:
 
     def __init__(self, version: Optional[str] = "3.0") -> None:
         self.stack: list[ProgramState] = [ProgramState()]
-        self.defcals: dict[tuple[str, str], ast.CalibrationDefinition] = {}
+        self.defcals: dict[tuple[str, ...], ast.CalibrationDefinition] = {}
         self.subroutines: dict[str, ast.SubroutineDefinition] = {}
         self.externs: dict[str, ast.ExternDeclaration] = {}
         self.declared_vars: dict[str, Var] = {}
@@ -195,12 +195,14 @@ class Program:
         """
         self.subroutines[name] = stmt
 
-    def _add_defcal(self, qubit_name: str, name: str, stmt: ast.CalibrationDefinition) -> None:
+    def _add_defcal(
+        self, qubit_names: list[str], name: str, stmt: ast.CalibrationDefinition
+    ) -> None:
         """Register a defcal which has been used.
 
         Defcals are added to the top of the program upon conversion to ast.
         """
-        self.defcals[(qubit_name, name)] = stmt
+        self.defcals[(*qubit_names, name)] = stmt
 
     def _make_externs_statements(self, auto_encal: bool = False) -> list[ast.ExternDeclaration]:
         """Return a list of extern statements for inclusion at beginning of program.
