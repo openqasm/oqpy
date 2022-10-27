@@ -638,7 +638,7 @@ class ProgramBuilder(QASMVisitor[Program]):
         self.generic_visit(node, context)
 
     def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
-        context.externs[node.name] = node
+        context.externs[node.name.name] = node
 
     def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
         var: Var
