@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Dict, Iterable, Iterator, Optional, Union
 
 from openpulse import ast
+from openpulse.parser import parse
 from openpulse.printer import dumps
 from openqasm3.visitor import QASMVisitor
 
@@ -93,7 +94,7 @@ class Program:
 
     DURATION_MAX_DIGITS = 12
 
-    def __init__(self, version: Optional[str] = "3.0", simplify_constants: bool = True) -> None:
+    def __init__(self, version: Optional[str] = "3.0", simplify_constants: bool = True, oqasm_text: Optional[str] = None) -> None:
         self.stack: list[ProgramState] = [ProgramState()]
         self.defcals: dict[
             tuple[tuple[str, ...], str, tuple[str, ...]], ast.CalibrationDefinition
@@ -104,6 +105,10 @@ class Program:
         self.undeclared_vars: dict[str, Var] = {}
         self.simplify_constants = simplify_constants
         self.declared_subroutines: set[str] = set()
+
+        if oqasm_text is not None:
+            self.from_qasm(oqasm_text)
+            return
 
         if version is None or (
             len(version.split(".")) in [1, 2]
@@ -306,6 +311,23 @@ class Program:
         if encal_declarations:
             MergeCalStatementsPass().visit(prog)
         return prog
+
+    def from_qasm(self, qasm_text: str) -> None:
+        oqasm_ast = _remove_spans(parse(qasm_text))
+        ProgramBuilder().visit(oqasm_ast, self)
+
+        # self._state.finalize_if_clause()
+        # self._state.body.extend(other._state.body)
+        # self._state.if_clause = other._state.if_clause
+        # self._state.finalize_if_clause()
+        # self.defcals.update(other.defcals) Done
+        # self.subroutines.update(other.subroutines)
+        # self.externs.update(other.externs)
+        # for var in other.declared_vars.values():
+        #     self._mark_var_declared(var)
+        # for var in other.undeclared_vars.values():
+        #     self._add_var(var)
+        # return self
 
     def to_qasm(
         self,
@@ -602,3 +624,169 @@ class MergeCalStatementsPass(QASMVisitor[None]):
             new_list.append(ast.CalibrationStatement(body=cal_stmts))
 
         return new_list
+
+
+class ProgramBuilder(QASMVisitor[Program]):
+    # Does not support {"dt": 4}
+    TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
+
+    def visit_Program(self, node: ast.Program, context: Program) -> None:
+        # TODO: need to check better node.version as for init
+        context.version = node.version
+        for statement in node.statements:
+            context._add_statement(statement)
+        self.generic_visit(node, context)
+
+    def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
+        context.externs[node.name] = node
+
+    def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
+        var: Var
+        if node.init_expression == None:
+            init_expression = None
+        else:
+            init_expression = self.visit(node.init_expression)
+        if isinstance(node.type, ast.BitType):
+            var = classical_types.BitVar(init_expression=init_expression, name=node.identifier.name)
+        elif isinstance(node.type, ast.BoolType):
+            var = classical_types.BoolVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        elif isinstance(node.type, ast.IntType):
+            var = classical_types.IntVar(init_expression=init_expression, name=node.identifier.name)
+        elif isinstance(node.type, ast.UintType):
+            var = classical_types.UintVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        elif isinstance(node.type, ast.FloatType):
+            var = classical_types.FloatVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        elif isinstance(node.type, ast.AngleType):
+            var = classical_types.AngleVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        elif isinstance(node.type, ast.ComplexType):
+            var = classical_types.ComplexVar(
+                init_expression=init_expression,
+                name=node.identifier.name,
+                base_type=node.type.base_type,
+            )
+        elif isinstance(node.type, ast.DurationType):
+            var = classical_types.DurationVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        elif isinstance(node.type, ast.StretchType):
+            var = classical_types.StretchVar(
+                init_expression=init_expression, name=node.identifier.name
+            )
+        else:
+            return
+        # elif isinstance(node.type, ast.FrameType):
+        #     port, frequency, phase = self.visit(node.init_expression)
+        #     var = FrameVar(port=port, frequency=frequency, phase=phase, name=node.identifier.name)
+
+        # For shorter implementation
+        # if isinstance(node.type, ast.ComplexType):
+        #     var = classical_types.ComplexVar(init_expression=node.init_expression, name=node.identifier.name, base_type=node.type.base_type)
+        # else:
+        #     var = classical_types._ClassicalVar(init_expression=node.init_expression, name=node.identifier.name, type_cls=node.type)
+        context._mark_var_declared(var)
+
+    def visit_CalibrationDefinition(
+        self, node: ast.CalibrationDefinition, context: Program
+    ) -> None:
+        context._add_defcal([ident.name for ident in node.qubits], node.name.name, node)
+        self.generic_visit(node, context)
+
+    def visit_SubroutineDefinition(self, node: ast.SubroutineDefinition, context: Program) -> None:
+        context._add_subroutine(node.name.name, node)
+        self.generic_visit(node, context)
+
+    def visit_FunctionCall(self, node: ast.FunctionCall, context: Program | None = None) -> Any:
+        # func_name = node.name.name
+        # return getattr(self, func_name)(node, context)
+        if node.name == "newframe":
+            return node.arguments
+        else:
+            self.generic_visit(node, context)
+
+    # def newframe(self, node: ast.FunctionCall, context: Program) -> None:
+    #     return [self.visit(arg, context) for arg in node.arguments]
+
+    def visit_IntegerLiteral(self, node: ast.IntegerLiteral, context: Program | None = None) -> Any:
+        """Visit Integer Literal.
+            node.value
+            1
+        Args:
+            node (ast.IntegerLiteral): The integer literal.
+            context (_ParseState): The parse state context.
+        """
+        return int(node.value)
+
+    def visit_ImaginaryLiteral(
+        self, node: ast.ImaginaryLiteral, context: Program | None = None
+    ) -> Any:
+        """Visit Imaginary Number Literal.
+            node.value
+            1.3im
+        Args:
+            node (ast.visit_ImaginaryLiteral): The imaginary number literal.
+            context (_ParseState): The parse state context.
+        """
+        return complex(node.value * 1j)
+
+    def visit_FloatLiteral(self, node: ast.FloatLiteral, context: Program | None = None) -> Any:
+        """Visit Float Literal.
+            node.value
+            1.1
+        Args:
+            node (ast.FloatLiteral): The float literal.
+            context (_ParseState): The parse state context.
+        """
+        return float(node.value)
+
+    def visit_BooleanLiteral(self, node: ast.BooleanLiteral, context: Program | None = None) -> Any:
+        """Visit Boolean Literal.
+            node.value
+            true
+        Args:
+            node (ast.BooleanLiteral): The boolean literal.
+            context (_ParseState): The parse state context.
+        """
+        return True if node.value else False
+
+    def visit_DurationLiteral(
+        self, node: ast.DurationLiteral, context: Program | None = None
+    ) -> Any:
+        """Visit Duration Literal.
+            node.value, node.unit (node.unit.name, node.unit.value)
+            1
+        Args:
+            node (ast.DurationLiteral): The duration literal.
+            context (_ParseState): The parse state context.
+        """
+        if node.unit.name not in self.TIME_UNIT_TO_EXP:
+            raise ValueError(f"Unexpected duration specified: {node.unit.name}:{node.unit.value}")
+        multiplier = 10 ** (-3 * self.TIME_UNIT_TO_EXP[node.unit.name])
+        return multiplier * node.value
+
+
+def _remove_spans(node: Union[list[ast.QASMNode], ast.QASMNode]) -> ast.QASMNode:
+    """Return a new ``QASMNode`` with all spans recursively set to ``None`` to
+    reduce noise in test failure messages."""
+    if isinstance(node, list):
+        return [_remove_spans(item) for item in node]
+    if not isinstance(node, ast.QASMNode):
+        return node
+    kwargs: Dict[str, ast.QASMNode] = {}
+    no_init: Dict[str, ast.QASMNode] = {}
+    for field in dataclasses.fields(node):
+        if field.name == "span":
+            continue
+        target = kwargs if field.init else no_init
+        target[field.name] = _remove_spans(getattr(node, field.name))
+    out = type(node)(**kwargs)
+    for attribute, value in no_init.items():
+        setattr(out, attribute, value)
+    return out
