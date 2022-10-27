@@ -620,8 +620,8 @@ def test_ramsey_example():
     ).strip()
 
     assert prog.to_qasm() == expected
-    assert dumps(prog.defcals[("$2", "x90")], indent="    ").strip() == expect_defcal_x90_q2
-    assert dumps(prog.defcals[("$2", "readout")], indent="    ").strip() == expect_defcal_readout_q2
+    assert dumps(prog.defcals[(("$2",), "x90")], indent="    ").strip() == expect_defcal_x90_q2
+    assert dumps(prog.defcals[(("$2",), "readout")], indent="    ").strip() == expect_defcal_readout_q2
 
 
 def test_rabi_example():
@@ -748,11 +748,11 @@ def test_program_add():
     ).strip()
 
     assert (
-        dumps(prog2.defcals[("$1", "$2", "two_qubit_gate")], indent="    ").strip()
+        dumps(prog2.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
         == expected_defcal_two_qubit_gate
     )
     assert (
-        dumps(prog.defcals[("$1", "$2", "two_qubit_gate")], indent="    ").strip()
+        dumps(prog.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
         == expected_defcal_two_qubit_gate
     )
 
