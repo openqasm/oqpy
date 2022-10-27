@@ -430,7 +430,7 @@ def test_box_and_timings():
     prog = Program()
     with Box(prog, 500e-9):
         prog.play(frame, constant(100e-9, 0.5))
-        prog.delay(frame, 200e-7)
+        prog.delay(200e-7, frame)
         prog.play(frame, constant(100e-9, 0.5))
 
     with Box(prog):
@@ -448,7 +448,7 @@ def test_box_and_timings():
         frame framename = newframe(portname, 1000000000.0, 0);
         box[500.0ns] {
             play(framename, constant(100.0ns, 0.5));
-            delay[framename] 2e-05;
+            delay[20000.0ns] framename;
             play(framename, constant(100.0ns, 0.5));
         }
         box {
@@ -620,8 +620,8 @@ def test_ramsey_example():
     ).strip()
 
     assert prog.to_qasm() == expected
-    assert dumps(prog.defcals[("$2", "x90")], indent="    ").strip() == expect_defcal_x90_q2
-    assert dumps(prog.defcals[("$2", "readout")], indent="    ").strip() == expect_defcal_readout_q2
+    assert dumps(prog.defcals[(("$2",), "x90")], indent="    ").strip() == expect_defcal_x90_q2
+    assert dumps(prog.defcals[(("$2",), "readout")], indent="    ").strip() == expect_defcal_readout_q2
 
 
 def test_rabi_example():
@@ -700,10 +700,14 @@ def test_program_add():
 
     prog2 = Program()
     q1 = PhysicalQubits[1]
+    q2 = PhysicalQubits[2]
     port = PortVar("p1")
     frame = FrameVar(port, 5e9, name="f1")
     wf = WaveformVar(constant(100e-9, 0.5), "wf")
     with defcal(prog2, q1, "x180"):
+        prog2.play(frame, wf)
+
+    with defcal(prog2, [q1, q2], "two_qubit_gate"):
         prog2.play(frame, wf)
     prog2.gate(q1, "x180")
     i = IntVar(5, "i")
@@ -720,6 +724,9 @@ def test_program_add():
         defcal x180 $1 {
             play(f1, wf);
         }
+        defcal two_qubit_gate $1, $2 {
+            play(f1, wf);
+        }
         x180 $1;
         int[32] i = 5;
         """
@@ -731,6 +738,23 @@ def test_program_add():
     with pytest.raises(RuntimeError):
         with If(prog2, i == 0):
             prog = prog1 + prog2
+
+    expected_defcal_two_qubit_gate = textwrap.dedent(
+        """
+        defcal two_qubit_gate $1, $2 {
+            play(f1, wf);
+        }
+        """
+    ).strip()
+
+    assert (
+        dumps(prog2.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
+        == expected_defcal_two_qubit_gate
+    )
+    assert (
+        dumps(prog.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
+        == expected_defcal_two_qubit_gate
+    )
 
 
 def test_expression_convertible():
@@ -974,23 +998,25 @@ def test_autoencal():
 def test_ramsey_example_blog():
     import oqpy
 
-    ramsey_prog = oqpy.Program()                    # create a new oqpy program
-    qubit = oqpy.PhysicalQubits[1]                  # get physical qubit 1
+    ramsey_prog = oqpy.Program()  # create a new oqpy program
+    qubit = oqpy.PhysicalQubits[1]  # get physical qubit 1
     delay_time = oqpy.DurationVar(0, "delay_time")  # initialize a duration
 
     # Loop over shots (i.e. repetitions)
     with oqpy.ForIn(ramsey_prog, range(100), "shot_index"):
-        ramsey_prog.set(delay_time, 0)              # reset delay time to zero
+        ramsey_prog.set(delay_time, 0)  # reset delay time to zero
         # Loop over delays
         with oqpy.ForIn(ramsey_prog, range(101), "delay_index"):
-            (ramsey_prog.reset(qubit)               # prepare in ground state
-             .gate(qubit, "x90")                    # pi/2 pulse
-             .delay(delay_time, qubit)              # variable delay
-             .gate(qubit, "x90")                    # pi/2 pulse
-             .measure(qubit)                        # final measurement
-             .increment(delay_time, 100e-9))        # increase delay by 100 ns
+            (
+                ramsey_prog.reset(qubit)  # prepare in ground state
+                .gate(qubit, "x90")  # pi/2 pulse
+                .delay(delay_time, qubit)  # variable delay
+                .gate(qubit, "x90")  # pi/2 pulse
+                .measure(qubit)  # final measurement
+                .increment(delay_time, 100e-9)
+            )  # increase delay by 100 ns
 
-    defcals_prog = oqpy.Program()   # create a new oqpy program
+    defcals_prog = oqpy.Program()  # create a new oqpy program
     qubit = oqpy.PhysicalQubits[1]  # get physical qubit 1
 
     # Declare frames: transmon driving frame and readout receive/transmit frames
@@ -1004,14 +1030,11 @@ def test_ramsey_example_blog():
     # will therefore need to coordinate with the backend.
     constant_waveform = oqpy.declare_waveform_generator(
         "constant",
-        [("length", oqpy.duration),
-         ("amplitude", oqpy.float64)],
+        [("length", oqpy.duration), ("amplitude", oqpy.float64)],
     )
     gaussian_waveform = oqpy.declare_waveform_generator(
         "gaussian",
-        [("length", oqpy.duration),
-         ("sigma", oqpy.duration),
-         ("amplitude", oqpy.float64)],
+        [("length", oqpy.duration), ("sigma", oqpy.duration), ("amplitude", oqpy.float64)],
     )
 
     with oqpy.defcal(defcals_prog, qubit, "reset"):

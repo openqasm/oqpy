@@ -87,8 +87,7 @@ def defcal(program: Program, qubits: Union[Qubit, list[Qubit]], name: str) -> It
         state.body,
     )
     program._add_statement(stmt)
-    for qubit in qubits:
-        program._add_defcal(qubit.name, name, stmt)
+    program._add_defcal([qubit.name for qubit in qubits], name, stmt)
 
 
 @contextlib.contextmanager
