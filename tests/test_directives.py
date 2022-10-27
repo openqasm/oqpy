@@ -430,7 +430,7 @@ def test_box_and_timings():
     prog = Program()
     with Box(prog, 500e-9):
         prog.play(frame, constant(100e-9, 0.5))
-        prog.delay(frame, 200e-7)
+        prog.delay(200e-7, frame)
         prog.play(frame, constant(100e-9, 0.5))
 
     with Box(prog):
@@ -448,7 +448,7 @@ def test_box_and_timings():
         frame framename = newframe(portname, 1000000000.0, 0);
         box[500.0ns] {
             play(framename, constant(100.0ns, 0.5));
-            delay[framename] 2e-05;
+            delay[20000.0ns] framename;
             play(framename, constant(100.0ns, 0.5));
         }
         box {
