@@ -15,15 +15,19 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.11"
+python = ">=3.7,<4.0"
 # 0.4 loosens the antlr4-python3-runtime constraints
-openpulse = "^0.4.0"
-# 1.21 is the first numpy release with py310 support
-numpy = "^1.21.6"
+openpulse = ">=0.4.0,<0.5.0"
+numpy = [
+    {version = ">=1.14.5", python = ">=3.7,<3.8"},
+    {version = ">=1.19.3", python = ">=3.9,<3.10"},
+    {version = ">=1.21.6", python = ">=3.10,<3.11"},
+    {version = ">=1.22.0", python = ">=3.11"}
+]
 # 0.2 contains VarArg but latest mypy uses 0.4.3
-mypy-extensions = "^0.4.3"
+mypy-extensions = ">=0.4.3"
 # 4.0 contains Protocol and runtime_checkable
-typing-extensions = {version = "^4.0.0", python = "<3.8"}
+typing-extensions = {version = ">=4.0.0", python = "<3.8"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.2"
