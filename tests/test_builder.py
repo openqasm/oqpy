@@ -21,6 +21,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from openpulse.printer import dumps
+import openpulse.ast as ast
 
 from oqpy import *
 from oqpy.base import expr_matches
@@ -41,7 +42,8 @@ def test_version_string():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
+
 
 def test_variable_declaration():
     b = BoolVar(True, "b")
@@ -87,7 +89,7 @@ def test_variable_declaration():
 
     assert isinstance(arr[14], BitVar)
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_complex_numbers_declaration():
@@ -137,8 +139,7 @@ def test_complex_numbers_declaration():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
-
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_non_trivial_variable_declaration():
@@ -159,8 +160,7 @@ def test_non_trivial_variable_declaration():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
-
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_variable_assignment():
@@ -186,7 +186,7 @@ def test_variable_assignment():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_binary_expressions():
@@ -207,7 +207,7 @@ def test_binary_expressions():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_measure_reset():
@@ -229,7 +229,7 @@ def test_measure_reset():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_bare_if():
@@ -257,7 +257,7 @@ def test_bare_if():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_if_else():
@@ -294,7 +294,7 @@ def test_if_else():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_for_in():
@@ -333,7 +333,7 @@ def test_for_in():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_while():
@@ -358,7 +358,7 @@ def test_while():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_create_frame():
@@ -383,7 +383,7 @@ def test_create_frame():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_subroutine_with_return():
@@ -437,7 +437,7 @@ def test_subroutine_with_return():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_box_and_timings():
@@ -477,9 +477,22 @@ def test_box_and_timings():
         """
     ).strip()
 
+    prog_from_text = Program(oqasm_text=expected)
     # FIXME It should not be with include_externs = False
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert prog_from_text.to_qasm(include_externs=False) == expected
+    prog_from_text.externs["constant"] == ast.ExternDeclaration(
+        name=ast.Identifier(name="constant"),
+        arguments=[
+            ast.ExternArgument(type=ast.DurationType(), access=None),
+            ast.ExternArgument(
+                type=ast.ComplexType(
+                    base_type=ast.FloatType(size=ast.IntegerLiteral(value=64)),
+                ),
+            ),
+        ],
+        return_type=ast.WaveformType(),
+    )
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_play_capture():
@@ -507,8 +520,8 @@ def test_play_capture():
     ).strip()
 
     # FIXME It should not be with include_externs = False
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_set_shift_frequency():
@@ -531,8 +544,8 @@ def test_set_shift_frequency():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_ramsey_example():
@@ -648,8 +661,8 @@ def test_ramsey_example():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
     # assert dumps(prog.defcals[("$2", "x90")], indent="    ").strip() == expect_defcal_x90_q2
     # assert dumps(prog.defcals[("$2", "readout")], indent="    ").strip() == expect_defcal_readout_q2
 
@@ -720,7 +733,7 @@ def test_rabi_example():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_program_add():
@@ -759,8 +772,8 @@ def test_program_add():
     ).strip()
 
     prog = prog1 + prog2
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
     with pytest.raises(RuntimeError):
         with If(prog2, i == 0):
@@ -790,7 +803,8 @@ def test_expression_convertible():
         """
     ).strip()
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
+
 
 def test_waveform_extern_arg_passing():
     prog = Program()
@@ -823,8 +837,8 @@ def test_waveform_extern_arg_passing():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_needs_declaration():
@@ -865,7 +879,7 @@ def test_needs_declaration():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_discrete_waveform():
@@ -900,7 +914,7 @@ def test_discrete_waveform():
     ).strip()
 
     assert Program(oqasm_text=expected).to_qasm() == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_var_and_expr_matches():
@@ -1013,8 +1027,8 @@ def test_autoencal():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
 def test_ramsey_example_blog():
@@ -1110,5 +1124,5 @@ def test_ramsey_example_blog():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True, include_externs=False) == expected
-    #assert prog == Program(oqasm_text=prog.to_qasm())
+    assert Program(oqasm_text=expected).to_qasm() == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())

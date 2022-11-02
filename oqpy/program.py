@@ -630,15 +630,24 @@ class ProgramBuilder(QASMVisitor[Program]):
     # Does not support {"dt": 4}
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
+    def generic_visit(self, node: ast.QASMNode, context: Program = None):
+        if isinstance(node, ast.ExternDeclaration):
+            context.externs[node.name.name] = node
+            return
+        return super().generic_visit(node, context)
+
     def visit_Program(self, node: ast.Program, context: Program) -> None:
         # TODO: need to check better node.version as for init
         context.version = node.version
         for statement in node.statements:
+            if isinstance(statement, ast.ExternDeclaration):
+                context.externs[statement.name.name] = statement
+                continue
             context._add_statement(statement)
         self.generic_visit(node, context)
 
-    def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
-        context.externs[node.name.name] = node
+    # def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
+    #     context.externs[node.name.name] = node
 
     def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
         var: Var
@@ -708,16 +717,12 @@ class ProgramBuilder(QASMVisitor[Program]):
         # return getattr(self, func_name)(node, context)
         if node.name == "newframe":
             return node.arguments
-        else:
-            self.generic_visit(node, context)
 
     # def newframe(self, node: ast.FunctionCall, context: Program) -> None:
     #     return [self.visit(arg, context) for arg in node.arguments]
 
     def visit_IntegerLiteral(self, node: ast.IntegerLiteral, context: Program | None = None) -> Any:
         """Visit Integer Literal.
-            node.value
-            1
         Args:
             node (ast.IntegerLiteral): The integer literal.
             context (_ParseState): The parse state context.
@@ -728,8 +733,6 @@ class ProgramBuilder(QASMVisitor[Program]):
         self, node: ast.ImaginaryLiteral, context: Program | None = None
     ) -> Any:
         """Visit Imaginary Number Literal.
-            node.value
-            1.3im
         Args:
             node (ast.visit_ImaginaryLiteral): The imaginary number literal.
             context (_ParseState): The parse state context.
@@ -738,8 +741,6 @@ class ProgramBuilder(QASMVisitor[Program]):
 
     def visit_FloatLiteral(self, node: ast.FloatLiteral, context: Program | None = None) -> Any:
         """Visit Float Literal.
-            node.value
-            1.1
         Args:
             node (ast.FloatLiteral): The float literal.
             context (_ParseState): The parse state context.
@@ -748,8 +749,6 @@ class ProgramBuilder(QASMVisitor[Program]):
 
     def visit_BooleanLiteral(self, node: ast.BooleanLiteral, context: Program | None = None) -> Any:
         """Visit Boolean Literal.
-            node.value
-            true
         Args:
             node (ast.BooleanLiteral): The boolean literal.
             context (_ParseState): The parse state context.
@@ -760,8 +759,6 @@ class ProgramBuilder(QASMVisitor[Program]):
         self, node: ast.DurationLiteral, context: Program | None = None
     ) -> Any:
         """Visit Duration Literal.
-            node.value, node.unit (node.unit.name, node.unit.value)
-            1
         Args:
             node (ast.DurationLiteral): The duration literal.
             context (_ParseState): The parse state context.
