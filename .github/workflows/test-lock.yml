@@ -1,9 +1,8 @@
 name: test-lock
 
 on:
-#  schedule:
-#    - cron: '0 19 * * *'  # Every 19:00 UTC = 12:00 PST
-  pull_request:  # temporary for testing
+  schedule:
+    - cron: '0 19 * * *'  # Every 19:00 UTC = 12:00 PST
 
 jobs:
   check-rebuild-lock:
