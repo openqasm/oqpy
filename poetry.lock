@@ -451,7 +451,7 @@ python-versions = ">=3.8"
 
 [[package]]
 name = "openpulse"
-version = "0.4.0"
+version = "0.4.1"
 description = "Reference OpenPulse AST in Python"
 category = "main"
 optional = false
@@ -1034,7 +1034,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4.0"
-content-hash = "3cac2a65aae13264123f5c9249d9135802d41e218934e94821d48924c60ffbfb"
+content-hash = "5e9843048e4258050f44e9e813990c90699eab1973ff4589083dd415a0e83c2e"
 
 [metadata.files]
 alabaster = [
@@ -1485,8 +1485,8 @@ numpy = [
     {file = "numpy-1.23.4.tar.gz", hash = "sha256:ed2cc92af0efad20198638c69bb0fc2870a58dabfba6eb722c933b48556c686c"},
 ]
 openpulse = [
-    {file = "openpulse-0.4.0-py3-none-any.whl", hash = "sha256:aedcdae1f03472cfc681082aade8149e35abde24e7b9c67fe25ed020b6398b56"},
-    {file = "openpulse-0.4.0.tar.gz", hash = "sha256:62c413e41024617a86be6da3f15b95313ea65e72fbb40b388fa52a3a72bce7b4"},
+    {file = "openpulse-0.4.1-py3-none-any.whl", hash = "sha256:a6718c148a58a9139887349f54b56594e6be964c6ebeffddbcbdb878d6559b09"},
+    {file = "openpulse-0.4.1.tar.gz", hash = "sha256:a73c76ab73bd5f2a8e35a4db8a4dff33481e788d610fdbff8c4d9b425bdb0534"},
 ]
 openqasm-pygments = [
     {file = "openqasm-pygments-0.1.1.tar.gz", hash = "sha256:31f70d540c44ca3ff00f0806e1e8dbfd23ab1d060bc0e125328994a7e0168067"},
