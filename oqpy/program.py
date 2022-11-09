@@ -313,6 +313,7 @@ class Program:
         return prog
 
     def from_qasm(self, qasm_text: str) -> None:
+        """Build an OQPy program by parsing OpenQASM text."""
         oqasm_ast = _remove_spans(parse(qasm_text))
         ProgramBuilder().visit(oqasm_ast, self)
 
@@ -630,7 +631,6 @@ class ProgramBuilder(QASMTransformer[Program]):
         return super().generic_visit(node, context)
 
     def visit_Program(self, node: ast.Program, context: Program) -> None:
-        # TODO: need to check better node.version as for init
         if node.version is None or (
             len(node.version.split(".")) in [1, 2]
             and all([item.isnumeric() for item in node.version.split(".")])
@@ -733,8 +733,7 @@ class ProgramBuilder(QASMTransformer[Program]):
 
 
 def _remove_spans(node: Union[list[ast.QASMNode], ast.QASMNode]) -> ast.QASMNode:
-    """Return a new ``QASMNode`` with all spans recursively set to ``None`` to
-    reduce noise in test failure messages."""
+    """Return a new ``QASMNode`` with all spans recursively set to ``None``."""
     if isinstance(node, list):
         return [_remove_spans(item) for item in node]
     if not isinstance(node, ast.QASMNode):
