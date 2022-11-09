@@ -631,13 +631,7 @@ class ProgramBuilder(QASMTransformer[Program]):
         return super().generic_visit(node, context)
 
     def visit_Program(self, node: ast.Program, context: Program) -> None:
-        if node.version is None or (
-            len(node.version.split(".")) in [1, 2]
-            and all([item.isnumeric() for item in node.version.split(".")])
-        ):
-            context.version = node.version
-        else:
-            raise RuntimeError("Version number does not match the X[.y] format.")
+        context.version = node.version
 
         res = self.generic_visit(node, context)
         for statement in res.statements:
