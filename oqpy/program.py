@@ -30,7 +30,7 @@ from typing import Any, Dict, Iterable, Iterator, Optional, Union
 from openpulse import ast
 from openpulse.parser import parse
 from openpulse.printer import dumps
-from openqasm3.visitor import QASMVisitor
+from openqasm3.visitor import QASMTransformer, QASMVisitor
 
 from oqpy import classical_types, quantum_types
 from oqpy.base import (
@@ -315,19 +315,6 @@ class Program:
     def from_qasm(self, qasm_text: str) -> None:
         oqasm_ast = _remove_spans(parse(qasm_text))
         ProgramBuilder().visit(oqasm_ast, self)
-
-        # self._state.finalize_if_clause()
-        # self._state.body.extend(other._state.body)
-        # self._state.if_clause = other._state.if_clause
-        # self._state.finalize_if_clause()
-        # self.defcals.update(other.defcals) Done
-        # self.subroutines.update(other.subroutines)
-        # self.externs.update(other.externs)
-        # for var in other.declared_vars.values():
-        #     self._mark_var_declared(var)
-        # for var in other.undeclared_vars.values():
-        #     self._add_var(var)
-        # return self
 
     def to_qasm(
         self,
@@ -626,147 +613,123 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         return new_list
 
 
-class ProgramBuilder(QASMVisitor[Program]):
+class ProgramBuilder(QASMTransformer[Program]):
     # Does not support {"dt": 4}
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
-    def generic_visit(self, node: ast.QASMNode, context: Program = None):
-        if isinstance(node, ast.ExternDeclaration):
-            context.externs[node.name.name] = node
-            return
+    def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
+        var: Var | None = None
+        if not isinstance(node, ast.ClassicalDeclaration) and hasattr(node, "type"):
+            if hasattr(node, "identifier"):
+                var = self.create_oqpy_var(node.type, node.identifier.name, needs_declaration=False)
+            elif hasattr(node, "name"):
+                var = self.create_oqpy_var(node.type, node.name.name, needs_declaration=False)
+        if context is not None and var is not None:
+            context._add_var(var)
+
         return super().generic_visit(node, context)
 
     def visit_Program(self, node: ast.Program, context: Program) -> None:
         # TODO: need to check better node.version as for init
-        context.version = node.version
-        for statement in node.statements:
-            if isinstance(statement, ast.ExternDeclaration):
-                context.externs[statement.name.name] = statement
-                continue
-            context._add_statement(statement)
-        self.generic_visit(node, context)
+        if node.version is None or (
+            len(node.version.split(".")) in [1, 2]
+            and all([item.isnumeric() for item in node.version.split(".")])
+        ):
+            context.version = node.version
+        else:
+            raise RuntimeError("Version number does not match the X[.y] format.")
 
-    # def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
-    #     context.externs[node.name.name] = node
+        res = self.generic_visit(node, context)
+        for statement in res.statements:
+            context._add_statement(statement)
+        return res
+
+    def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
+        context.externs[node.name.name] = node
 
     def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
-        var: Var
-        if node.init_expression == None:
-            init_expression = None
-        else:
-            init_expression = self.visit(node.init_expression)
-        if isinstance(node.type, ast.BitType):
-            var = classical_types.BitVar(init_expression=init_expression, name=node.identifier.name)
-        elif isinstance(node.type, ast.BoolType):
-            var = classical_types.BoolVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        elif isinstance(node.type, ast.IntType):
-            var = classical_types.IntVar(init_expression=init_expression, name=node.identifier.name)
-        elif isinstance(node.type, ast.UintType):
-            var = classical_types.UintVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        elif isinstance(node.type, ast.FloatType):
-            var = classical_types.FloatVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        elif isinstance(node.type, ast.AngleType):
-            var = classical_types.AngleVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        elif isinstance(node.type, ast.ComplexType):
-            var = classical_types.ComplexVar(
-                init_expression=init_expression,
-                name=node.identifier.name,
-                base_type=node.type.base_type,
-            )
-        elif isinstance(node.type, ast.DurationType):
-            var = classical_types.DurationVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        elif isinstance(node.type, ast.StretchType):
-            var = classical_types.StretchVar(
-                init_expression=init_expression, name=node.identifier.name
-            )
-        else:
-            return
-        # elif isinstance(node.type, ast.FrameType):
-        #     port, frequency, phase = self.visit(node.init_expression)
-        #     var = FrameVar(port=port, frequency=frequency, phase=phase, name=node.identifier.name)
+        var: Var | None
 
-        # For shorter implementation
-        # if isinstance(node.type, ast.ComplexType):
-        #     var = classical_types.ComplexVar(init_expression=node.init_expression, name=node.identifier.name, base_type=node.type.base_type)
-        # else:
-        #     var = classical_types._ClassicalVar(init_expression=node.init_expression, name=node.identifier.name, type_cls=node.type)
+        var = self.create_oqpy_var(node.type, node.identifier.name, node.init_expression)
+        if var is None:
+            return self.generic_visit(node, context)
         context._mark_var_declared(var)
+        return self.generic_visit(node, context)
 
     def visit_CalibrationDefinition(
         self, node: ast.CalibrationDefinition, context: Program
     ) -> None:
         context._add_defcal([ident.name for ident in node.qubits], node.name.name, node)
-        self.generic_visit(node, context)
+        return self.generic_visit(node, context)
 
     def visit_SubroutineDefinition(self, node: ast.SubroutineDefinition, context: Program) -> None:
         context._add_subroutine(node.name.name, node)
-        self.generic_visit(node, context)
+        return self.generic_visit(node, context)
 
-    def visit_FunctionCall(self, node: ast.FunctionCall, context: Program | None = None) -> Any:
-        # func_name = node.name.name
-        # return getattr(self, func_name)(node, context)
-        if node.name == "newframe":
-            return node.arguments
-
-    # def newframe(self, node: ast.FunctionCall, context: Program) -> None:
-    #     return [self.visit(arg, context) for arg in node.arguments]
-
-    def visit_IntegerLiteral(self, node: ast.IntegerLiteral, context: Program | None = None) -> Any:
-        """Visit Integer Literal.
-        Args:
-            node (ast.IntegerLiteral): The integer literal.
-            context (_ParseState): The parse state context.
-        """
-        return int(node.value)
-
-    def visit_ImaginaryLiteral(
-        self, node: ast.ImaginaryLiteral, context: Program | None = None
-    ) -> Any:
-        """Visit Imaginary Number Literal.
-        Args:
-            node (ast.visit_ImaginaryLiteral): The imaginary number literal.
-            context (_ParseState): The parse state context.
-        """
-        return complex(node.value * 1j)
-
-    def visit_FloatLiteral(self, node: ast.FloatLiteral, context: Program | None = None) -> Any:
-        """Visit Float Literal.
-        Args:
-            node (ast.FloatLiteral): The float literal.
-            context (_ParseState): The parse state context.
-        """
-        return float(node.value)
-
-    def visit_BooleanLiteral(self, node: ast.BooleanLiteral, context: Program | None = None) -> Any:
-        """Visit Boolean Literal.
-        Args:
-            node (ast.BooleanLiteral): The boolean literal.
-            context (_ParseState): The parse state context.
-        """
-        return True if node.value else False
-
-    def visit_DurationLiteral(
-        self, node: ast.DurationLiteral, context: Program | None = None
-    ) -> Any:
-        """Visit Duration Literal.
-        Args:
-            node (ast.DurationLiteral): The duration literal.
-            context (_ParseState): The parse state context.
-        """
-        if node.unit.name not in self.TIME_UNIT_TO_EXP:
-            raise ValueError(f"Unexpected duration specified: {node.unit.name}:{node.unit.value}")
-        multiplier = 10 ** (-3 * self.TIME_UNIT_TO_EXP[node.unit.name])
-        return multiplier * node.value
+    def create_oqpy_var(
+        self,
+        node_type: ast.ClassicalType,
+        name: str,
+        init_expression: ast.Expression | None = None,
+        needs_declaration: bool = True,
+    ) -> Var | None:
+        var: Var | None = None
+        if isinstance(node_type, ast.BitType):
+            var = classical_types.BitVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.BoolType):
+            var = classical_types.BoolVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.IntType):
+            var = classical_types.IntVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.UintType):
+            var = classical_types.UintVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.FloatType):
+            var = classical_types.FloatVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.AngleType):
+            var = classical_types.AngleVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.ComplexType):
+            var = classical_types.ComplexVar(
+                init_expression=init_expression,
+                name=name,
+                base_type=node_type.base_type,
+                needs_declaration=needs_declaration,
+            )
+        elif isinstance(node_type, ast.DurationType):
+            if isinstance(init_expression, ast.DurationLiteral):
+                if init_expression.unit.name not in self.TIME_UNIT_TO_EXP:
+                    raise ValueError(
+                        f"Unexpected duration specified: {init_expression.unit.name}:{init_expression.unit.value}"
+                    )
+                multiplier = 10 ** (-3 * self.TIME_UNIT_TO_EXP[init_expression.unit.name])
+                value = multiplier * init_expression.value
+            var = classical_types.DurationVar(
+                init_expression=value, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.StretchType):
+            var = classical_types.StretchVar(
+                init_expression=init_expression, name=name, needs_declaration=needs_declaration
+            )
+        elif isinstance(node_type, ast.FrameType):
+            if isinstance(init_expression, ast.FunctionCall):
+                if init_expression.name.name == "newframe":
+                    port, frequency, phase = (lambda x: (x[0].name, x[1].value, x[2].value))(
+                        init_expression.arguments
+                    )
+                    var = FrameVar(port=port, frequency=frequency, phase=phase, name=name)
+                else:
+                    var = FrameVar(name=name)
+        return var
 
 
 def _remove_spans(node: Union[list[ast.QASMNode], ast.QASMNode]) -> ast.QASMNode:

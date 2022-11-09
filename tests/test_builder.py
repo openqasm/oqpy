@@ -19,9 +19,9 @@ import textwrap
 from dataclasses import dataclass
 
 import numpy as np
+import openpulse.ast as ast
 import pytest
 from openpulse.printer import dumps
-import openpulse.ast as ast
 
 from oqpy import *
 from oqpy.base import expr_matches
