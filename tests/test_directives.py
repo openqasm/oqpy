@@ -22,6 +22,7 @@ import numpy as np
 import pytest
 from openpulse.printer import dumps
 
+import oqpy
 from oqpy import *
 from oqpy.base import expr_matches
 from oqpy.quantum_types import PhysicalQubits
@@ -506,6 +507,55 @@ def test_set_shift_frequency():
     assert prog.to_qasm() == expected
 
 
+def test_defcals():
+    prog = Program()
+    constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
+
+    q_port = PortVar("q_port")
+    rx_port = PortVar("rx_port")
+    tx_port = PortVar("tx_port")
+    q_frame = FrameVar(q_port, 6.431e9, name="q_frame")
+    rx_frame = FrameVar(rx_port, 5.752e9, name="rx_frame")
+    tx_frame = FrameVar(tx_port, 5.752e9, name="tx_frame")
+
+    q2 = PhysicalQubits[2]
+
+    with defcal(prog, q2, "x"):
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "readout", return_type=oqpy.bit):
+        prog.play(tx_frame, constant(2.4e-6, 0.2))
+        prog.capture(rx_frame, constant(2.4e-6, 1))
+
+    with pytest.raises(AssertionError):
+
+        with defcal(prog, q2, "readout", return_type=bool):
+            prog.play(tx_frame, constant(2.4e-6, 0.2))
+            prog.capture(rx_frame, constant(2.4e-6, 1))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        extern constant(duration, complex[float[64]]) -> waveform;
+        port rx_port;
+        port tx_port;
+        port q_port;
+        frame q_frame = newframe(q_port, 6431000000.0, 0);
+        frame tx_frame = newframe(tx_port, 5752000000.0, 0);
+        frame rx_frame = newframe(rx_port, 5752000000.0, 0);
+        defcal x $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal readout $2 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            capture(rx_frame, constant(2400.0ns, 1));
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+
 def test_ramsey_example():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -620,8 +670,10 @@ def test_ramsey_example():
     ).strip()
 
     assert prog.to_qasm() == expected
-    assert dumps(prog.defcals[(("$2",), "x90")], indent="    ").strip() == expect_defcal_x90_q2
-    assert dumps(prog.defcals[(("$2",), "readout")], indent="    ").strip() == expect_defcal_readout_q2
+    assert dumps(prog.defcals[(("$2",), "x90", ())], indent="    ").strip() == expect_defcal_x90_q2
+    assert (
+        dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip() == expect_defcal_readout_q2
+    )
 
 
 def test_rabi_example():
@@ -748,11 +800,11 @@ def test_program_add():
     ).strip()
 
     assert (
-        dumps(prog2.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
+        dumps(prog2.defcals[(("$1", "$2"), "two_qubit_gate", ())], indent="    ").strip()
         == expected_defcal_two_qubit_gate
     )
     assert (
-        dumps(prog.defcals[(("$1", "$2"), "two_qubit_gate")], indent="    ").strip()
+        dumps(prog.defcals[(("$1", "$2"), "two_qubit_gate", ())], indent="    ").strip()
         == expected_defcal_two_qubit_gate
     )
 

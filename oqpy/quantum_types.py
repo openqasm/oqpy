@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Union
+import re
+from typing import TYPE_CHECKING, Iterator, Optional, Union
 
 from openpulse import ast
 
@@ -64,12 +65,18 @@ class QubitArray:
 
 
 @contextlib.contextmanager
-def defcal(program: Program, qubits: Union[Qubit, list[Qubit]], name: str) -> Iterator[None]:
+def defcal(
+    program: Program,
+    qubits: Union[Qubit, list[Qubit]],
+    name: str,
+    types: Optional[list[ast.ClassicalType]] = None,
+    return_type: Optional[ast.ClassicalType] = None,
+) -> Iterator[None]:
     """Context manager for creating a defcal.
 
     .. code-block:: python
 
-        with defcal(program, q1, "X"):
+        with defcal(program, q1, "X(pi/2)", [oqpy.float], oqpy.bit_()):
             program.play(frame, waveform)
     """
     program._push()
@@ -79,15 +86,33 @@ def defcal(program: Program, qubits: Union[Qubit, list[Qubit]], name: str) -> It
     if isinstance(qubits, Qubit):
         qubits = [qubits]
 
+    groups = re.split(r"\(\s*([\S ]+?)\s*\)", name)
+    gate_name = groups[0]
+    
+    arguments_ast = []
+    if len(groups) > 1:
+        arguments = groups[1].replace(" ", "").split(",")
+        if types is None:
+            types = []
+        for i, t in enumerate(types):
+            arguments_ast.append(ast.ClassicalArgument(t, ast.Identifier(arguments[i])))
+        for j in range(len(types), len(arguments)):
+            arguments_ast.append(ast.Identifier(arguments[j]))
+    else:
+        arguments = []
+
+
+    assert return_type is None or isinstance(return_type, ast.ClassicalType)
+
     stmt = ast.CalibrationDefinition(
-        ast.Identifier(name),
-        [],  # TODO (#52): support arguments
+        ast.Identifier(gate_name),
+        arguments_ast,
         [ast.Identifier(q.name) for q in qubits],
-        None,  # TODO (#52): support return type,
+        return_type,
         state.body,
     )
     program._add_statement(stmt)
-    program._add_defcal([qubit.name for qubit in qubits], name, stmt)
+    program._add_defcal([qubit.name for qubit in qubits], gate_name, arguments, stmt)
 
 
 @contextlib.contextmanager
