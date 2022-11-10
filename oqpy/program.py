@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.parser import parse
@@ -314,7 +314,7 @@ class Program:
 
     def from_qasm(self, qasm_text: str) -> None:
         """Build an OQPy program by parsing OpenQASM text."""
-        oqasm_ast = _remove_spans(parse(qasm_text))
+        oqasm_ast = parse(qasm_text)
         ProgramBuilder().visit(oqasm_ast, self)
 
     def to_qasm(
@@ -620,6 +620,8 @@ class ProgramBuilder(QASMTransformer[Program]):
 
     def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
         var: Var | None = None
+        if hasattr(node, "span"):
+            node.span = None
         if not isinstance(node, ast.ClassicalDeclaration) and hasattr(node, "type"):
             if hasattr(node, "identifier"):
                 var = self.create_oqpy_var(node.type, node.identifier.name, needs_declaration=False)
@@ -639,6 +641,7 @@ class ProgramBuilder(QASMTransformer[Program]):
         return res
 
     def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
+        node = self.generic_visit(node, context)  # Clear spans first
         context.externs[node.name.name] = node
 
     def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
@@ -724,22 +727,3 @@ class ProgramBuilder(QASMTransformer[Program]):
                 else:
                     var = FrameVar(name=name)
         return var
-
-
-def _remove_spans(node: Union[list[ast.QASMNode], ast.QASMNode]) -> ast.QASMNode:
-    """Return a new ``QASMNode`` with all spans recursively set to ``None``."""
-    if isinstance(node, list):
-        return [_remove_spans(item) for item in node]
-    if not isinstance(node, ast.QASMNode):
-        return node
-    kwargs: Dict[str, ast.QASMNode] = {}
-    no_init: Dict[str, ast.QASMNode] = {}
-    for field in dataclasses.fields(node):
-        if field.name == "span":
-            continue
-        target = kwargs if field.init else no_init
-        target[field.name] = _remove_spans(getattr(node, field.name))
-    out = type(node)(**kwargs)
-    for attribute, value in no_init.items():
-        setattr(out, attribute, value)
-    return out
