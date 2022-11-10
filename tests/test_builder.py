@@ -479,8 +479,7 @@ def test_box_and_timings():
     ).strip()
 
     prog_from_text = Program(oqasm_text=expected)
-    # FIXME It should not be with include_externs = False
-    assert prog_from_text.to_qasm(include_externs=False) == expected
+    assert prog_from_text.to_qasm(encal_declarations=True) == expected
     prog_from_text.externs["constant"] == ast.ExternDeclaration(
         name=ast.Identifier(name="constant"),
         arguments=[
@@ -521,8 +520,7 @@ def test_play_capture():
         """
     ).strip()
 
-    # FIXME It should not be with include_externs = False
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
