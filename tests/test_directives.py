@@ -518,9 +518,27 @@ def test_defcals():
     rx_frame = FrameVar(rx_port, 5.752e9, name="rx_frame")
     tx_frame = FrameVar(tx_port, 5.752e9, name="tx_frame")
 
+    q1 = PhysicalQubits[1]
     q2 = PhysicalQubits[2]
 
     with defcal(prog, q2, "x"):
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "rx", [AngleVar(name="theta")]) as theta:
+        prog.increment(theta, 0.1)
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "rx", ["pi/2"]):
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), "pi/2"]) as theta:
+        prog.increment(theta, 0.1)
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), FloatVar(name="phi")]) as params:
+        theta, phi = params
+        prog.increment(theta, 0.1)
+        prog.increment(phi, 0.2)
         prog.play(q_frame, constant(1e-6, 0.1))
 
     with defcal(prog, q2, "readout", return_type=oqpy.bit):
@@ -546,14 +564,94 @@ def test_defcals():
         defcal x $2 {
             play(q_frame, constant(1000.0ns, 0.1));
         }
+        defcal rx(angle[32] theta) $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal rx(pi/2) $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal xy(angle[32] theta, pi/2) $1, $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal xy(angle[32] theta, float[64] phi) $1, $2 {
+            theta += 0.1;
+            phi += 0.2;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
         defcal readout $2 -> bit {
             play(tx_frame, constant(2400.0ns, 0.2));
             capture(rx_frame, constant(2400.0ns, 1));
         }
         """
     ).strip()
-
     assert prog.to_qasm() == expected
+
+    expect_defcal_rx_theta = textwrap.dedent(
+        """
+        defcal rx(angle[32] theta) $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog.defcals[(("$2",), "rx", ("angle[32] theta",))], indent="    ").strip()
+        == expect_defcal_rx_theta
+    )
+    expect_defcal_rx_pio2 = textwrap.dedent(
+        """
+        defcal rx(pi/2) $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog.defcals[(("$2",), "rx", ("pi/2",))], indent="    ").strip()
+        == expect_defcal_rx_pio2
+    )
+    expect_defcal_xy_theta_pio2 = textwrap.dedent(
+        """
+        defcal xy(angle[32] theta, pi/2) $1, $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(
+            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "pi/2"))], indent="    "
+        ).strip()
+        == expect_defcal_xy_theta_pio2
+    )
+    expect_defcal_xy_theta_phi = textwrap.dedent(
+        """
+        defcal xy(angle[32] theta, float[64] phi) $1, $2 {
+            theta += 0.1;
+            phi += 0.2;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(
+            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi"))], indent="    "
+        ).strip()
+        == expect_defcal_xy_theta_phi
+    )
+    expect_defcal_readout_q2 = textwrap.dedent(
+        """
+        defcal readout $2 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            capture(rx_frame, constant(2400.0ns, 1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip()
+        == expect_defcal_readout_q2
+    )
 
 
 def test_ramsey_example():
@@ -672,7 +770,8 @@ def test_ramsey_example():
     assert prog.to_qasm() == expected
     assert dumps(prog.defcals[(("$2",), "x90", ())], indent="    ").strip() == expect_defcal_x90_q2
     assert (
-        dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip() == expect_defcal_readout_q2
+        dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip()
+        == expect_defcal_readout_q2
     )
 
 

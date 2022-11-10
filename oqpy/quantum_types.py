@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import contextlib
-import re
 from typing import TYPE_CHECKING, Iterator, Optional, Union
 
 from openpulse import ast
+from openpulse.printer import dumps
 
 from oqpy.base import Var
+from oqpy.classical_types import _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
@@ -69,50 +70,55 @@ def defcal(
     program: Program,
     qubits: Union[Qubit, list[Qubit]],
     name: str,
-    types: Optional[list[ast.ClassicalType]] = None,
+    arguments: Optional[list[Union[_ClassicalVar, str]]] = None,
     return_type: Optional[ast.ClassicalType] = None,
-) -> Iterator[None]:
+) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
     """Context manager for creating a defcal.
 
     .. code-block:: python
 
-        with defcal(program, q1, "X(pi/2)", [oqpy.float], oqpy.bit_()):
+        with defcal(program, q1, "X", [AngleVar(name="theta"), "pi/2"], oqpy.bit) as theta:
             program.play(frame, waveform)
     """
-    program._push()
-    yield
-    state = program._pop()
-
     if isinstance(qubits, Qubit):
         qubits = [qubits]
-
-    groups = re.split(r"\(\s*([\S ]+?)\s*\)", name)
-    gate_name = groups[0]
-    
-    arguments_ast = []
-    if len(groups) > 1:
-        arguments = groups[1].replace(" ", "").split(",")
-        if types is None:
-            types = []
-        for i, t in enumerate(types):
-            arguments_ast.append(ast.ClassicalArgument(t, ast.Identifier(arguments[i])))
-        for j in range(len(types), len(arguments)):
-            arguments_ast.append(ast.Identifier(arguments[j]))
-    else:
-        arguments = []
-
-
     assert return_type is None or isinstance(return_type, ast.ClassicalType)
 
+    arguments_ast = []
+    variables = []
+    if arguments is not None:
+        for arg in arguments:
+            if isinstance(arg, _ClassicalVar):
+                arguments_ast.append(
+                    ast.ClassicalArgument(type=arg.type, name=ast.Identifier(name=arg.name))
+                )
+                arg._needs_declaration = False
+                variables.append(arg)
+            elif isinstance(arg, str):
+                arguments_ast.append(ast.Identifier(name=arg))
+            else:
+                raise TypeError(f"{arg} should be of type oqpy._Classical or str")
+
+    program._push()
+    if len(variables) > 1:
+        yield variables
+    elif len(variables) == 1:
+        yield variables[0]
+    else:
+        yield
+    state = program._pop()
+
     stmt = ast.CalibrationDefinition(
-        ast.Identifier(gate_name),
+        ast.Identifier(name),
         arguments_ast,
         [ast.Identifier(q.name) for q in qubits],
         return_type,
         state.body,
     )
     program._add_statement(stmt)
-    program._add_defcal([qubit.name for qubit in qubits], gate_name, arguments, stmt)
+    program._add_defcal(
+        [qubit.name for qubit in qubits], name, [dumps(a) for a in arguments_ast], stmt
+    )
 
 
 @contextlib.contextmanager
