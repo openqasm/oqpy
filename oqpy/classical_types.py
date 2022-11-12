@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 __all__ = [
+    "pi",
     "BoolVar",
     "IntVar",
     "UintVar",
@@ -136,6 +137,20 @@ def convert_range(program: Program, item: Union[slice, range]) -> ast.RangeDefin
         to_ast(program, item.stop - 1),
         to_ast(program, item.step) if item.step != 1 else None,
     )
+
+
+class Identifier(OQPyExpression):
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.type = None
+        self.name = name
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        return ast.Identifier(name=self.name)
+
+
+pi = Identifier(name="pi")
 
 
 class _ClassicalVar(Var, OQPyExpression):

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Iterator, Optional, Union
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import Var
+from oqpy.base import AstConvertible, Var, to_ast
 from oqpy.classical_types import _ClassicalVar
 
 if TYPE_CHECKING:
@@ -70,14 +70,14 @@ def defcal(
     program: Program,
     qubits: Union[Qubit, list[Qubit]],
     name: str,
-    arguments: Optional[list[Union[_ClassicalVar, str]]] = None,
+    arguments: Optional[list[AstConvertible]] = None,
     return_type: Optional[ast.ClassicalType] = None,
 ) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
     """Context manager for creating a defcal.
 
     .. code-block:: python
 
-        with defcal(program, q1, "X", [AngleVar(name="theta"), "pi/2"], oqpy.bit) as theta:
+        with defcal(program, q1, "X", [AngleVar(name="theta"), oqpy.pi/2], oqpy.bit) as theta:
             program.play(frame, waveform)
     """
     if isinstance(qubits, Qubit):
@@ -94,10 +94,8 @@ def defcal(
                 )
                 arg._needs_declaration = False
                 variables.append(arg)
-            elif isinstance(arg, str):
-                arguments_ast.append(ast.Identifier(name=arg))
             else:
-                raise TypeError(f"{arg} should be of type oqpy._Classical or str")
+                arguments_ast.append(to_ast(program, arg))
 
     program._push()
     if len(variables) > 1:

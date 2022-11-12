@@ -528,10 +528,10 @@ def test_defcals():
         prog.increment(theta, 0.1)
         prog.play(q_frame, constant(1e-6, 0.1))
 
-    with defcal(prog, q2, "rx", ["pi/2"]):
+    with defcal(prog, q2, "rx", [pi/3]):
         prog.play(q_frame, constant(1e-6, 0.1))
 
-    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), "pi/2"]) as theta:
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), -pi/2]) as theta:
         prog.increment(theta, 0.1)
         prog.play(q_frame, constant(1e-6, 0.1))
 
@@ -568,10 +568,10 @@ def test_defcals():
             theta += 0.1;
             play(q_frame, constant(1000.0ns, 0.1));
         }
-        defcal rx(pi/2) $2 {
+        defcal rx(pi / 3) $2 {
             play(q_frame, constant(1000.0ns, 0.1));
         }
-        defcal xy(angle[32] theta, pi/2) $1, $2 {
+        defcal xy(angle[32] theta, -pi / 2) $1, $2 {
             theta += 0.1;
             play(q_frame, constant(1000.0ns, 0.1));
         }
@@ -602,18 +602,18 @@ def test_defcals():
     )
     expect_defcal_rx_pio2 = textwrap.dedent(
         """
-        defcal rx(pi/2) $2 {
+        defcal rx(pi / 3) $2 {
             play(q_frame, constant(1000.0ns, 0.1));
         }
         """
     ).strip()
     assert (
-        dumps(prog.defcals[(("$2",), "rx", ("pi/2",))], indent="    ").strip()
+        dumps(prog.defcals[(("$2",), "rx", ("pi / 3",))], indent="    ").strip()
         == expect_defcal_rx_pio2
     )
     expect_defcal_xy_theta_pio2 = textwrap.dedent(
         """
-        defcal xy(angle[32] theta, pi/2) $1, $2 {
+        defcal xy(angle[32] theta, -pi / 2) $1, $2 {
             theta += 0.1;
             play(q_frame, constant(1000.0ns, 0.1));
         }
@@ -621,7 +621,7 @@ def test_defcals():
     ).strip()
     assert (
         dumps(
-            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "pi/2"))], indent="    "
+            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "-pi / 2"))], indent="    "
         ).strip()
         == expect_defcal_xy_theta_pio2
     )
