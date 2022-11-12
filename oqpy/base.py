@@ -65,6 +65,12 @@ class OQPyExpression:
         """Helper method to produce a binary expression."""
         return OQPyUnaryExpression(ast.UnaryOperator[op_name], exp)
 
+    def __pos__(self) -> OQPyExpression:
+        return self
+
+    def __neg__(self) -> OQPyUnaryExpression:
+        return self._to_unary("-", self)
+
     def __add__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("+", self, other)
 
@@ -76,9 +82,6 @@ class OQPyExpression:
 
     def __rsub__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("-", other, self)
-
-    def __neg__(self) -> OQPyUnaryExpression:
-        return self._to_unary("-", self)
 
     def __mod__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("%", self, other)
@@ -97,6 +100,12 @@ class OQPyExpression:
 
     def __rtruediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("/", other, self)
+
+    def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("**", self, other)
+
+    def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("**", other, self)
 
     def __eq__(self, other: AstConvertible) -> OQPyBinaryExpression:  # type: ignore[override]
         return self._to_binary("==", self, other)
@@ -153,7 +162,7 @@ class ExpressionConvertible(Protocol):
 
 
 class OQPyUnaryExpression(OQPyExpression):
-    """An expression consisting of one expressions preceded by an operator."""
+    """An expression consisting of one expression preceded by an operator."""
 
     def __init__(self, op: ast.UnaryOperator, exp: AstConvertible):
         super().__init__()
