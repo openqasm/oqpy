@@ -140,6 +140,8 @@ def convert_range(program: Program, item: Union[slice, range]) -> ast.RangeDefin
 
 
 class Identifier(OQPyExpression):
+    """Base class to specify constant symbols."""
+
     name: str
 
     def __init__(self, name: str) -> None:

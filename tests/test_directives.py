@@ -190,6 +190,9 @@ def test_binary_expressions():
     j = IntVar(2, "j")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 + i) % 2)
+    prog.set(j, oqpy.pi)
+    prog.set(j, oqpy.pi / 2)
+    prog.set(j, -oqpy.pi * oqpy.pi + i)
 
     expected = textwrap.dedent(
         """
@@ -198,6 +201,9 @@ def test_binary_expressions():
         int[32] j = 2;
         i = 2 * (i + j);
         j = 2 % (2 + i) % 2;
+        j = pi;
+        j = pi / 2;
+        j = -pi * pi + i;
         """
     ).strip()
 
@@ -528,14 +534,14 @@ def test_defcals():
         prog.increment(theta, 0.1)
         prog.play(q_frame, constant(1e-6, 0.1))
 
-    with defcal(prog, q2, "rx", [pi/3]):
+    with defcal(prog, q2, "rx", [pi / 3]):
         prog.play(q_frame, constant(1e-6, 0.1))
 
-    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), -pi/2]) as theta:
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), -pi / 2]) as theta:
         prog.increment(theta, 0.1)
         prog.play(q_frame, constant(1e-6, 0.1))
 
-    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), FloatVar(name="phi")]) as params:
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), FloatVar(name="phi"), 10]) as params:
         theta, phi = params
         prog.increment(theta, 0.1)
         prog.increment(phi, 0.2)
@@ -575,7 +581,7 @@ def test_defcals():
             theta += 0.1;
             play(q_frame, constant(1000.0ns, 0.1));
         }
-        defcal xy(angle[32] theta, float[64] phi) $1, $2 {
+        defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
             theta += 0.1;
             phi += 0.2;
             play(q_frame, constant(1000.0ns, 0.1));
@@ -627,7 +633,7 @@ def test_defcals():
     )
     expect_defcal_xy_theta_phi = textwrap.dedent(
         """
-        defcal xy(angle[32] theta, float[64] phi) $1, $2 {
+        defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
             theta += 0.1;
             phi += 0.2;
             play(q_frame, constant(1000.0ns, 0.1));
@@ -636,7 +642,7 @@ def test_defcals():
     ).strip()
     assert (
         dumps(
-            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi"))], indent="    "
+            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))], indent="    "
         ).strip()
         == expect_defcal_xy_theta_phi
     )
