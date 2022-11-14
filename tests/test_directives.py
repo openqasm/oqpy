@@ -191,8 +191,8 @@ def test_binary_expressions():
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 + i) % 2)
     prog.set(j, oqpy.pi)
-    prog.set(j, oqpy.pi / 2)
-    prog.set(j, -oqpy.pi * oqpy.pi + i)
+    prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
+    prog.set(j, -oqpy.pi * oqpy.pi + i**j)
 
     expected = textwrap.dedent(
         """
@@ -202,8 +202,8 @@ def test_binary_expressions():
         i = 2 * (i + j);
         j = 2 % (2 + i) % 2;
         j = pi;
-        j = pi / 2;
-        j = -pi * pi + i;
+        j = 1 / pi ** 2 / 2 + 2 ** pi;
+        j = -pi * pi + i ** j;
         """
     ).strip()
 
@@ -642,7 +642,8 @@ def test_defcals():
     ).strip()
     assert (
         dumps(
-            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))], indent="    "
+            prog.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))],
+            indent="    ",
         ).strip()
         == expect_defcal_xy_theta_phi
     )

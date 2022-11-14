@@ -104,7 +104,7 @@ class OQPyExpression:
     def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("**", self, other)
 
-    def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
+    def __rpow__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("**", other, self)
 
     def __eq__(self, other: AstConvertible) -> OQPyBinaryExpression:  # type: ignore[override]
