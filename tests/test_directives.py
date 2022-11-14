@@ -189,10 +189,10 @@ def test_binary_expressions():
     i = IntVar(5, "i")
     j = IntVar(2, "j")
     prog.set(i, 2 * (i + j))
-    prog.set(j, 2 % (2 + i) % 2)
-    prog.set(j, oqpy.pi)
+    prog.set(j, 2 % (2 - i) % 2)
+    prog.set(j, 1 + oqpy.pi)
     prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
-    prog.set(j, -oqpy.pi * oqpy.pi + i**j)
+    prog.set(j, -oqpy.pi * oqpy.pi - i**j)
 
     expected = textwrap.dedent(
         """
@@ -200,10 +200,10 @@ def test_binary_expressions():
         int[32] i = 5;
         int[32] j = 2;
         i = 2 * (i + j);
-        j = 2 % (2 + i) % 2;
-        j = pi;
+        j = 2 % (2 - i) % 2;
+        j = 1 + pi;
         j = 1 / pi ** 2 / 2 + 2 ** pi;
-        j = -pi * pi + i ** j;
+        j = -pi * pi - i ** j;
         """
     ).strip()
 
