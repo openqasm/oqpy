@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 __all__ = [
+    "pi",
     "BoolVar",
     "IntVar",
     "UintVar",
@@ -53,6 +54,7 @@ __all__ = [
     "stretch",
     "bool_",
     "bit_",
+    "bit",
     "bit8",
     "convert_range",
     "int_",
@@ -78,24 +80,24 @@ __all__ = [
 # subclasses of ``_ClassicalVar`` instead.
 
 
-def int_(size: int) -> ast.IntType:
+def int_(size: int | None = None) -> ast.IntType:
     """Create a sized signed integer type."""
-    return ast.IntType(ast.IntegerLiteral(size))
+    return ast.IntType(ast.IntegerLiteral(size) if size is not None else None)
 
 
-def uint_(size: int) -> ast.UintType:
+def uint_(size: int | None = None) -> ast.UintType:
     """Create a sized unsigned integer type."""
-    return ast.UintType(ast.IntegerLiteral(size))
+    return ast.UintType(ast.IntegerLiteral(size) if size is not None else None)
 
 
-def float_(size: int) -> ast.FloatType:
+def float_(size: int | None = None) -> ast.FloatType:
     """Create a sized floating-point type."""
-    return ast.FloatType(ast.IntegerLiteral(size))
+    return ast.FloatType(ast.IntegerLiteral(size) if size is not None else None)
 
 
-def angle_(size: int) -> ast.AngleType:
+def angle_(size: int | None = None) -> ast.AngleType:
     """Create a sized angle type."""
-    return ast.AngleType(ast.IntegerLiteral(size))
+    return ast.AngleType(ast.IntegerLiteral(size) if size is not None else None)
 
 
 def complex_(size: int) -> ast.ComplexType:
@@ -107,14 +109,15 @@ def complex_(size: int) -> ast.ComplexType:
     return ast.ComplexType(ast.FloatType(ast.IntegerLiteral(size // 2)))
 
 
-def bit_(size: int) -> ast.BitType:
+def bit_(size: int | None = None) -> ast.BitType:
     """Create a sized bit type."""
-    return ast.BitType(ast.IntegerLiteral(size))
+    return ast.BitType(ast.IntegerLiteral(size) if size is not None else None)
 
 
 duration = ast.DurationType()
 stretch = ast.StretchType()
 bool_ = ast.BoolType()
+bit = ast.BitType()
 bit8 = bit_(8)
 int32 = int_(32)
 int64 = int_(64)
@@ -134,6 +137,22 @@ def convert_range(program: Program, item: Union[slice, range]) -> ast.RangeDefin
         to_ast(program, item.stop - 1),
         to_ast(program, item.step) if item.step != 1 else None,
     )
+
+
+class Identifier(OQPyExpression):
+    """Base class to specify constant symbols."""
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.type = None
+        self.name = name
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        return ast.Identifier(name=self.name)
+
+
+pi = Identifier(name="pi")
 
 
 class _ClassicalVar(Var, OQPyExpression):

@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Union
 
 from openpulse import ast
+from openpulse.printer import dumps
 
-from oqpy.base import Var
+from oqpy.base import AstConvertible, Var, to_ast
+from oqpy.classical_types import _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
@@ -64,30 +66,57 @@ class QubitArray:
 
 
 @contextlib.contextmanager
-def defcal(program: Program, qubits: Union[Qubit, list[Qubit]], name: str) -> Iterator[None]:
+def defcal(
+    program: Program,
+    qubits: Union[Qubit, list[Qubit]],
+    name: str,
+    arguments: Optional[list[AstConvertible]] = None,
+    return_type: Optional[ast.ClassicalType] = None,
+) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
     """Context manager for creating a defcal.
 
     .. code-block:: python
 
-        with defcal(program, q1, "X"):
+        with defcal(program, q1, "X", [AngleVar(name="theta"), oqpy.pi/2], oqpy.bit) as theta:
             program.play(frame, waveform)
     """
-    program._push()
-    yield
-    state = program._pop()
-
     if isinstance(qubits, Qubit):
         qubits = [qubits]
+    assert return_type is None or isinstance(return_type, ast.ClassicalType)
+
+    arguments_ast = []
+    variables = []
+    if arguments is not None:
+        for arg in arguments:
+            if isinstance(arg, _ClassicalVar):
+                arguments_ast.append(
+                    ast.ClassicalArgument(type=arg.type, name=ast.Identifier(name=arg.name))
+                )
+                arg._needs_declaration = False
+                variables.append(arg)
+            else:
+                arguments_ast.append(to_ast(program, arg))
+
+    program._push()
+    if len(variables) > 1:
+        yield variables
+    elif len(variables) == 1:
+        yield variables[0]
+    else:
+        yield
+    state = program._pop()
 
     stmt = ast.CalibrationDefinition(
         ast.Identifier(name),
-        [],  # TODO (#52): support arguments
+        arguments_ast,
         [ast.Identifier(q.name) for q in qubits],
-        None,  # TODO (#52): support return type,
+        return_type,
         state.body,
     )
     program._add_statement(stmt)
-    program._add_defcal([qubit.name for qubit in qubits], name, stmt)
+    program._add_defcal(
+        [qubit.name for qubit in qubits], name, [dumps(a) for a in arguments_ast], stmt
+    )
 
 
 @contextlib.contextmanager

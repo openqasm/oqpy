@@ -60,11 +60,28 @@ class OQPyExpression:
         """Helper method to produce a binary expression."""
         return OQPyBinaryExpression(ast.BinaryOperator[op_name], first, second)
 
+    @staticmethod
+    def _to_unary(op_name: str, exp: AstConvertible) -> OQPyUnaryExpression:
+        """Helper method to produce a binary expression."""
+        return OQPyUnaryExpression(ast.UnaryOperator[op_name], exp)
+
+    def __pos__(self) -> OQPyExpression:
+        return self
+
+    def __neg__(self) -> OQPyUnaryExpression:
+        return self._to_unary("-", self)
+
     def __add__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("+", self, other)
 
     def __radd__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("+", other, self)
+
+    def __sub__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("-", self, other)
+
+    def __rsub__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("-", other, self)
 
     def __mod__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("%", self, other)
@@ -77,6 +94,18 @@ class OQPyExpression:
 
     def __rmul__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("*", other, self)
+
+    def __truediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("/", self, other)
+
+    def __rtruediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("/", other, self)
+
+    def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("**", self, other)
+
+    def __rpow__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("**", other, self)
 
     def __eq__(self, other: AstConvertible) -> OQPyBinaryExpression:  # type: ignore[override]
         return self._to_binary("==", self, other)
@@ -130,6 +159,23 @@ class ExpressionConvertible(Protocol):
 
     def _to_oqpy_expression(self) -> HasToAst:
         ...
+
+
+class OQPyUnaryExpression(OQPyExpression):
+    """An expression consisting of one expression preceded by an operator."""
+
+    def __init__(self, op: ast.UnaryOperator, exp: AstConvertible):
+        super().__init__()
+        self.op = op
+        self.exp = exp
+        if isinstance(exp, OQPyExpression):
+            self.type = exp.type
+        else:
+            raise TypeError("exp is an expression")
+
+    def to_ast(self, program: Program) -> ast.UnaryExpression:
+        """Converts the OQpy expression into an ast node."""
+        return ast.UnaryExpression(self.op, to_ast(program, self.exp))
 
 
 class OQPyBinaryExpression(OQPyExpression):
