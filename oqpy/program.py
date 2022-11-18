@@ -233,7 +233,7 @@ class Program:
                     openpulse_externs.append(extern_statement)
                     break
             else:
-                if isinstance(extern_statement.return_type.type, openpulse_types):
+                if isinstance(extern_statement.return_type, openpulse_types):
                     openpulse_externs.append(extern_statement)
                 else:
                     openqasm_externs.append(extern_statement)

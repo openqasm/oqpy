@@ -176,7 +176,7 @@ def declare_extern(
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
         [ast.ExternArgument(type=t) for t in arg_types],
-        ast.ExternArgument(type=return_type),
+        return_type,
     )
     extern_decl.annotations = make_annotations(annotations)
 
