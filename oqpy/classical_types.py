@@ -187,8 +187,6 @@ class _ClassicalVar(Var, OQPyExpression):
     ):
         name = name or "".join([random.choice(string.ascii_letters) for _ in range(10)])
         super().__init__(name, needs_declaration=needs_declaration)
-        if type_cls is not None:
-            self.type_cls = type(type_cls)
         self.type = self.type_cls(**type_kwargs)
         self.init_expression = init_expression
         self.annotations = annotations
