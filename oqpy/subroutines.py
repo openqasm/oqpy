@@ -135,7 +135,7 @@ def declare_extern(
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
         [ast.ExternArgument(type=t) for t in arg_types],
-        ast.ExternArgument(type=return_type),
+        return_type,
     )
 
     def call_extern(*call_args: AstConvertible, **call_kwargs: AstConvertible) -> OQFunctionCall:
