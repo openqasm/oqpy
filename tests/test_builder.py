@@ -385,7 +385,7 @@ def test_create_frame():
     assert Program(oqasm_text=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
-@pytest.mark.xfail(reason="Y is redefined, must be investigated")
+
 def test_subroutine_with_return():
     prog = Program()
 
@@ -669,7 +669,8 @@ def test_defcals():
     ).strip()
     assert (
         dumps(
-            prog_from_text.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "pi / 2"))], indent="    "
+            prog_from_text.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "pi / 2"))],
+            indent="    ",
         ).strip()
         == expect_defcal_xy_theta_pio2
     )
@@ -684,7 +685,9 @@ def test_defcals():
     ).strip()
     assert (
         dumps(
-            prog_from_text.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))],
+            prog_from_text.defcals[
+                (("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))
+            ],
             indent="    ",
         ).strip()
         == expect_defcal_xy_theta_phi
@@ -701,7 +704,6 @@ def test_defcals():
         dumps(prog_from_text.defcals[(("$2",), "readout", ())], indent="    ").strip()
         == expect_defcal_readout_q2
     )
-
 
 
 def test_ramsey_example():
@@ -1055,7 +1057,7 @@ def test_discrete_waveform():
     prog = Program()
     prog.declare([wfm_float, wfm_int, wfm_complex, wfm_notype])
     prog.play(frame, wfm_complex)
-    #prog.play(frame, [1] * 2 + [0] * 2)
+    prog.play(frame, [1] * 2 + [0] * 2)
 
     expected = textwrap.dedent(
         """
@@ -1205,6 +1207,7 @@ def test_autoencal():
 
     assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
+
 
 def test_ramsey_example_blog():
     import oqpy

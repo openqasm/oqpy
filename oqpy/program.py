@@ -625,6 +625,8 @@ class ProgramBuilder(QASMTransformer[Program]):
     or pulse type.
     """
 
+    inside_def_block: bool = False
+
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
     def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
@@ -670,17 +672,22 @@ class ProgramBuilder(QASMTransformer[Program]):
     def visit_CalibrationDefinition(
         self, node: ast.CalibrationDefinition, context: Program
     ) -> None:
+        self.inside_def_block = True
         context._add_defcal(
             [ident.name for ident in node.qubits],
             node.name.name,
             [dumps(a) for a in node.arguments],
             node,
         )
-        return self.generic_visit(node, context)
+        visited_node = self.generic_visit(node, context)
+        self.inside_def_block = False
+        return visited_node
 
     def visit_SubroutineDefinition(self, node: ast.SubroutineDefinition, context: Program) -> None:
-        context._add_subroutine(node.name.name, node)
-        return self.generic_visit(node, context)
+        self.inside_def_block = True
+        visited_node = self.generic_visit(node, context)
+        self.inside_def_block = False
+        return visited_node
 
     def create_oqpy_var(
         self,
@@ -689,6 +696,9 @@ class ProgramBuilder(QASMTransformer[Program]):
         init_expression: ast.Expression | None = None,
         needs_declaration: bool = True,
     ) -> Var | None:
+        if self.inside_def_block:
+            return None
+
         var: Var | None = None
         if isinstance(node_type, ast.BitType):
             var = classical_types.BitVar(
