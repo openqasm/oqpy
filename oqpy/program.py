@@ -615,15 +615,16 @@ class MergeCalStatementsPass(QASMVisitor[None]):
 
 
 class ProgramBuilder(QASMTransformer[Program]):
-    """ AST Transformer class that modifies the tree created from parsing opeqasm input text.
+    """AST Transformer class that modifies the tree created from parsing opeqasm input text.
 
-        It separates:
-            - extern declarations and stores them in Program().externs.
-            - subroutines and stores them in Program().subroutines
-            - defcals and stores in Program().defcals
-        It also creates the corresponding OQpy variables everytime it encounters a classical
-        or pulse type.
+    It separates:
+        - extern declarations and stores them in Program().externs.
+        - subroutines and stores them in Program().subroutines
+        - defcals and stores in Program().defcals
+    It also creates the corresponding OQpy variables everytime it encounters a classical
+    or pulse type.
     """
+
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
     def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
@@ -648,7 +649,9 @@ class ProgramBuilder(QASMTransformer[Program]):
             context._add_statement(statement)
         return res
 
-    def visit_CalibrationGrammarDeclaration(self, node: ast.CalibrationGrammarDeclaration, context: Program):
+    def visit_CalibrationGrammarDeclaration(
+        self, node: ast.CalibrationGrammarDeclaration, context: Program
+    ) -> None:
         pass
 
     def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
@@ -667,7 +670,12 @@ class ProgramBuilder(QASMTransformer[Program]):
     def visit_CalibrationDefinition(
         self, node: ast.CalibrationDefinition, context: Program
     ) -> None:
-        context._add_defcal([ident.name for ident in node.qubits], node.name.name, node)
+        context._add_defcal(
+            [ident.name for ident in node.qubits],
+            node.name.name,
+            [dumps(a) for a in node.arguments],
+            node,
+        )
         return self.generic_visit(node, context)
 
     def visit_SubroutineDefinition(self, node: ast.SubroutineDefinition, context: Program) -> None:

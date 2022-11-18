@@ -440,7 +440,6 @@ def test_subroutine_with_return():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_box_and_timings():
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
 
@@ -462,6 +461,7 @@ def test_box_and_timings():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             extern constant(duration, complex[float[64]]) -> waveform;
             port portname;
@@ -548,7 +548,162 @@ def test_set_shift_frequency():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
+def test_defcals():
+    prog = Program()
+    constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
+
+    q_port = PortVar("q_port")
+    rx_port = PortVar("rx_port")
+    tx_port = PortVar("tx_port")
+    q_frame = FrameVar(q_port, 6.431e9, name="q_frame")
+    rx_frame = FrameVar(rx_port, 5.752e9, name="rx_frame")
+    tx_frame = FrameVar(tx_port, 5.752e9, name="tx_frame")
+
+    q1 = PhysicalQubits[1]
+    q2 = PhysicalQubits[2]
+
+    with defcal(prog, q2, "x"):
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "rx", [AngleVar(name="theta")]) as theta:
+        prog.increment(theta, 0.1)
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "rx", [pi / 3]):
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), +pi / 2]) as theta:
+        prog.increment(theta, 0.1)
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, [q1, q2], "xy", [AngleVar(name="theta"), FloatVar(name="phi"), 10]) as params:
+        theta, phi = params
+        prog.increment(theta, 0.1)
+        prog.increment(phi, 0.2)
+        prog.play(q_frame, constant(1e-6, 0.1))
+
+    with defcal(prog, q2, "readout", return_type=bit):
+        prog.play(tx_frame, constant(2.4e-6, 0.2))
+        prog.capture(rx_frame, constant(2.4e-6, 1))
+
+    with pytest.raises(AssertionError):
+
+        with defcal(prog, q2, "readout", return_type=bool):
+            prog.play(tx_frame, constant(2.4e-6, 0.2))
+            prog.capture(rx_frame, constant(2.4e-6, 1))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        defcalgrammar "openpulse";
+        cal {
+            extern constant(duration, complex[float[64]]) -> waveform;
+            port rx_port;
+            port tx_port;
+            port q_port;
+            frame q_frame = newframe(q_port, 6431000000.0, 0);
+            frame tx_frame = newframe(tx_port, 5752000000.0, 0);
+            frame rx_frame = newframe(rx_port, 5752000000.0, 0);
+        }
+        defcal x $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal rx(angle[32] theta) $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal rx(pi / 3) $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal xy(angle[32] theta, pi / 2) $1, $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
+            theta += 0.1;
+            phi += 0.2;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        defcal readout $2 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            capture(rx_frame, constant(2400.0ns, 1));
+        }
+        """
+    ).strip()
+
+    prog_from_text = Program(oqasm_text=expected)
+
+    assert prog_from_text.to_qasm(encal_declarations=True) == expected
+    # assert prog == Program(oqasm_text=prog.to_qasm())
+
+    expect_defcal_rx_theta = textwrap.dedent(
+        """
+        defcal rx(angle[32] theta) $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog_from_text.defcals[(("$2",), "rx", ("angle[32] theta",))], indent="    ").strip()
+        == expect_defcal_rx_theta
+    )
+    expect_defcal_rx_pio2 = textwrap.dedent(
+        """
+        defcal rx(pi / 3) $2 {
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog_from_text.defcals[(("$2",), "rx", ("pi / 3",))], indent="    ").strip()
+        == expect_defcal_rx_pio2
+    )
+    expect_defcal_xy_theta_pio2 = textwrap.dedent(
+        """
+        defcal xy(angle[32] theta, pi / 2) $1, $2 {
+            theta += 0.1;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(
+            prog_from_text.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "pi / 2"))], indent="    "
+        ).strip()
+        == expect_defcal_xy_theta_pio2
+    )
+    expect_defcal_xy_theta_phi = textwrap.dedent(
+        """
+        defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
+            theta += 0.1;
+            phi += 0.2;
+            play(q_frame, constant(1000.0ns, 0.1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(
+            prog_from_text.defcals[(("$1", "$2"), "xy", ("angle[32] theta", "float[64] phi", "10"))],
+            indent="    ",
+        ).strip()
+        == expect_defcal_xy_theta_phi
+    )
+    expect_defcal_readout_q2 = textwrap.dedent(
+        """
+        defcal readout $2 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            capture(rx_frame, constant(2400.0ns, 1));
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog_from_text.defcals[(("$2",), "readout", ())], indent="    ").strip()
+        == expect_defcal_readout_q2
+    )
+
+
+
 def test_ramsey_example():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -606,6 +761,7 @@ def test_ramsey_example():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             extern constant(duration, complex[float[64]]) -> waveform;
             extern gaussian(duration, duration, float[64], float[64]) -> waveform;
@@ -662,7 +818,7 @@ def test_ramsey_example():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
     # assert dumps(prog.defcals[("$2", "x90")], indent="    ").strip() == expect_defcal_x90_q2
     # assert dumps(prog.defcals[("$2", "readout")], indent="    ").strip() == expect_defcal_readout_q2
@@ -737,7 +893,7 @@ def test_rabi_example():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
+# @pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_program_add():
     prog1 = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -758,6 +914,7 @@ def test_program_add():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             extern constant(duration, complex[float[64]]) -> waveform;
             port p1;
@@ -774,7 +931,7 @@ def test_program_add():
     ).strip()
 
     prog = prog1 + prog2
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
     with pytest.raises(RuntimeError):
@@ -808,7 +965,6 @@ def test_expression_convertible():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_waveform_extern_arg_passing():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -828,6 +984,7 @@ def test_waveform_extern_arg_passing():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             extern constant(duration, complex[float[64]]) -> waveform;
             port p1;
@@ -840,7 +997,7 @@ def test_waveform_extern_arg_passing():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -924,15 +1081,16 @@ def test_discrete_inline_waveform():
     oq_text = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             port portname;
             frame framename = newframe(portname, 5000000000.0, 0);
+            play(framename, {0,1,0,1});
         }
-        play(framename, {0,1,0,1});
         """
     ).strip()
 
-    assert Program(oqasm_text=oq_text).to_qasm() == oq_text
+    assert Program(oqasm_text=oq_text).to_qasm(encal_declarations=True) == oq_text
 
 
 def test_var_and_expr_matches():
@@ -1013,7 +1171,6 @@ def test_make_duration():
         make_duration("asdf")
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_autoencal():
     port = PortVar("portname")
     frame = FrameVar(port, 1e9, name="framename")
@@ -1046,10 +1203,9 @@ def test_autoencal():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_ramsey_example_blog():
     import oqpy
 
@@ -1143,5 +1299,5 @@ def test_ramsey_example_blog():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
