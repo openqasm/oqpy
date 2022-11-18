@@ -615,7 +615,15 @@ class MergeCalStatementsPass(QASMVisitor[None]):
 
 
 class ProgramBuilder(QASMTransformer[Program]):
-    # Does not support {"dt": 4}
+    """ AST Transformer class that modifies the tree created from parsing opeqasm input text.
+
+        It separates:
+            - extern declarations and stores them in Program().externs.
+            - subroutines and stores them in Program().subroutines
+            - defcals and stores in Program().defcals
+        It also creates the corresponding OQpy variables everytime it encounters a classical
+        or pulse type.
+    """
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
     def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
@@ -639,6 +647,9 @@ class ProgramBuilder(QASMTransformer[Program]):
         for statement in res.statements:
             context._add_statement(statement)
         return res
+
+    def visit_CalibrationGrammarDeclaration(self, node: ast.CalibrationGrammarDeclaration, context: Program):
+        pass
 
     def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
         node = self.generic_visit(node, context)  # Clear spans first
@@ -726,4 +737,11 @@ class ProgramBuilder(QASMTransformer[Program]):
                     var = FrameVar(port=port, frequency=frequency, phase=phase, name=name)
                 else:
                     var = FrameVar(name=name)
+        elif isinstance(node_type, ast.PortType):
+            var = PortVar(name=name)
+        elif isinstance(node_type, ast.WaveformType):
+            # init_expression must be transformed
+            var = WaveformVar(init_expression=init_expression, name=name)
+        else:
+            raise TypeError(f"Unsupported type {type(node_type)} was used in the OpenQASM program.")
         return var

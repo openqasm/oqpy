@@ -495,7 +495,6 @@ def test_box_and_timings():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-@pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_play_capture():
     port = PortVar("portname")
     frame = FrameVar(port, 1e9, name="framename")
@@ -509,6 +508,7 @@ def test_play_capture():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        defcalgrammar "openpulse";
         cal {
             extern constant(duration, complex[float[64]]) -> waveform;
             port portname;
