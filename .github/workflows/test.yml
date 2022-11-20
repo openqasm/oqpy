@@ -66,6 +66,9 @@ jobs:
       - name: Run pydocstyle
         run: poetry run make check-pydocstyle
 
+      - name: Run cffconvert
+        run: poetry run make check-citation
+
       - name: Install OQpy using pip
         run: poetry run pip install .
 
