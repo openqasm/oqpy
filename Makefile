@@ -39,6 +39,10 @@ open-docs:
 check-tests:
 	pytest --cov=oqpy -vv --color=yes tests
 
+.PHONY: check-citation
+check-citation:
+	cffconvert --validate
+
 .PHONY: install-poetry
 install-poetry:
 	command -v curl >/dev/null 2>&1 || { echo >&2 "please install curl and retry."; exit 1; }
