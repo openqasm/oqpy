@@ -14,7 +14,7 @@
 #  limitations under the License.
 ############################################################################
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 from oqpy.classical_types import *
 from oqpy.control_flow import *
 from oqpy.program import *
