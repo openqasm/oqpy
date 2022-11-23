@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using these metadata."
-title: "OQpy: Generating OpenQASM 3 + OpenPulse in Python"
+title: "OQpy: OpenQASM 3 + OpenPulse in Python"
 abstract: >
   The goal of oqpy ("ock-pie") is to make it easy to generate OpenQASM 3 + OpenPulse
   in Python. The oqpy library builds off of the openqasm3 and openpulse packages,
@@ -36,3 +36,4 @@ keywords:
   - openqasm
   - quantum
 repository-code: "https://github.com/openqasm/oqpy"
+doi: 10.5281/zenodo.7349265
