@@ -147,3 +147,16 @@ for int shot_index in [0:99] {
 
 We welcome contributions to OQpy including bug fixes, feature requests, etc. To get started, check
 out our [contributing guidelines](CONTRIBUTING.md).
+
+## Citation
+
+If you use OQpy in your work or research, please cite it using the metadata in the
+[`CITATION.cff`][citation-file] file in the repository (which includes a
+[Zenodo DOI][zenodo-doi]). You can copy the citation in BibTeX format using the
+["Cite this repository" widget][citation-widget] in the About section of the
+[repository page on GitHub][github].
+
+[zenodo-doi]: https://doi.org/10.5281/zenodo.7349265
+[citation-file]: https://github.com/openqasm/oqpy/blob/main/CITATION.cff
+[citation-widget]: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files
+[github]: https://github.com/openqasm/oqpy
