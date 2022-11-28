@@ -99,6 +99,16 @@ def subroutine(
             body.append(ast.ReturnStatement(to_ast(inner_prog, output)))
         elif output is None:
             return_type = None
+            if type_hints.get("return", False):
+                return_hint = type_hints["return"]()
+                if isinstance(return_hint, _ClassicalVar):
+                    return_type = return_hint
+                elif return_hint is None:
+                    pass
+                else:
+                    raise ValueError(
+                        f"Type hint for return variable on subroutine {name} is not an oqpy classical type."
+                    )
         else:
             raise ValueError(
                 "Output type of subroutine {name} was neither oqpy expression nor None."
