@@ -405,9 +405,9 @@ class Program:
         self.function_call("shift_scale", [frame, scale])
         return self
 
-    def returns(self, return_var: AstConvertible) -> Program:
+    def returns(self, expression: AstConvertible) -> Program:
         """Return a statement from a function definition or a defcal statement"""
-        self._add_statement(ast.ReturnStatement(to_ast(self, return_var)))
+        self._add_statement(ast.ReturnStatement(to_ast(self, expression)))
         return self
 
     def gate(

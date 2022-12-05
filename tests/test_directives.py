@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
-from openpulse import ast
 from openpulse.printer import dumps
 
 import oqpy
@@ -679,7 +678,7 @@ def test_returns():
     rx_frame = FrameVar(rx_port, 5.752e9, name="rx_frame")
     tx_frame = FrameVar(tx_port, 5.752e9, name="tx_frame")
     capture_v2 = oqpy.declare_extern(
-        "capture_v2", [("output", ast.FrameType()), ("duration", oqpy.duration)], oqpy.bit
+        "capture_v2", [("output", oqpy.frame), ("duration", oqpy.duration)], oqpy.bit
     )
 
     q0 = PhysicalQubits[0]
