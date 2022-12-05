@@ -410,6 +410,14 @@ def test_subroutine_with_return():
     with pytest.raises(ValueError):
 
         @subroutine
+        def return2(prog: Program) -> float:
+            prog.returns(1.0)
+
+        return2(prog)
+
+    with pytest.raises(ValueError):
+
+        @subroutine
         def add(prog: Program, x: IntVar, y) -> IntVar:
             return x + y
 
@@ -658,6 +666,88 @@ def test_defcals():
     assert (
         dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip()
         == expect_defcal_readout_q2
+    )
+
+
+def test_returns():
+    prog = Program()
+    constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
+
+    rx_port = PortVar("rx_port")
+    tx_port = PortVar("tx_port")
+    rx_frame = FrameVar(rx_port, 5.752e9, name="rx_frame")
+    tx_frame = FrameVar(tx_port, 5.752e9, name="tx_frame")
+    capture_v2 = oqpy.declare_extern(
+        "capture_v2", [("output", oqpy.frame), ("duration", oqpy.duration)], oqpy.bit
+    )
+
+    q0 = PhysicalQubits[0]
+
+    with defcal(prog, q0, "measure_v1", return_type=oqpy.bit):
+        prog.play(tx_frame, constant(2.4e-6, 0.2))
+        prog.returns(capture_v2(rx_frame, 2.4e-6))
+
+    @subroutine
+    def increment_variable_return(prog: Program, i: IntVar) -> IntVar:
+        prog.increment(i, 1)
+        prog.returns(i)
+
+    j = IntVar(0, name="j")
+    k = IntVar(0, name="k")
+    prog.declare(j)
+    prog.declare(k)
+    prog.set(k, increment_variable_return(prog, j))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        extern constant(duration, complex[float[64]]) -> waveform;
+        extern capture_v2(frame, duration) -> bit;
+        def increment_variable_return(int[32] i) -> int[32] {
+            i += 1;
+            return i;
+        }
+        port rx_port;
+        port tx_port;
+        frame tx_frame = newframe(tx_port, 5752000000.0, 0);
+        frame rx_frame = newframe(rx_port, 5752000000.0, 0);
+        defcal measure_v1 $0 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            return capture_v2(rx_frame, 2400.0ns);
+        }
+        int[32] j = 0;
+        int[32] k = 0;
+        k = increment_variable_return(j);
+        """
+    ).strip()
+    print(prog.to_qasm())
+    assert prog.to_qasm() == expected
+
+    expected_defcal_measure_v1_q0 = textwrap.dedent(
+        """
+        defcal measure_v1 $0 -> bit {
+            play(tx_frame, constant(2400.0ns, 0.2));
+            return capture_v2(rx_frame, 2400.0ns);
+        }
+        """
+    ).strip()
+
+    assert (
+        dumps(prog.defcals[(("$0",), "measure_v1", ())], indent="    ").strip()
+        == expected_defcal_measure_v1_q0
+    )
+
+    expected_function_definition = textwrap.dedent(
+        """
+        def increment_variable_return(int[32] i) -> int[32] {
+            i += 1;
+            return i;
+        }
+        """
+    ).strip()
+    assert (
+        dumps(prog.subroutines["increment_variable_return"], indent="    ").strip()
+        == expected_function_definition
     )
 
 

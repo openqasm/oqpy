@@ -24,7 +24,11 @@ from openpulse import ast
 from oqpy.base import AstConvertible
 from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 
-__all__ = ["PortVar", "WaveformVar", "FrameVar"]
+__all__ = ["PortVar", "WaveformVar", "FrameVar", "port", "waveform", "frame"]
+
+port = ast.PortType()
+waveform = ast.WaveformType()
+frame = ast.FrameType()
 
 
 class PortVar(_ClassicalVar):
