@@ -26,6 +26,10 @@ from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 
 __all__ = ["PortVar", "WaveformVar", "FrameVar", "port", "waveform", "frame"]
 
+port = ast.PortType()
+waveform = ast.WaveformType()
+frame = ast.FrameType()
+
 
 class PortVar(_ClassicalVar):
     """A variable type corresponding to an OpenPulse port."""
@@ -72,8 +76,3 @@ class FrameVar(_ClassicalVar):
             assert frequency is not None
             init_expression = OQFunctionCall("newframe", [port, frequency, phase], ast.FrameType)
         super().__init__(init_expression, name, needs_declaration=needs_declaration)
-
-
-port = PortVar()
-waveform = WaveformVar()
-frame = FrameVar()
