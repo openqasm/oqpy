@@ -406,7 +406,7 @@ class Program:
         return self
 
     def returns(self, expression: AstConvertible) -> Program:
-        """Return a statement from a function definition or a defcal statement"""
+        """Return a statement from a function definition or a defcal statement."""
         self._add_statement(ast.ReturnStatement(to_ast(self, expression)))
         return self
 
