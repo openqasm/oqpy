@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+from openpulse import ast
 from openpulse.printer import dumps
 
 import oqpy
@@ -328,6 +329,54 @@ def test_for_in():
     ).strip()
 
     assert prog.to_qasm() == expected
+
+
+def test_for_in_var_types():
+    port = oqpy.PortVar("my_port")
+    frame = oqpy.FrameVar(port, 3e9, 0, "my_frame")
+
+    # Test over floating point array.
+    program = oqpy.Program()
+    frequencies = [0.1, 0.2, 0.5]
+    with oqpy.ForIn(program, frequencies, "frequency", oqpy.FloatVar) as f:
+        program.set_frequency(frame, f)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for float frequency in {0.1, 0.2, 0.5} {
+            set_frequency(my_frame, frequency);
+        }
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
+
+    # Test over duration array.
+    program = oqpy.Program()
+    float_delays = [1e-9, 2e-9, 5e-9, 10e-9, 1e-6]
+    duration_delays = [
+        ast.DurationLiteral(round(1e9 * float_delay), ast.TimeUnit.ns)
+        for float_delay in float_delays
+    ]
+
+    with oqpy.ForIn(program, duration_delays, "d", DurationVar) as delay:
+        program.delay(delay, frame)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for duration d in {1ns, 2ns, 5ns, 10ns, 1000ns} {
+            delay[d] my_frame;
+        }
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
 
 
 def test_while():
