@@ -436,7 +436,20 @@ def test_subroutine_with_return():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    expect_subroutine_multiply = textwrap.dedent(
+        """
+        def multiply(int[32] x, int[32] y) -> int[32] {
+            return x * y;
+        }
+        """
+    ).strip()
+
+    prog_from_text = Program(oqasm_text=expected)
+    assert prog_from_text.to_qasm() == expected
+    assert (
+        dumps(prog_from_text.subroutines["multiply"], indent="    ").strip()
+        == expect_subroutine_multiply
+    )
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -820,10 +833,17 @@ def test_ramsey_example():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    prog_from_text = Program(oqasm_text=expected)
+    assert prog_from_text.to_qasm(encal_declarations=True) == expected
+    assert (
+        dumps(prog_from_text.defcals[(("$2",), "x90", ())], indent="    ").strip()
+        == expect_defcal_x90_q2
+    )
+    assert (
+        dumps(prog_from_text.defcals[(("$2",), "readout", ())], indent="    ").strip()
+        == expect_defcal_readout_q2
+    )
     # assert prog == Program(oqasm_text=prog.to_qasm())
-    # assert dumps(prog.defcals[("$2", "x90")], indent="    ").strip() == expect_defcal_x90_q2
-    # assert dumps(prog.defcals[("$2", "readout")], indent="    ").strip() == expect_defcal_readout_q2
 
 
 def test_rabi_example():
@@ -895,7 +915,6 @@ def test_rabi_example():
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
-# @pytest.mark.xfail(reason="Extern must be included in a cal block")
 def test_program_add():
     prog1 = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])

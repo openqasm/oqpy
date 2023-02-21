@@ -30,7 +30,7 @@ from typing import Any, Iterable, Iterator, Optional
 from openpulse import ast
 from openpulse.parser import parse
 from openpulse.printer import dumps
-from openqasm3.visitor import QASMTransformer, QASMVisitor
+from openqasm3.visitor import QASMVisitor
 
 from oqpy import classical_types, quantum_types
 from oqpy.base import (
@@ -614,7 +614,7 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         return new_list
 
 
-class ProgramBuilder(QASMTransformer[Program]):
+class ProgramBuilder(QASMVisitor[Program]):
     """AST Transformer class that modifies the tree created from parsing opeqasm input text.
 
     It separates:
@@ -629,7 +629,52 @@ class ProgramBuilder(QASMTransformer[Program]):
 
     TIME_UNIT_TO_EXP = {"ns": 3, "us": 2, "ms": 1, "s": 0}
 
-    def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> ast.QASMNode:
+    def generic_visit(self, node: ast.QASMNode, context: Program | None = None) -> dict[str, Any]:
+        res_value: dict[str, Any] = {}
+        for field, old_value in node.__dict__.items():
+            if isinstance(old_value, list):
+                new_values = []
+                res_value[field] = []
+                for value in old_value:
+                    if isinstance(value, ast.QASMNode):
+                        res = self.visit(value, context) if context else self.visit(value)
+                        value = res["node"]
+                        if "value" in res:
+                            res_value[field].append(res["value"])
+                        if value is None:
+                            continue
+                        elif not isinstance(value, ast.QASMNode):
+                            new_values.extend(value)
+                            continue
+                    elif isinstance(value, list):
+                        my_table = []
+                        for idx, element in enumerate(value):
+                            res = self.visit(element, context) if context else self.visit(element)
+                            value[idx] = res["node"]
+                            if "value" in res:
+                                my_table.append(res["value"])
+                        new_values.append(value)
+                        res_value[field].append(my_table)
+                        continue
+                    else:
+                        raise TypeError(f"Got {type(value)} for {field}")
+                    new_values.append(value)
+                old_value[:] = new_values
+            elif isinstance(old_value, ast.QASMNode):
+                res = self.visit(old_value, context) if context else self.visit(old_value)
+                if isinstance(res, ast.QASMNode):
+                    new_node = res
+                else:
+                    new_node = res["node"]
+                    res_value[field] = res["value"]
+                if new_node is None:
+                    delattr(node, field)
+                else:
+                    setattr(node, field, new_node)
+        return {"node": node, "value": res_value if res_value is not {} else None}
+
+    def visit(self, node: ast.QASMNode, context: Optional[Program] = None) -> dict[str, Any]:
+        """Visit a node."""
         var: Var | None = None
         if hasattr(node, "span"):
             node.span = None
@@ -641,37 +686,59 @@ class ProgramBuilder(QASMTransformer[Program]):
         if context is not None and var is not None:
             context._add_var(var)
 
-        return super().generic_visit(node, context)
+        method = "visit_" + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        # The visitor method may not have the context argument.
+        if context:
+            res = visitor(node, context)
+        else:
+            res = visitor(node)
+        if isinstance(res, ast.QASMNode):
+            return {"node": res}
+        else:
+            return res
 
-    def visit_Program(self, node: ast.Program, context: Program) -> None:
+    def visit_Program(self, node: ast.Program, context: Program) -> ast.QASMNode:
+        node = self.generic_visit(node, context)["node"]
+
         context.version = node.version
 
-        res = self.generic_visit(node, context)
-        for statement in res.statements:
+        for statement in node.statements:
             context._add_statement(statement)
-        return res
+        return node
 
     def visit_CalibrationGrammarDeclaration(
         self, node: ast.CalibrationGrammarDeclaration, context: Program
-    ) -> None:
-        pass
+    ) -> dict[str, Any]:
+        return {"node": None}
 
-    def visit_ExternDeclaration(self, node: ast.ExternDeclaration, context: Program) -> None:
-        node = self.generic_visit(node, context)  # Clear spans first
+    def visit_ExternDeclaration(
+        self, node: ast.ExternDeclaration, context: Program
+    ) -> dict[str, Any]:
+        node = self.generic_visit(node, context)["node"]  # Clear spans first
         context.externs[node.name.name] = node
+        return {"node": None}
 
-    def visit_ClassicalDeclaration(self, node: ast.ClassicalDeclaration, context: Program) -> None:
+    def visit_ClassicalDeclaration(
+        self, node: ast.ClassicalDeclaration, context: Program
+    ) -> dict[str, Any]:
         var: Var | None
 
-        var = self.create_oqpy_var(node.type, node.identifier.name, node.init_expression)
-        if var is None:
-            return self.generic_visit(node, context)
-        context._mark_var_declared(var)
-        return self.generic_visit(node, context)
+        res = self.generic_visit(node, context)
+        node = res["node"]
+
+        if "init_expression" in res["value"]:
+            init_expression_value = res["value"]["init_expression"]
+        else:
+            init_expression_value = None
+        var = self.create_oqpy_var(node.type, node.identifier.name, init_expression_value)
+        if var is not None:
+            context._mark_var_declared(var)
+        return {"node": node}
 
     def visit_CalibrationDefinition(
         self, node: ast.CalibrationDefinition, context: Program
-    ) -> None:
+    ) -> dict[str, Any]:
         self.inside_def_block = True
         context._add_defcal(
             [ident.name for ident in node.qubits],
@@ -679,21 +746,24 @@ class ProgramBuilder(QASMTransformer[Program]):
             [dumps(a) for a in node.arguments],
             node,
         )
-        visited_node = self.generic_visit(node, context)
+        visited_node = self.generic_visit(node, context)["node"]
         self.inside_def_block = False
-        return visited_node
+        return {"node": visited_node}
 
-    def visit_SubroutineDefinition(self, node: ast.SubroutineDefinition, context: Program) -> None:
+    def visit_SubroutineDefinition(
+        self, node: ast.SubroutineDefinition, context: Program
+    ) -> dict[str, Any]:
         self.inside_def_block = True
-        visited_node = self.generic_visit(node, context)
+        visited_node = self.generic_visit(node, context)["node"]
         self.inside_def_block = False
-        return visited_node
+        context._add_subroutine(visited_node.name.name, visited_node)
+        return {"node": None}
 
     def create_oqpy_var(
         self,
         node_type: ast.ClassicalType,
         name: str,
-        init_expression: ast.Expression | None = None,
+        init_expression: Any | None = None,
         needs_declaration: bool = True,
     ) -> Var | None:
         if self.inside_def_block:
@@ -732,6 +802,7 @@ class ProgramBuilder(QASMTransformer[Program]):
                 needs_declaration=needs_declaration,
             )
         elif isinstance(node_type, ast.DurationType):
+            value = None
             if isinstance(init_expression, ast.DurationLiteral):
                 if init_expression.unit.name not in self.TIME_UNIT_TO_EXP:
                     raise ValueError(
@@ -747,19 +818,135 @@ class ProgramBuilder(QASMTransformer[Program]):
                 init_expression=init_expression, name=name, needs_declaration=needs_declaration
             )
         elif isinstance(node_type, ast.FrameType):
-            if isinstance(init_expression, ast.FunctionCall):
-                if init_expression.name.name == "newframe":
-                    port, frequency, phase = (lambda x: (x[0].name, x[1].value, x[2].value))(
-                        init_expression.arguments
-                    )
-                    var = FrameVar(port=port, frequency=frequency, phase=phase, name=name)
-                else:
-                    var = FrameVar(name=name)
+            if isinstance(init_expression, dict):
+                var = FrameVar(name=name, **init_expression)
+            else:
+                var = FrameVar(name=name)
         elif isinstance(node_type, ast.PortType):
             var = PortVar(name=name)
         elif isinstance(node_type, ast.WaveformType):
-            # init_expression must be transformed
             var = WaveformVar(init_expression=init_expression, name=name)
         else:
             raise TypeError(f"Unsupported type {type(node_type)} was used in the OpenQASM program.")
         return var
+
+    def visit_FunctionCall(self, node: ast.FunctionCall, context: Program) -> dict[str, Any]:
+        node = self.generic_visit(node, context)["node"]
+        if node.name.name == "newframe":
+            value = {
+                "port": node.arguments[0].name,
+                "frequency": node.arguments[1].value,
+                "phase": node.arguments[2].value,
+            }
+        else:
+            value = None
+        return {"node": node, "value": value}
+
+    def visit_BitstringLiteral(
+        self, node: ast.BitstringLiteral, context: Program
+    ) -> dict[str, Any]:
+        value = bin(node.value)[2:]
+        if len(value) < node.width:
+            value = "0" * (node.width - len(value)) + value
+        return {"node": node, "value": value}
+
+    def visit_IntegerLiteral(self, node: ast.IntegerLiteral, context: Program) -> dict[str, Any]:
+        return {"node": node, "value": node.value}
+
+    def visit_FloatLiteral(self, node: ast.FloatLiteral, context: Program) -> dict[str, Any]:
+        return {"node": node, "value": node.value}
+
+    def visit_ImaginaryLiteral(
+        self, node: ast.ImaginaryLiteral, context: Program
+    ) -> dict[str, Any]:
+        return {"node": node, "value": node.value * 1j}
+
+    def visit_BooleanLiteral(self, node: ast.BooleanLiteral, context: Program) -> dict[str, Any]:
+        return {"node": node, "value": True if node.value else False}
+
+    def visit_DurationLiteral(self, node: ast.DurationLiteral, context: Program) -> dict[str, Any]:
+        return {"node": node, "value": make_duration(node.value * 1e-9)}
+
+    def visit_ArrayLiteral(self, node: ast.ArrayLiteral, context: Program) -> dict[str, Any]:
+        return {
+            "node": node,
+            "value": [self.generic_visit(n, context)["value"] for n in node.values],
+        }
+
+    def visit_Identifier(self, node: ast.Identifier, context: Program) -> dict[str, Any]:
+        if node.name in context.declared_vars:
+            value = context.declared_vars[node.name]
+        elif node.name in context.undeclared_vars:
+            value = context.undeclared_vars[node.name]
+        else:
+            value = node.name
+        return {"node": node, "value": value}
+
+    def visit_BinaryExpression(
+        self, node: ast.BinaryExpression, context: Program
+    ) -> dict[str, Any]:
+        res = self.generic_visit(node, context)
+        node = res["node"]
+        lhs = res["value"]["lhs"]
+        rhs = res["value"]["rhs"]
+
+        if isinstance(lhs, str):
+            lhs = classical_types.Identifier(lhs)
+        if isinstance(rhs, str):
+            rhs = classical_types.Identifier(rhs)
+
+        op = ast.BinaryOperator
+
+        result = None
+        if node.op == op["+"]:
+            result = lhs + rhs
+        elif node.op == op["-"]:
+            result = lhs - rhs
+        elif node.op == op["*"]:
+            result = lhs * rhs
+        elif node.op == op["/"]:
+            result = lhs / rhs
+        elif node.op == op["%"]:
+            result = lhs % rhs
+        elif node.op == op["**"]:
+            result = lhs**rhs
+        elif node.op == op[">"]:
+            result = lhs > rhs
+        elif node.op == op["<"]:
+            result = lhs < rhs
+        elif node.op == op[">="]:
+            result = lhs >= rhs
+        elif node.op == op["<="]:
+            result = lhs <= rhs
+        elif node.op == op["=="]:
+            result = lhs == rhs
+        elif node.op == op["!="]:
+            result = lhs != rhs
+        elif node.op == op["&&"]:
+            result = lhs and rhs
+        elif node.op == op["||"]:
+            result = lhs or rhs
+        elif node.op == op["|"]:
+            result = lhs | rhs
+        elif node.op == op["^"]:
+            result = lhs ^ rhs
+        elif node.op == op["&"]:
+            result = lhs & rhs
+        elif node.op == op["<<"]:
+            result = lhs << rhs
+        elif node.op == op[">>"]:
+            result = lhs >> rhs
+        return {"node": node, "value": result}
+
+    def visit_UnaryExpression(self, node: ast.UnaryExpression, context: Program) -> dict[str, Any]:
+        res = self.generic_visit(node, context)
+        node = res["node"]
+        exp = res["value"]["expression"]
+
+        if node.op == ast.UnaryOperator["-"]:
+            result = -1 * exp
+        elif node.op == ast.UnaryOperator["!"]:
+            result = not exp
+        elif node.op == ast.UnaryOperator["~"]:
+            result = ~exp
+        return {"node": node, "value": result}
