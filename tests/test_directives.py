@@ -356,13 +356,9 @@ def test_for_in_var_types():
 
     # Test over duration array.
     program = oqpy.Program()
-    float_delays = [1e-9, 2e-9, 5e-9, 10e-9, 1e-6]
-    duration_delays = [
-        ast.DurationLiteral(round(1e9 * float_delay), ast.TimeUnit.ns)
-        for float_delay in float_delays
-    ]
+    delays = [1e-9, 2e-9, 5e-9, 10e-9, 1e-6]
 
-    with oqpy.ForIn(program, duration_delays, "d", DurationVar) as delay:
+    with oqpy.ForIn(program, delays, "d", DurationVar) as delay:
         program.delay(delay, frame)
 
     expected = textwrap.dedent(
@@ -370,7 +366,7 @@ def test_for_in_var_types():
         OPENQASM 3.0;
         port my_port;
         frame my_frame = newframe(my_port, 3000000000.0, 0);
-        for duration d in {1ns, 2ns, 5ns, 10ns, 1000ns} {
+        for duration d in {1.0ns, 2.0ns, 5.0ns, 10.0ns, 1000.0ns} {
             delay[d] my_frame;
         }
         """
