@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Type
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overload
 
 from openpulse import ast
 
 from oqpy.base import OQPyExpression, to_ast
 from oqpy.classical_types import AstConvertible, IntVar, _ClassicalVar, convert_range
+
+ClassicalVarT = TypeVar("ClassicalVarT", bound=_ClassicalVar)
 
 if TYPE_CHECKING:
     from oqpy.program import Program
@@ -68,13 +70,35 @@ def Else(program: Program) -> Iterator[None]:
     program._state.add_else_clause(state.body)
 
 
+# Overloads needed due mypy bug, see
+# github.com/python/mypy/issues/8739
+# https://github.com/python/mypy/issues/3737
+@overload
+def ForIn(
+    program: Program,
+    iterator: Iterable[AstConvertible] | range | AstConvertible,
+    identifier_name: Optional[str],
+) -> contextlib._GeneratorContextManager[IntVar]:
+    ...
+
+
+@overload
+def ForIn(
+    program: Program,
+    iterator: Iterable[AstConvertible] | range | AstConvertible,
+    identifier_name: Optional[str],
+    identifier_type: type[ClassicalVarT],
+) -> contextlib._GeneratorContextManager[ClassicalVarT]:
+    ...
+
+
 @contextlib.contextmanager
 def ForIn(
     program: Program,
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str] = None,
-    identifier_type: Type[_ClassicalVar] = IntVar,
-) -> Iterator[_ClassicalVar]:
+    identifier_type: type[ClassicalVarT] | type[IntVar] = IntVar,
+) -> Iterator[ClassicalVarT | IntVar]:
     """Context manager for looping a particular portion of a program.
 
     .. code-block:: python
