@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
-from openpulse import ast
 from openpulse.printer import dumps
 
 import oqpy
@@ -338,7 +337,7 @@ def test_for_in_var_types():
     # Test over floating point array.
     program = oqpy.Program()
     frequencies = [0.1, 0.2, 0.5]
-    with oqpy.ForIn(program, frequencies, "frequency", oqpy.FloatVar) as f:
+    with oqpy.ForIn(program, frequencies, "frequency", FloatVar) as f:
         program.set_frequency(frame, f)
 
     expected = textwrap.dedent(
@@ -368,6 +367,24 @@ def test_for_in_var_types():
         frame my_frame = newframe(my_port, 3000000000.0, 0);
         for duration d in {1.0ns, 2.0ns, 5.0ns, 10.0ns, 1000.0ns} {
             delay[d] my_frame;
+        }
+        """
+    ).strip()
+
+    # Test over angle array
+    program = oqpy.Program()
+    phases = [0] + [oqpy.pi / i for i in range(10, 1, -2)]
+
+    with oqpy.ForIn(program, phases, "phi", AngleVar) as phase:
+        program.set_phase(phase, frame)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for angle phi in {0, pi / 10, pi / 8, pi / 6, pi / 4, pi / 2} {
+            set_phase(phi, my_frame);
         }
         """
     ).strip()
