@@ -330,6 +330,68 @@ def test_for_in():
     assert prog.to_qasm() == expected
 
 
+def test_for_in_var_types():
+    port = oqpy.PortVar("my_port")
+    frame = oqpy.FrameVar(port, 3e9, 0, "my_frame")
+
+    # Test over floating point array.
+    program = oqpy.Program()
+    frequencies = [0.1, 0.2, 0.5]
+    with oqpy.ForIn(program, frequencies, "frequency", FloatVar) as f:
+        program.set_frequency(frame, f)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for float frequency in {0.1, 0.2, 0.5} {
+            set_frequency(my_frame, frequency);
+        }
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
+
+    # Test over duration array.
+    program = oqpy.Program()
+    delays = [1e-9, 2e-9, 5e-9, 10e-9, 1e-6]
+
+    with oqpy.ForIn(program, delays, "d", DurationVar) as delay:
+        program.delay(delay, frame)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for duration d in {1.0ns, 2.0ns, 5.0ns, 10.0ns, 1000.0ns} {
+            delay[d] my_frame;
+        }
+        """
+    ).strip()
+
+    # Test over angle array
+    program = oqpy.Program()
+    phases = [0] + [oqpy.pi / i for i in range(10, 1, -2)]
+
+    with oqpy.ForIn(program, phases, "phi", AngleVar) as phase:
+        program.set_phase(phase, frame)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for angle phi in {0, pi / 10, pi / 8, pi / 6, pi / 4, pi / 2} {
+            set_phase(phi, my_frame);
+        }
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
+
+
 def test_while():
     prog = Program()
     j = IntVar(0, "j")
