@@ -427,13 +427,13 @@ class Program:
         )
         return self
 
-    def reset(self, qubit: quantum_types.Qubit) -> Program:
+    def reset(self, qubit: AstConvertible) -> Program:
         """Reset a particular qubit."""
-        self._add_statement(ast.QuantumReset(qubits=qubit.to_ast(self)))
+        self._add_statement(ast.QuantumReset(qubits=to_ast(self, qubit)))
         return self
 
     def measure(
-        self, qubit: quantum_types.Qubit, output_location: classical_types.BitVar | None = None
+        self, qubit: AstConvertible, output_location: AstConvertible | None = None
     ) -> Program:
         """Measure a particular qubit.
 
@@ -441,7 +441,7 @@ class Program:
         """
         self._add_statement(
             ast.QuantumMeasurementStatement(
-                measure=ast.QuantumMeasurement(ast.Identifier(qubit.name)),
+                measure=ast.QuantumMeasurement(qubit=to_ast(self, qubit)),
                 target=optional_ast(self, output_location),
             )
         )

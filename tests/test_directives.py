@@ -212,19 +212,32 @@ def test_binary_expressions():
 
 def test_measure_reset():
     prog = Program()
+
+    class MyQubit:
+        def _to_oqpy_expression(self):
+            return Qubit(name="my_qubit")
+
     q = PhysicalQubits[0]
+    q2 = MyQubit()
     c = BitVar(name="c")
     prog.reset(q)
     prog.measure(q, c)
     prog.measure(q)
+    prog.reset(q2)
+    prog.measure(q2, c)
+    prog.measure(q2)
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         bit c;
+        qubit my_qubit;
         reset $0;
         c = measure $0;
         measure $0;
+        reset my_qubit;
+        c = measure my_qubit;
+        measure my_qubit;
         """
     ).strip()
 
