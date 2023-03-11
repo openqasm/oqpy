@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Union, Iterable
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -61,8 +61,30 @@ class PhysicalQubits:
 
 
 # Todo (#51): support QubitArray
-class QubitArray:
+class QubitArray(Var):
     """Represents an array of qubits."""
+    def __init__(self, name: str, size: int, needs_declaration: bool = True):
+        super().__init__(name, needs_declaration=needs_declaration)
+        self.name = name
+        self.size = size
+
+    def to_ast(self, prog: Program) -> ast.Expression:
+        """Converts the OQpy variable into an ast node."""
+        prog._add_var(self)
+        return ast.Identifier(self.name)
+
+    def make_declaration_statement(self, program: Program) -> ast.Statement:
+        """Make an ast statement that declares the OQpy variable."""
+        return ast.QubitDeclaration(
+            ast.Identifier(self.name),
+            size=ast.IntegerLiteral(self.size)
+        )
+
+    def __getitem__(self, idx):
+        # assume idx is int variable (for now)
+        return ast.IndexExpression(
+            ast.Identifier(self.name), [ast.Identifier(idx.name)]
+        )
 
 
 @contextlib.contextmanager
