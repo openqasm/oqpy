@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "pi",
+    "ArrayVar",
     "BoolVar",
     "IntVar",
     "UintVar",
@@ -311,6 +312,44 @@ class StretchVar(_ClassicalVar):
     """An oqpy variable with stretch type."""
 
     type_cls = ast.StretchType
+
+
+class ArrayVar(_ClassicalVar):
+    """An oqpy array variable."""
+
+    type_cls = ast.ArrayType
+    dimensions: list[int]
+    base_type: type[_SizedVar | DurationVar | BoolVar]
+
+    def __init__(
+        self,
+        *args: Any,
+        dimensions: list[int],
+        base_type: type[_SizedVar | DurationVar | BoolVar] = IntVar,
+        **kwargs: Any,
+    ) -> None:
+        self.dimensions = dimensions
+        self.base_type = base_type
+
+        # Creating a dummy variable supports IntVar[64] etc.
+        base_type_instance = base_type()
+        if isinstance(base_type_instance, _SizedVar):
+            array_base_type = base_type_instance.type_cls(
+                size=ast.IntegerLiteral(base_type_instance.size)
+            )
+        else:
+            array_base_type = base_type_instance.type_cls()
+
+        # Automatically handle Duration array.
+        if base_type is DurationVar and kwargs["init_expression"]:
+            kwargs["init_expression"] = (make_duration(i) for i in kwargs["init_expression"])
+
+        super().__init__(
+            *args,
+            **kwargs,
+            dimensions=[ast.IntegerLiteral(dimension) for dimension in dimensions],
+            base_type=array_base_type,
+        )
 
 
 class OQFunctionCall(OQPyExpression):
