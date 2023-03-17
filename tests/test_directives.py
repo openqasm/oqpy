@@ -138,6 +138,38 @@ def test_complex_numbers_declaration():
 
     assert prog.to_qasm() == expected
 
+def test_array_declaration():
+    b = ArrayVar(name="b", init_expression=[True, False], dimensions=[2], base_type=BoolVar)
+    i = ArrayVar(name="i", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar)
+    i55 = ArrayVar(name="i55", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar[55])
+    u = ArrayVar(name="u", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=UintVar)
+    x = ArrayVar(name="x", init_expression=[0e-9, 1e-9, 2e-9], dimensions=[3], base_type=DurationVar)
+    y = ArrayVar(name="y", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=FloatVar)
+    ang = ArrayVar(name="ang", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=AngleVar)
+    comp = ArrayVar(name="comp", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar)
+
+    vars = [b, i, i55, u, x, y, ang, comp]
+
+    prog = oqpy.Program(version=None)
+    prog.declare(vars)
+    prog.set(i[1], 0)
+
+    expected = textwrap.dedent(
+        """
+        array[bool, 2] b = {true, false};
+        array[int[32], 5] i = {0, 1, 2, 3, 4};
+        array[int[55], 5] i55 = {0, 1, 2, 3, 4};
+        array[uint[32], 5] u = {0, 1, 2, 3, 4};
+        array[duration, 3] x = {0.0ns, 1.0ns, 2.0ns};
+        array[float[64], 4] y = {0.0, 1.0, 2.0, 3.0};
+        array[angle[32], 4] ang = {0.0, 1.0, 2.0, 3.0};
+        array[complex[float], 2] comp = {0, 1.0 + 1.0im};
+        i[1] = 0;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
 
 def test_non_trivial_variable_declaration():
     prog = Program()

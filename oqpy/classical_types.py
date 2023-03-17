@@ -319,13 +319,13 @@ class ArrayVar(_ClassicalVar):
 
     type_cls = ast.ArrayType
     dimensions: list[int]
-    base_type: type[_SizedVar | DurationVar | BoolVar]
+    base_type: type[_SizedVar | DurationVar | BoolVar | ComplexVar]
 
     def __init__(
         self,
         *args: Any,
         dimensions: list[int],
-        base_type: type[_SizedVar | DurationVar | BoolVar] = IntVar,
+        base_type: type[_SizedVar | DurationVar | BoolVar | ComplexVar] = IntVar,
         **kwargs: Any,
     ) -> None:
         self.dimensions = dimensions
@@ -337,6 +337,8 @@ class ArrayVar(_ClassicalVar):
             array_base_type = base_type_instance.type_cls(
                 size=ast.IntegerLiteral(base_type_instance.size)
             )
+        elif isinstance(base_type_instance, ComplexVar):
+            array_base_type = base_type_instance.type_cls(base_type=ast.FloatType())
         else:
             array_base_type = base_type_instance.type_cls()
 
@@ -355,7 +357,7 @@ class ArrayVar(_ClassicalVar):
         return OQIndexExpression(collection=self, index=index)
 
 
-class OQIndexExpression(OQPyExpression):
+class OQIndexExpression(_ClassicalVar, OQPyExpression):
     """An oqpy expression corresponding to an index expression."""
 
     def __init__(self, collection: AstConvertible, index: AstConvertible):
