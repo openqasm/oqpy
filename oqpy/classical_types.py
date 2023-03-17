@@ -351,6 +351,25 @@ class ArrayVar(_ClassicalVar):
             base_type=array_base_type,
         )
 
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        return OQIndexExpression(collection=self, index=index)
+
+
+class OQIndexExpression(OQPyExpression):
+    """An oqpy expression corresponding to an index expression."""
+
+    def __init__(self, collection: AstConvertible, index: AstConvertible):
+        self.collection = collection
+        self.index = index
+
+        if isinstance(collection, ArrayVar):
+            self.type = collection.base_type().type_cls()
+
+    def to_ast(self, program: Program) -> ast.IndexExpression:
+        return ast.IndexExpression(
+            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        )
+
 
 class OQFunctionCall(OQPyExpression):
     """An oqpy expression corresponding to a function call."""
