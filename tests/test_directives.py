@@ -170,6 +170,41 @@ def test_array_declaration():
 
     assert prog.to_qasm() == expected
 
+def test_non_trivial_array_access():
+    prog = oqpy.Program()
+    port = oqpy.PortVar(name="my_port")
+    frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
+
+    zero_to_one = oqpy.ArrayVar(
+        name='duration_array',
+        init_expression=[0.0, 0.25, 0.5, 0.75, 1],
+        dimensions=[5],
+        base_type=oqpy.DurationVar
+    )
+    one_second = oqpy.DurationVar(init_expression=1, name="one_second")
+
+    one = oqpy.IntVar(name="one", init_expression=1)
+
+    with oqpy.ForIn(prog, range(4), "idx") as idx:
+        prog.delay(zero_to_one[idx + one] + one_second, frame)
+        prog.set(zero_to_one[idx], 5)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        array[duration, 5] duration_array = {0.0ns, 250000000.0ns, 500000000.0ns, 750000000.0ns, 1000000000.0ns};
+        int[32] one = 1;
+        duration one_second = 1000000000.0ns;
+        frame my_frame = newframe(my_port, 1000000000.0, 0);
+        for int idx in [0:3] {
+            delay[duration_array[idx + one] + one_second] my_frame;
+            duration_array[idx] = 5;
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
 
 def test_non_trivial_variable_declaration():
     prog = Program()
@@ -420,6 +455,26 @@ def test_for_in_var_types():
         }
         """
     ).strip()
+
+    # Test indexing over an ArrayVar
+    program = oqpy.Program()
+    pyphases = [0] + [oqpy.pi / i for i in range(10, 1, -2)]
+    phases = ArrayVar(name="phases", dimensions=[len(pyphases)], init_expression=pyphases, base_type=AngleVar)
+
+    with oqpy.ForIn(program, range(len(pyphases)), "idx") as idx:
+        program.shift_phase(phases[idx], frame)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port my_port;
+        array[angle[32], 6] phases = {0, pi / 10, pi / 8, pi / 6, pi / 4, pi / 2};
+        frame my_frame = newframe(my_port, 3000000000.0, 0);
+        for int idx in [0:5] {
+            shift_phase(phases[idx], my_frame);
+        }
+        """
+        ).strip()
 
     assert program.to_qasm() == expected
 
