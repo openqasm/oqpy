@@ -18,12 +18,21 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overload
 
 from openpulse import ast
 
 from oqpy.base import OQPyExpression, to_ast
-from oqpy.classical_types import AstConvertible, IntVar, _ClassicalVar, convert_range
+from oqpy.classical_types import (
+    AstConvertible,
+    DurationVar,
+    IntVar,
+    _ClassicalVar,
+    convert_range,
+)
+from oqpy.timing import make_duration
+
+ClassicalVarT = TypeVar("ClassicalVarT", bound=_ClassicalVar)
 
 if TYPE_CHECKING:
     from oqpy.program import Program
@@ -68,12 +77,35 @@ def Else(program: Program) -> Iterator[None]:
     program._state.add_else_clause(state.body)
 
 
+# Overloads needed due mypy bug, see
+# github.com/python/mypy/issues/8739
+# https://github.com/python/mypy/issues/3737
+@overload
+def ForIn(
+    program: Program,
+    iterator: Iterable[AstConvertible] | range | AstConvertible,
+    identifier_name: Optional[str],
+) -> contextlib._GeneratorContextManager[IntVar]:
+    ...
+
+
+@overload
+def ForIn(
+    program: Program,
+    iterator: Iterable[AstConvertible] | range | AstConvertible,
+    identifier_name: Optional[str],
+    identifier_type: type[ClassicalVarT],
+) -> contextlib._GeneratorContextManager[ClassicalVarT]:
+    ...
+
+
 @contextlib.contextmanager
 def ForIn(
     program: Program,
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str] = None,
-) -> Iterator[IntVar]:
+    identifier_type: type[ClassicalVarT] | type[IntVar] = IntVar,
+) -> Iterator[ClassicalVarT | IntVar]:
     """Context manager for looping a particular portion of a program.
 
     .. code-block:: python
@@ -84,20 +116,28 @@ def ForIn(
 
     """
     program._push()
-    var = IntVar(name=identifier_name, needs_declaration=False)
+    var = identifier_type(name=identifier_name, needs_declaration=False)
     yield var
     state = program._pop()
 
     if isinstance(iterator, range):
-        iterator = convert_range(program, iterator)
+        # A range can only be iterated over integers.
+        assert identifier_type is IntVar, "A range can only be looped over an integer."
+        set_declaration = convert_range(program, iterator)
     elif isinstance(iterator, Iterable):
-        iterator = ast.DiscreteSet([to_ast(program, i) for i in iterator])
+        if identifier_type is DurationVar:
+            iterator = (make_duration(i) for i in iterator)
+
+        set_declaration = ast.DiscreteSet([to_ast(program, i) for i in iterator])
     elif isinstance(iterator, _ClassicalVar):
-        iterator = to_ast(program, iterator)
+        set_declaration = to_ast(program, iterator)
+        assert isinstance(set_declaration, ast.Identifier), type(set_declaration)
     else:
         raise TypeError(f"'{type(iterator)}' object is not iterable")
 
-    stmt = ast.ForInLoop(ast.IntType(size=None), var.to_ast(program), iterator, state.body)
+    stmt = ast.ForInLoop(
+        identifier_type.type_cls(), var.to_ast(program), set_declaration, state.body
+    )
     program._add_statement(stmt)
 
 
