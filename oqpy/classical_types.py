@@ -314,18 +314,32 @@ class StretchVar(_ClassicalVar):
     type_cls = ast.StretchType
 
 
+AllowedArrayTypes = _SizedVar | DurationVar | BoolVar | ComplexVar
+
+
 class ArrayVar(_ClassicalVar):
     """An oqpy array variable."""
 
     type_cls = ast.ArrayType
     dimensions: list[int]
-    base_type: type[_SizedVar | DurationVar | BoolVar | ComplexVar]
+    base_type: type[AllowedArrayTypes]
+
+    def __class_getitem__(
+        cls, item: tuple[type[AllowedArrayTypes], int] | type[AllowedArrayTypes]
+    ) -> Callable[..., ArrayVar]:
+        # Allows usage like ArrayVar[oqpy.float64, 32](...) or ArrayVar[oqpy.float64]
+        if isinstance(item, tuple):
+            base_type = item[0]
+            dimensions = list(item[1:])
+            return functools.partial(cls, dimensions=dimensions, base_type=base_type)
+        else:
+            return functools.partial(cls, base_type=item)
 
     def __init__(
         self,
         *args: Any,
         dimensions: list[int],
-        base_type: type[_SizedVar | DurationVar | BoolVar | ComplexVar] = IntVar,
+        base_type: type[AllowedArrayTypes] = IntVar,
         **kwargs: Any,
     ) -> None:
         self.dimensions = dimensions
