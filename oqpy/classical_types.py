@@ -383,6 +383,7 @@ class OQIndexExpression(OQPyExpression):
             self.type = collection.base_type().type_cls()
 
     def to_ast(self, program: Program) -> ast.IndexExpression:
+        """Converts this oqpy index expression into an ast node."""
         return ast.IndexExpression(
             collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
         )
