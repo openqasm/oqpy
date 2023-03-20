@@ -314,7 +314,7 @@ class StretchVar(_ClassicalVar):
     type_cls = ast.StretchType
 
 
-AllowedArrayTypes = _SizedVar | DurationVar | BoolVar | ComplexVar
+AllowedArrayTypes = Union[_SizedVar, DurationVar, BoolVar, ComplexVar]
 
 
 class ArrayVar(_ClassicalVar):
