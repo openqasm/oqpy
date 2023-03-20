@@ -49,6 +49,7 @@ __all__ = [
     "ComplexVar",
     "DurationVar",
     "OQFunctionCall",
+    "OQIndexExpression",
     "StretchVar",
     "_ClassicalVar",
     "duration",
@@ -327,7 +328,7 @@ class ArrayVar(_ClassicalVar):
     def __class_getitem__(
         cls, item: tuple[type[AllowedArrayTypes], int] | type[AllowedArrayTypes]
     ) -> Callable[..., ArrayVar]:
-        # Allows usage like ArrayVar[oqpy.float64, 32](...) or ArrayVar[oqpy.float64]
+        # Allows usage like ArrayVar[FloatVar, 32](...) or ArrayVar[FloatVar]
         if isinstance(item, tuple):
             base_type = item[0]
             dimensions = list(item[1:])
