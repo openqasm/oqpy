@@ -155,10 +155,15 @@ def test_array_declaration():
 
     prog = oqpy.Program(version=None)
     prog.declare(vars)
-    prog.set(i[1], 0)
+    prog.set(i[1], 0) # Set with literal values
+    idx = IntVar(name="idx", init_expression=5)
+    val = IntVar(name="val", init_expression=10)
+    prog.set(i[idx], val)
 
     expected = textwrap.dedent(
         """
+        int[32] idx = 5;
+        int[32] val = 10;
         array[bool, 2] b = {true, false};
         array[int[32], 5] i = {0, 1, 2, 3, 4};
         array[int[55], 5] i55 = {0, 1, 2, 3, 4};
@@ -171,6 +176,7 @@ def test_array_declaration():
         array[float[64], 5] no_init;
         array[float[32], 3, 2] multiDim = {{1.1, 1.2}, {2.1, 2.2}, {3.1, 3.2}};
         i[1] = 0;
+        i[idx] = val;
         """
     ).strip()
 
