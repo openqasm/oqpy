@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "pi",
+    "ArrayVar",
     "BoolVar",
     "IntVar",
     "UintVar",
@@ -48,6 +49,7 @@ __all__ = [
     "ComplexVar",
     "DurationVar",
     "OQFunctionCall",
+    "OQIndexExpression",
     "StretchVar",
     "_ClassicalVar",
     "duration",
@@ -272,18 +274,20 @@ class ComplexVar(_ClassicalVar):
     """An oqpy variable with bit type."""
 
     type_cls = ast.ComplexType
+    base_type: ast.FloatType = float64
 
-    def __class_getitem__(cls, item: Type[ast.FloatType]) -> Callable[..., ComplexVar]:
+    def __class_getitem__(cls, item: ast.FloatType) -> Callable[..., ComplexVar]:
         return functools.partial(cls, base_type=item)
 
     def __init__(
         self,
         init_expression: AstConvertible | None = None,
         *args: Any,
-        base_type: Type[ast.FloatType] = float64,
+        base_type: ast.FloatType = float64,
         **kwargs: Any,
     ) -> None:
         assert isinstance(base_type, ast.FloatType)
+        self.base_type = base_type
 
         if not isinstance(init_expression, (complex, type(None), OQPyExpression)):
             init_expression = complex(init_expression)  # type: ignore[arg-type]
@@ -311,6 +315,80 @@ class StretchVar(_ClassicalVar):
     """An oqpy variable with stretch type."""
 
     type_cls = ast.StretchType
+
+
+AllowedArrayTypes = Union[_SizedVar, DurationVar, BoolVar, ComplexVar]
+
+
+class ArrayVar(_ClassicalVar):
+    """An oqpy array variable."""
+
+    type_cls = ast.ArrayType
+    dimensions: list[int]
+    base_type: type[AllowedArrayTypes]
+
+    def __class_getitem__(
+        cls, item: tuple[type[AllowedArrayTypes], int] | type[AllowedArrayTypes]
+    ) -> Callable[..., ArrayVar]:
+        # Allows usage like ArrayVar[FloatVar, 32](...) or ArrayVar[FloatVar]
+        if isinstance(item, tuple):
+            base_type = item[0]
+            dimensions = list(item[1:])
+            return functools.partial(cls, dimensions=dimensions, base_type=base_type)
+        else:
+            return functools.partial(cls, base_type=item)
+
+    def __init__(
+        self,
+        *args: Any,
+        dimensions: list[int],
+        base_type: type[AllowedArrayTypes] = IntVar,
+        **kwargs: Any,
+    ) -> None:
+        self.dimensions = dimensions
+        self.base_type = base_type
+
+        # Creating a dummy variable supports IntVar[64] etc.
+        base_type_instance = base_type()
+        if isinstance(base_type_instance, _SizedVar):
+            array_base_type = base_type_instance.type_cls(
+                size=ast.IntegerLiteral(base_type_instance.size)
+            )
+        elif isinstance(base_type_instance, ComplexVar):
+            array_base_type = base_type_instance.type_cls(base_type=base_type_instance.base_type)
+        else:
+            array_base_type = base_type_instance.type_cls()
+
+        # Automatically handle Duration array.
+        if base_type is DurationVar and kwargs["init_expression"]:
+            kwargs["init_expression"] = (make_duration(i) for i in kwargs["init_expression"])
+
+        super().__init__(
+            *args,
+            **kwargs,
+            dimensions=[ast.IntegerLiteral(dimension) for dimension in dimensions],
+            base_type=array_base_type,
+        )
+
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        return OQIndexExpression(collection=self, index=index)
+
+
+class OQIndexExpression(OQPyExpression):
+    """An oqpy expression corresponding to an index expression."""
+
+    def __init__(self, collection: AstConvertible, index: AstConvertible):
+        self.collection = collection
+        self.index = index
+
+        if isinstance(collection, ArrayVar):
+            self.type = collection.base_type().type_cls()
+
+    def to_ast(self, program: Program) -> ast.IndexExpression:
+        """Converts this oqpy index expression into an ast node."""
+        return ast.IndexExpression(
+            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        )
 
 
 class OQFunctionCall(OQPyExpression):
