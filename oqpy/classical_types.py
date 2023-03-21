@@ -274,18 +274,20 @@ class ComplexVar(_ClassicalVar):
     """An oqpy variable with bit type."""
 
     type_cls = ast.ComplexType
+    base_type: ast.FloatType = float64
 
-    def __class_getitem__(cls, item: Type[ast.FloatType]) -> Callable[..., ComplexVar]:
+    def __class_getitem__(cls, item: ast.FloatType) -> Callable[..., ComplexVar]:
         return functools.partial(cls, base_type=item)
 
     def __init__(
         self,
         init_expression: AstConvertible | None = None,
         *args: Any,
-        base_type: Type[ast.FloatType] = float64,
+        base_type: ast.FloatType = float64,
         **kwargs: Any,
     ) -> None:
         assert isinstance(base_type, ast.FloatType)
+        self.base_type = base_type
 
         if not isinstance(init_expression, (complex, type(None), OQPyExpression)):
             init_expression = complex(init_expression)  # type: ignore[arg-type]
@@ -353,7 +355,7 @@ class ArrayVar(_ClassicalVar):
                 size=ast.IntegerLiteral(base_type_instance.size)
             )
         elif isinstance(base_type_instance, ComplexVar):
-            array_base_type = base_type_instance.type_cls(base_type=ast.FloatType())
+            array_base_type = base_type_instance.type_cls(base_type=base_type_instance.base_type)
         else:
             array_base_type = base_type_instance.type_cls()
 

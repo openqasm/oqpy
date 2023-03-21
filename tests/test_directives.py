@@ -147,11 +147,12 @@ def test_array_declaration():
     y = ArrayVar(name="y", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=FloatVar)
     ang = ArrayVar(name="ang", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=AngleVar)
     comp = ArrayVar(name="comp", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar)
+    comp55 = ArrayVar(name="comp55", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar[float_(55)])
     ang_partial = ArrayVar[AngleVar, 2](name="ang_part", init_expression=[oqpy.pi, oqpy.pi/2])
     simple = ArrayVar[FloatVar](name="no_init", dimensions=[5])
     multidim = ArrayVar[FloatVar[32], 3, 2](name="multiDim", init_expression=[[1.1, 1.2], [2.1, 2.2], [3.1, 3.2]])
 
-    vars = [b, i, i55, u, x, y, ang, comp, ang_partial, simple, multidim]
+    vars = [b, i, i55, u, x, y, ang, comp, comp55, ang_partial, simple, multidim]
 
     prog = oqpy.Program(version=None)
     prog.declare(vars)
@@ -171,7 +172,8 @@ def test_array_declaration():
         array[duration, 3] x = {0.0ns, 1.0ns, 2.0ns};
         array[float[64], 4] y = {0.0, 1.0, 2.0, 3.0};
         array[angle[32], 4] ang = {0.0, 1.0, 2.0, 3.0};
-        array[complex[float], 2] comp = {0, 1.0 + 1.0im};
+        array[complex[float[64]], 2] comp = {0, 1.0 + 1.0im};
+        array[complex[float[55]], 2] comp55 = {0, 1.0 + 1.0im};
         array[angle[32], 2] ang_part = {pi, pi / 2};
         array[float[64], 5] no_init;
         array[float[32], 3, 2] multiDim = {{1.1, 1.2}, {2.1, 2.2}, {3.1, 3.2}};
