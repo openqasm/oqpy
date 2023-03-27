@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Iterator, Optional, Union, Iterable
 from openpulse import ast
 from openpulse.printer import dumps
 
+import oqpy.classical_types
+from lldc_prototypes.berdy.py_to_oqpy import wrap_value
 from oqpy.base import AstConvertible, Var, to_ast
 from oqpy.classical_types import _ClassicalVar
 
@@ -80,10 +82,11 @@ class QubitArray(Var):
             size=ast.IntegerLiteral(self.size)
         )
 
-    def __getitem__(self, idx):
-        # assume idx is int variable (for now)
+    def get_item(self, program, idx):
+        # todo: slices and stuff
+        index = to_ast(program, idx)
         return ast.IndexExpression(
-            ast.Identifier(self.name), [ast.Identifier(idx.name)]
+            ast.Identifier(self.name), [index]
         )
 
 

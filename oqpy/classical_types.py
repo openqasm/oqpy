@@ -135,7 +135,7 @@ def convert_range(program: Program, item: Union[slice, range]) -> ast.RangeDefin
     return ast.RangeDefinition(
         to_ast(program, item.start),
         to_ast(program, item.stop - 1),
-        to_ast(program, item.step) if item.step != 1 else None,
+        to_ast(program, item.step) if item.step not in (None, 1) else None,
     )
 
 
