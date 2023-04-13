@@ -107,6 +107,36 @@ class OQPyExpression:
     def __rpow__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("**", other, self)
 
+    def __lshift__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("<<", self, other)
+
+    def __rlshift__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("<<", other, self)
+
+    def __rshift__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary(">>", self, other)
+
+    def __rrshift__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary(">>", other, self)
+
+    def __and__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("&", self, other)
+
+    def __rand__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("&", other, self)
+
+    def __or__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("|", self, other)
+
+    def __ror__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("|", other, self)
+
+    def __xor__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("^", self, other)
+
+    def __rxor__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        return self._to_binary("^", other, self)
+
     def __eq__(self, other: AstConvertible) -> OQPyBinaryExpression:  # type: ignore[override]
         return self._to_binary("==", self, other)
 
@@ -124,6 +154,9 @@ class OQPyExpression:
 
     def __le__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("<=", self, other)
+
+    def __invert__(self) -> OQPyUnaryExpression:
+        return self._to_unary("~", self)
 
     def __bool__(self) -> bool:
         raise RuntimeError(
