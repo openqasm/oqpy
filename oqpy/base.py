@@ -165,6 +165,16 @@ class OQPyExpression:
         )
 
 
+def logical_and(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:
+    """Logical AND."""
+    return OQPyBinaryExpression(ast.BinaryOperator["&&"], first, second)
+
+
+def logical_or(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:
+    """Logical OR."""
+    return OQPyBinaryExpression(ast.BinaryOperator["||"], first, second)
+
+
 def expr_matches(a: Any, b: Any) -> bool:
     """Check equality of the given objects.
 
