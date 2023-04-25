@@ -24,7 +24,7 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import expr_matches
+from oqpy.base import expr_matches, logical_and, logical_or
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -269,22 +269,68 @@ def test_binary_expressions():
     prog = Program()
     i = IntVar(5, "i")
     j = IntVar(2, "j")
+    k = IntVar(0, "k")
+    b1 = BoolVar(False, "b1")
+    b2 = BoolVar(True, "b2")
+    b3 = BoolVar(False, "b3")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 - i) % 2)
     prog.set(j, 1 + oqpy.pi)
     prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
     prog.set(j, -oqpy.pi * oqpy.pi - i**j)
+    prog.set(k, i & 51966)
+    prog.set(k, 51966 & i)
+    prog.set(k, i & j)
+    prog.set(k, i | 51966)
+    prog.set(k, 51966 | i)
+    prog.set(k, i | j)
+    prog.set(k, i ^ 51966)
+    prog.set(k, 51966 & i)
+    prog.set(k, i ^ j)
+    prog.set(k, i >> 1)
+    prog.set(k, 1 >> i)
+    prog.set(k, i >> j)
+    prog.set(k, i << 1)
+    prog.set(k, 1 << j)
+    prog.set(k, i << j)
+    prog.set(k, ~k)
+    prog.set(b1, logical_or(b2, b3))
+    prog.set(b1, logical_and(b2, True))
+    prog.set(b1, logical_or(False, b3))
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         int[32] i = 5;
         int[32] j = 2;
+        int[32] k = 0;
+        bool b1 = false;
+        bool b2 = true;
+        bool b3 = false;
         i = 2 * (i + j);
         j = 2 % (2 - i) % 2;
         j = 1 + pi;
         j = 1 / pi ** 2 / 2 + 2 ** pi;
         j = -pi * pi - i ** j;
+        k = i & 51966;
+        k = 51966 & i;
+        k = i & j;
+        k = i | 51966;
+        k = 51966 | i;
+        k = i | j;
+        k = i ^ 51966;
+        k = 51966 & i;
+        k = i ^ j;
+        k = i >> 1;
+        k = 1 >> i;
+        k = i >> j;
+        k = i << 1;
+        k = 1 << j;
+        k = i << j;
+        k = ~k;
+        b1 = b2 || b3;
+        b1 = b2 && true;
+        b1 = false || b3;
         """
     ).strip()
 
