@@ -615,7 +615,7 @@ class MergeCalStatementsPass(QASMVisitor[None]):
 
 
 class ProgramBuilder(QASMVisitor[Program]):
-    """AST Transformer class that modifies the tree created from parsing opeqasm input text.
+    """AST Transformer class that modifies the tree created from parsing openqasm input text.
 
     It separates:
         - extern declarations and stores them in Program().externs.
