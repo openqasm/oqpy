@@ -459,7 +459,11 @@ class Program:
             )
         )
 
-    def set(self, var: classical_types._ClassicalVar, value: AstConvertible) -> Program:
+    def set(
+        self,
+        var: classical_types._ClassicalVar | classical_types.OQIndexExpression,
+        value: AstConvertible,
+    ) -> Program:
         """Set a variable value."""
         self._do_assignment(var, "=", value)
         return self
