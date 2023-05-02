@@ -22,3 +22,5 @@ from oqpy.pulse import *
 from oqpy.quantum_types import *
 from oqpy.subroutines import *
 from oqpy.timing import *
+
+from oqpy.box import Box
