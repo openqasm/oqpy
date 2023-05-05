@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Callable, get_type_hints
+from typing import Any, Callable, Sequence, TypeVar, get_type_hints
 
 from mypy_extensions import VarArg
 from openpulse import ast
@@ -30,7 +30,7 @@ from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import make_duration
 
-__all__ = ["subroutine", "declare_extern", "declare_waveform_generator"]
+__all__ = ["subroutine", "annotate_subroutine", "declare_extern", "declare_waveform_generator"]
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
@@ -68,7 +68,11 @@ def subroutine(
     """
 
     @functools.wraps(func)
-    def wrapper(program: oqpy.Program, *args: AstConvertible) -> OQFunctionCall:
+    def wrapper(
+        program: oqpy.Program,
+        *args: AstConvertible,
+        annotations: Sequence[str | tuple[str, str]] = (),
+    ) -> OQFunctionCall:
         name = func.__name__
         identifier = ast.Identifier(func.__name__)
         argnames = list(inspect.signature(func).parameters.keys())
@@ -117,9 +121,41 @@ def subroutine(
             return_type=return_type,
             body=body,
         )
+        stmt.annotations = []
+        for ann in annotations:
+            if isinstance(ann, tuple):
+                keyword, command = ann
+                stmt.annotations.append(ast.Annotation(keyword, command))
+            else:
+                stmt.annotations.append(ast.Annotation(ann))
         return OQFunctionCall(identifier, args, return_type, subroutine_decl=stmt)
 
     return wrapper
+
+
+FnType = TypeVar("FnType", bound=Callable[..., Any])
+
+
+def annotate_subroutine(keyword: str, command: str | None = None) -> Callable[[FnType], FnType]:
+    """Add annotation to a subroutine."""
+
+    def annotate_subroutine_decorator(func: FnType) -> FnType:
+        @functools.wraps(func)
+        def wrapper(
+            program: oqpy.Program,
+            *args: AstConvertible,
+            annotations: Sequence[str | tuple[str, str]] = (),
+        ) -> OQFunctionCall:
+            new_ann: str | tuple[str, str]
+            if command is not None:
+                new_ann = keyword, command
+            else:
+                new_ann = keyword
+            return func(program, *args, annotations=list(annotations) + [new_ann])
+
+        return wrapper  # type: ignore[return-value]
+
+    return annotate_subroutine_decorator
 
 
 def declare_extern(
