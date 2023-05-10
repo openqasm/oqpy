@@ -25,7 +25,7 @@ from mypy_extensions import VarArg
 from openpulse import ast
 
 import oqpy.program
-from oqpy.base import AstConvertible, OQPyExpression, to_ast, make_annotations
+from oqpy.base import AstConvertible, OQPyExpression, make_annotations, to_ast
 from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import make_duration
@@ -156,7 +156,7 @@ def declare_extern(
     name: str,
     args: list[tuple[str, ast.ClassicalType]],
     return_type: ast.ClassicalType,
-    annotations: Sequence[str | tuple[str]] = (),
+    annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Declare an extern and return a callable which adds the extern.
 

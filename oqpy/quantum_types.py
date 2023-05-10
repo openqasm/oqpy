@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Union, Sequence
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import AstConvertible, Var, to_ast, make_annotations
+from oqpy.base import AstConvertible, Var, make_annotations, to_ast
 from oqpy.classical_types import _ClassicalVar
 
 if TYPE_CHECKING:

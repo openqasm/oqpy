@@ -37,10 +37,10 @@ from oqpy.base import (
     AstConvertible,
     OQPyExpression,
     Var,
+    make_annotations,
     map_to_ast,
     optional_ast,
     to_ast,
-    make_annotations,
 )
 from oqpy.timing import make_duration
 
