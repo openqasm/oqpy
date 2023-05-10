@@ -40,6 +40,7 @@ from oqpy.base import (
     map_to_ast,
     optional_ast,
     to_ast,
+    make_annotations,
 )
 from oqpy.timing import make_duration
 
@@ -186,13 +187,7 @@ class _ClassicalVar(Var, OQPyExpression):
         super().__init__(name, needs_declaration=needs_declaration)
         self.type = self.type_cls(**type_kwargs)
         self.init_expression = init_expression
-        self.annotations = []
-        for annotation in annotations:
-            if isinstance(annotation, tuple):
-                keyword, command = annotation
-                self.annotations.append(ast.Annotation(keyword, command))
-            else:
-                self.annotations.append(ast.Annotation(annotation))
+        self.annotations = annotations
 
     def to_ast(self, program: Program) -> ast.Identifier:
         """Converts the OQpy variable into an ast node."""
@@ -203,7 +198,7 @@ class _ClassicalVar(Var, OQPyExpression):
         """Make an ast statement that declares the OQpy variable."""
         init_expression_ast = optional_ast(program, self.init_expression)
         stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
-        stmt.annotations = self.annotations
+        stmt.annotations = make_annotations(self.annotations)
         return stmt
 
 

@@ -1363,19 +1363,22 @@ def test_annotate():
     gaussian = declare_waveform_generator(
         "gaussian",
         [("length", duration), ("sigma", duration), ("amplitude", float64), ("phase", float64)],
+        annotations=["annotating_extern_decl"],
     )
 
-    zcu216_dac231_0 = PortVar(
-        "zcu216_dac231_0", annotations=["makeport", ("some_keyword", "some_command")]
-    )
+    some_port = PortVar("some_port", annotations=["makeport", ("some_keyword", "some_command")])
     q0_transmon_xy_frame = FrameVar(
-        zcu216_dac231_0, 3911851971.26885, name="q0_transmon_xy_frame", annotations=["makeframe"]
+        some_port, 3911851971.26885, name="q0_transmon_xy_frame", annotations=["makeframe"]
     )
     rabi_pulse_wf = WaveformVar(
         gaussian(5.2e-8, 1.3e-8, 1.0, 0.0), "rabi_pulse_wf", annotations=["makepulse"]
     )
 
     i = IntVar(0, name="i", annotations=["some-int"])
+    j = IntVar(0, name="j", annotations=["other-int"])
+
+    q1 = Qubit("q1", annotations=["some_qubit"])
+    q2 = Qubit("q2", annotations=["other_qubit"])
 
     @annotate_subroutine("inline")
     @annotate_subroutine("optimize", "-O3")
@@ -1388,9 +1391,15 @@ def test_annotate():
 
     prog.annotate("make-for-loop", "with additional info")
     with ForIn(prog, range(1, 1001), "shot") as shot:
+        prog.annotate("declaring_j")
+        prog.declare(j)
+        prog.annotate("declaring", "q2")
+        prog.declare(q2)
         prog.annotate("make-set-scale")
         prog.set_scale(q0_transmon_xy_frame, -0.2)
         prog.play(q0_transmon_xy_frame, rabi_pulse_wf)
+        prog.annotate("playing", "gate")
+        prog.gate(q1, "U1")
 
     prog.annotate("second-invocation")
     prog.set(i, f(prog, i))
@@ -1400,6 +1409,10 @@ def test_annotate():
         """
         OPENQASM 3.0;
         defcalgrammar "openpulse";
+        cal {
+        @annotating_extern_decl
+            extern gaussian(duration, duration, float[64], float[64]) -> waveform;
+        }
         @inline
         @optimize -O3
         def f(int[32] x) -> int[32] {
@@ -1408,27 +1421,37 @@ def test_annotate():
         cal {
         @makeport
         @some_keyword some_command
-            port zcu216_dac231_0;
+            port some_port;
         @makeframe
-            frame q0_transmon_xy_frame = newframe(zcu216_dac231_0, 3911851971.26885, 0);
+            frame q0_transmon_xy_frame = newframe(some_port, 3911851971.26885, 0);
         @makepulse
             waveform rabi_pulse_wf = gaussian(52.0ns, 13.0ns, 1.0, 0.0);
         }
         @some-int
         int[32] i = 0;
+        @some_qubit
+        qubit q1;
         @first-invocation
         f(i);
         @make-for-loop with additional info
         for int shot in [1:1000] {
+        @declaring_j
+        @other-int
+            int[32] j = 0;
+        @declaring q2
+        @other_qubit
+            qubit q2;
         @make-set-scale
             set_scale(q0_transmon_xy_frame, -0.2);
             play(q0_transmon_xy_frame, rabi_pulse_wf);
+        @playing gate
+            U1 q1;
         }
         @second-invocation
         i = f(i);
         """
     ).strip()
-    assert prog.to_qasm(include_externs=False, encal_declarations=True) == expected
+    assert prog.to_qasm(encal_declarations=True) == expected
 
 
 def test_var_and_expr_matches():

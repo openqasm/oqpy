@@ -25,7 +25,7 @@ from mypy_extensions import VarArg
 from openpulse import ast
 
 import oqpy.program
-from oqpy.base import AstConvertible, OQPyExpression, to_ast
+from oqpy.base import AstConvertible, OQPyExpression, to_ast, make_annotations
 from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import make_duration
@@ -121,13 +121,7 @@ def subroutine(
             return_type=return_type,
             body=body,
         )
-        stmt.annotations = []
-        for ann in annotations:
-            if isinstance(ann, tuple):
-                keyword, command = ann
-                stmt.annotations.append(ast.Annotation(keyword, command))
-            else:
-                stmt.annotations.append(ast.Annotation(ann))
+        stmt.annotations = make_annotations(annotations)
         return OQFunctionCall(identifier, args, return_type, subroutine_decl=stmt)
 
     return wrapper
@@ -159,7 +153,10 @@ def annotate_subroutine(keyword: str, command: str | None = None) -> Callable[[F
 
 
 def declare_extern(
-    name: str, args: list[tuple[str, ast.ClassicalType]], return_type: ast.ClassicalType
+    name: str,
+    args: list[tuple[str, ast.ClassicalType]],
+    return_type: ast.ClassicalType,
+    annotations: Sequence[str | tuple[str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Declare an extern and return a callable which adds the extern.
 
@@ -181,6 +178,7 @@ def declare_extern(
         [ast.ExternArgument(type=t) for t in arg_types],
         ast.ExternArgument(type=return_type),
     )
+    extern_decl.annotations = make_annotations(annotations)
 
     def call_extern(*call_args: AstConvertible, **call_kwargs: AstConvertible) -> OQFunctionCall:
         new_args = list(call_args) + [None] * len(call_kwargs)
@@ -216,8 +214,10 @@ def declare_extern(
 
 
 def declare_waveform_generator(
-    name: str, argtypes: list[tuple[str, ast.ClassicalType]]
+    name: str,
+    argtypes: list[tuple[str, ast.ClassicalType]],
+    annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Create a function which generates waveforms using a specified name and argument signature."""
-    func = declare_extern(name, argtypes, ast.WaveformType())
+    func = declare_extern(name, argtypes, ast.WaveformType(), annotations=annotations)
     return func

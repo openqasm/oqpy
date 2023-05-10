@@ -78,7 +78,7 @@ class ProgramState:
         assert isinstance(stmt, ast.Statement)
         self.finalize_if_clause()
         if self.annotations:
-            stmt.annotations.extend(self.annotations)
+            stmt.annotations = self.annotations + list(stmt.annotations)
             self.annotations = []
         self.body.append(stmt)
 
