@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import AstConvertible, Var, to_ast
+from oqpy.base import AstConvertible, Var, make_annotations, to_ast
 from oqpy.classical_types import _ClassicalVar
 
 if TYPE_CHECKING:
@@ -36,9 +36,15 @@ __all__ = ["Qubit", "QubitArray", "defcal", "PhysicalQubits", "Cal"]
 class Qubit(Var):
     """OQpy variable representing a single qubit."""
 
-    def __init__(self, name: str, needs_declaration: bool = True):
+    def __init__(
+        self,
+        name: str,
+        needs_declaration: bool = True,
+        annotations: Sequence[str | tuple[str, str]] = (),
+    ):
         super().__init__(name, needs_declaration=needs_declaration)
         self.name = name
+        self.annotations = annotations
 
     def to_ast(self, prog: Program) -> ast.Expression:
         """Converts the OQpy variable into an ast node."""
@@ -47,7 +53,9 @@ class Qubit(Var):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
-        return ast.QubitDeclaration(ast.Identifier(self.name), size=None)
+        decl = ast.QubitDeclaration(ast.Identifier(self.name), size=None)
+        decl.annotations = make_annotations(self.annotations)
+        return decl
 
 
 class PhysicalQubits:

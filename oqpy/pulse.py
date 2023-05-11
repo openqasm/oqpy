@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 from openpulse import ast
 
@@ -67,6 +67,7 @@ class FrameVar(_ClassicalVar):
         phase: AstConvertible = 0,
         name: str | None = None,
         needs_declaration: bool = True,
+        annotations: Sequence[str | tuple[str, str]] = (),
     ):
         if (port is None) != (frequency is None):
             raise ValueError("Must declare both port and frequency or neither.")
@@ -75,4 +76,6 @@ class FrameVar(_ClassicalVar):
         else:
             assert frequency is not None
             init_expression = OQFunctionCall("newframe", [port, frequency, phase], ast.FrameType)
-        super().__init__(init_expression, name, needs_declaration=needs_declaration)
+        super().__init__(
+            init_expression, name, needs_declaration=needs_declaration, annotations=annotations
+        )

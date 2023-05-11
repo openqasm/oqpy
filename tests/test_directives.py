@@ -138,25 +138,36 @@ def test_complex_numbers_declaration():
 
     assert prog.to_qasm() == expected
 
+
 def test_array_declaration():
     b = ArrayVar(name="b", init_expression=[True, False], dimensions=[2], base_type=BoolVar)
     i = ArrayVar(name="i", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar)
-    i55 = ArrayVar(name="i55", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar[55])
+    i55 = ArrayVar(
+        name="i55", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar[55]
+    )
     u = ArrayVar(name="u", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=UintVar)
-    x = ArrayVar(name="x", init_expression=[0e-9, 1e-9, 2e-9], dimensions=[3], base_type=DurationVar)
+    x = ArrayVar(
+        name="x", init_expression=[0e-9, 1e-9, 2e-9], dimensions=[3], base_type=DurationVar
+    )
     y = ArrayVar(name="y", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=FloatVar)
-    ang = ArrayVar(name="ang", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=AngleVar)
+    ang = ArrayVar(
+        name="ang", init_expression=[0.0, 1.0, 2.0, 3.0], dimensions=[4], base_type=AngleVar
+    )
     comp = ArrayVar(name="comp", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar)
-    comp55 = ArrayVar(name="comp55", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar[float_(55)])
-    ang_partial = ArrayVar[AngleVar, 2](name="ang_part", init_expression=[oqpy.pi, oqpy.pi/2])
+    comp55 = ArrayVar(
+        name="comp55", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar[float_(55)]
+    )
+    ang_partial = ArrayVar[AngleVar, 2](name="ang_part", init_expression=[oqpy.pi, oqpy.pi / 2])
     simple = ArrayVar[FloatVar](name="no_init", dimensions=[5])
-    multidim = ArrayVar[FloatVar[32], 3, 2](name="multiDim", init_expression=[[1.1, 1.2], [2.1, 2.2], [3.1, 3.2]])
+    multidim = ArrayVar[FloatVar[32], 3, 2](
+        name="multiDim", init_expression=[[1.1, 1.2], [2.1, 2.2], [3.1, 3.2]]
+    )
 
     vars = [b, i, i55, u, x, y, ang, comp, comp55, ang_partial, simple, multidim]
 
     prog = oqpy.Program(version=None)
     prog.declare(vars)
-    prog.set(i[1], 0) # Set with literal values
+    prog.set(i[1], 0)  # Set with literal values
     idx = IntVar(name="idx", init_expression=5)
     val = IntVar(name="val", init_expression=10)
     prog.set(i[idx], val)
@@ -184,16 +195,17 @@ def test_array_declaration():
 
     assert prog.to_qasm() == expected
 
+
 def test_non_trivial_array_access():
     prog = oqpy.Program()
     port = oqpy.PortVar(name="my_port")
     frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
 
     zero_to_one = oqpy.ArrayVar(
-        name='duration_array',
+        name="duration_array",
         init_expression=[0.0, 0.25, 0.5, 0.75, 1],
         dimensions=[5],
-        base_type=oqpy.DurationVar
+        base_type=oqpy.DurationVar,
     )
     one_second = oqpy.DurationVar(init_expression=1, name="one_second")
 
@@ -219,6 +231,7 @@ def test_non_trivial_array_access():
     ).strip()
 
     assert prog.to_qasm() == expected
+
 
 def test_non_trivial_variable_declaration():
     prog = Program()
@@ -519,7 +532,9 @@ def test_for_in_var_types():
     # Test indexing over an ArrayVar
     program = oqpy.Program()
     pyphases = [0] + [oqpy.pi / i for i in range(10, 1, -2)]
-    phases = ArrayVar(name="phases", dimensions=[len(pyphases)], init_expression=pyphases, base_type=AngleVar)
+    phases = ArrayVar(
+        name="phases", dimensions=[len(pyphases)], init_expression=pyphases, base_type=AngleVar
+    )
 
     with oqpy.ForIn(program, range(len(pyphases)), "idx") as idx:
         program.shift_phase(phases[idx], frame)
@@ -534,7 +549,7 @@ def test_for_in_var_types():
             shift_phase(phases[idx], my_frame);
         }
         """
-        ).strip()
+    ).strip()
 
     assert program.to_qasm() == expected
 
@@ -606,7 +621,7 @@ def test_subroutine_with_return():
         prog.delay(50e-9, q)
 
     q = PhysicalQubits[0]
-    delay50ns(prog, q)
+    prog.do_expression(delay50ns(prog, q))
 
     with pytest.raises(ValueError):
 
@@ -638,8 +653,12 @@ def test_subroutine_with_return():
         def multiply(int[32] x, int[32] y) -> int[32] {
             return x * y;
         }
+        def delay50ns(qubit q) {
+            delay[50.0ns] q;
+        }
         int[32] y = 2;
         y = multiply(y, 3);
+        delay50ns($0);
         """
     ).strip()
 
@@ -1337,6 +1356,102 @@ def test_discrete_waveform():
     ).strip()
 
     assert prog.to_qasm() == expected
+
+
+def test_annotate():
+    prog = Program()
+    gaussian = declare_waveform_generator(
+        "gaussian",
+        [("length", duration), ("sigma", duration), ("amplitude", float64), ("phase", float64)],
+        annotations=["annotating_extern_decl"],
+    )
+
+    some_port = PortVar("some_port", annotations=["makeport", ("some_keyword", "some_command")])
+    q0_transmon_xy_frame = FrameVar(
+        some_port, 3911851971.26885, name="q0_transmon_xy_frame", annotations=["makeframe"]
+    )
+    rabi_pulse_wf = WaveformVar(
+        gaussian(5.2e-8, 1.3e-8, 1.0, 0.0), "rabi_pulse_wf", annotations=["makepulse"]
+    )
+
+    i = IntVar(0, name="i", annotations=["some-int"])
+    j = IntVar(0, name="j", annotations=["other-int"])
+
+    q1 = Qubit("q1", annotations=["some_qubit"])
+    q2 = Qubit("q2", annotations=["other_qubit"])
+
+    @annotate_subroutine("inline")
+    @annotate_subroutine("optimize", "-O3")
+    @subroutine
+    def f(prog: Program, x: IntVar) -> IntVar:
+        return x
+
+    prog.annotate("first-invocation")
+    prog.do_expression(f(prog, i))
+
+    prog.annotate("make-for-loop", "with additional info")
+    with ForIn(prog, range(1, 1001), "shot") as shot:
+        prog.annotate("declaring_j")
+        prog.declare(j)
+        prog.annotate("declaring", "q2")
+        prog.declare(q2)
+        prog.annotate("make-set-scale")
+        prog.set_scale(q0_transmon_xy_frame, -0.2)
+        prog.play(q0_transmon_xy_frame, rabi_pulse_wf)
+        prog.annotate("playing", "gate")
+        prog.gate(q1, "U1")
+
+    prog.annotate("second-invocation")
+    prog.set(i, f(prog, i))
+
+    # todo: Fix printer for indentation of annotations
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        defcalgrammar "openpulse";
+        cal {
+        @annotating_extern_decl
+            extern gaussian(duration, duration, float[64], float[64]) -> waveform;
+        }
+        @inline
+        @optimize -O3
+        def f(int[32] x) -> int[32] {
+            return x;
+        }
+        cal {
+        @makeport
+        @some_keyword some_command
+            port some_port;
+        @makeframe
+            frame q0_transmon_xy_frame = newframe(some_port, 3911851971.26885, 0);
+        @makepulse
+            waveform rabi_pulse_wf = gaussian(52.0ns, 13.0ns, 1.0, 0.0);
+        }
+        @some-int
+        int[32] i = 0;
+        @some_qubit
+        qubit q1;
+        @first-invocation
+        f(i);
+        @make-for-loop with additional info
+        for int shot in [1:1000] {
+        @declaring_j
+        @other-int
+            int[32] j = 0;
+        @declaring q2
+        @other_qubit
+            qubit q2;
+        @make-set-scale
+            set_scale(q0_transmon_xy_frame, -0.2);
+            play(q0_transmon_xy_frame, rabi_pulse_wf);
+        @playing gate
+            U1 q1;
+        }
+        @second-invocation
+        i = f(i);
+        """
+    ).strip()
+    assert prog.to_qasm(encal_declarations=True) == expected
 
 
 def test_var_and_expr_matches():

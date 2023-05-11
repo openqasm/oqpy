@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, Union
 
 import numpy as np
 from openpulse import ast
@@ -335,3 +335,15 @@ def optional_ast(program: Program, item: AstConvertible | None) -> ast.Expressio
 def map_to_ast(program: Program, items: Iterable[AstConvertible]) -> list[ast.Expression]:
     """Convert a sequence of items into a sequence of ast nodes."""
     return [to_ast(program, item) for item in items]
+
+
+def make_annotations(vals: Sequence[str | tuple[str, str]]) -> list[ast.Annotation]:
+    """Convert strings/tuples of strings into Annotation ast nodes."""
+    anns: list[ast.Annotation] = []
+    for val in vals:
+        if isinstance(val, str):
+            anns.append(ast.Annotation(val))
+        else:
+            keyword, command = val
+            anns.append(ast.Annotation(keyword, command))
+    return anns

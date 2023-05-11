@@ -20,7 +20,16 @@ from __future__ import annotations
 import functools
 import random
 import string
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from openpulse import ast
 
@@ -28,6 +37,7 @@ from oqpy.base import (
     AstConvertible,
     OQPyExpression,
     Var,
+    make_annotations,
     map_to_ast,
     optional_ast,
     to_ast,
@@ -170,12 +180,14 @@ class _ClassicalVar(Var, OQPyExpression):
         init_expression: AstConvertible | None = None,
         name: str | None = None,
         needs_declaration: bool = True,
+        annotations: Sequence[str | tuple[str, str]] = (),
         **type_kwargs: Any,
     ):
         name = name or "".join([random.choice(string.ascii_letters) for _ in range(10)])
         super().__init__(name, needs_declaration=needs_declaration)
         self.type = self.type_cls(**type_kwargs)
         self.init_expression = init_expression
+        self.annotations = annotations
 
     def to_ast(self, program: Program) -> ast.Identifier:
         """Converts the OQpy variable into an ast node."""
@@ -185,7 +197,9 @@ class _ClassicalVar(Var, OQPyExpression):
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
         init_expression_ast = optional_ast(program, self.init_expression)
-        return ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
+        stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
+        stmt.annotations = make_annotations(self.annotations)
+        return stmt
 
 
 class BoolVar(_ClassicalVar):

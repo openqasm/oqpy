@@ -19,18 +19,18 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Callable, get_type_hints
+from typing import Any, Callable, Sequence, TypeVar, get_type_hints
 
 from mypy_extensions import VarArg
 from openpulse import ast
 
 import oqpy.program
-from oqpy.base import AstConvertible, OQPyExpression, to_ast
+from oqpy.base import AstConvertible, OQPyExpression, make_annotations, to_ast
 from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import make_duration
 
-__all__ = ["subroutine", "declare_extern", "declare_waveform_generator"]
+__all__ = ["subroutine", "annotate_subroutine", "declare_extern", "declare_waveform_generator"]
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
@@ -68,7 +68,11 @@ def subroutine(
     """
 
     @functools.wraps(func)
-    def wrapper(program: oqpy.Program, *args: AstConvertible) -> OQFunctionCall:
+    def wrapper(
+        program: oqpy.Program,
+        *args: AstConvertible,
+        annotations: Sequence[str | tuple[str, str]] = (),
+    ) -> OQFunctionCall:
         name = func.__name__
         identifier = ast.Identifier(func.__name__)
         argnames = list(inspect.signature(func).parameters.keys())
@@ -117,13 +121,42 @@ def subroutine(
             return_type=return_type,
             body=body,
         )
+        stmt.annotations = make_annotations(annotations)
         return OQFunctionCall(identifier, args, return_type, subroutine_decl=stmt)
 
     return wrapper
 
 
+FnType = TypeVar("FnType", bound=Callable[..., Any])
+
+
+def annotate_subroutine(keyword: str, command: str | None = None) -> Callable[[FnType], FnType]:
+    """Add annotation to a subroutine."""
+
+    def annotate_subroutine_decorator(func: FnType) -> FnType:
+        @functools.wraps(func)
+        def wrapper(
+            program: oqpy.Program,
+            *args: AstConvertible,
+            annotations: Sequence[str | tuple[str, str]] = (),
+        ) -> OQFunctionCall:
+            new_ann: str | tuple[str, str]
+            if command is not None:
+                new_ann = keyword, command
+            else:
+                new_ann = keyword
+            return func(program, *args, annotations=list(annotations) + [new_ann])
+
+        return wrapper  # type: ignore[return-value]
+
+    return annotate_subroutine_decorator
+
+
 def declare_extern(
-    name: str, args: list[tuple[str, ast.ClassicalType]], return_type: ast.ClassicalType
+    name: str,
+    args: list[tuple[str, ast.ClassicalType]],
+    return_type: ast.ClassicalType,
+    annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Declare an extern and return a callable which adds the extern.
 
@@ -145,6 +178,7 @@ def declare_extern(
         [ast.ExternArgument(type=t) for t in arg_types],
         ast.ExternArgument(type=return_type),
     )
+    extern_decl.annotations = make_annotations(annotations)
 
     def call_extern(*call_args: AstConvertible, **call_kwargs: AstConvertible) -> OQFunctionCall:
         new_args = list(call_args) + [None] * len(call_kwargs)
@@ -180,8 +214,10 @@ def declare_extern(
 
 
 def declare_waveform_generator(
-    name: str, argtypes: list[tuple[str, ast.ClassicalType]]
+    name: str,
+    argtypes: list[tuple[str, ast.ClassicalType]],
+    annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Create a function which generates waveforms using a specified name and argument signature."""
-    func = declare_extern(name, argtypes, ast.WaveformType())
+    func = declare_extern(name, argtypes, ast.WaveformType(), annotations=annotations)
     return func
