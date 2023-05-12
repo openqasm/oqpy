@@ -60,8 +60,10 @@ class ProgramState:
         self.annotations: list[ast.Annotation] = []
 
     def add_if_clause(self, condition: ast.Expression, if_clause: list[ast.Statement]) -> None:
+        if_clause_annotations, self.annotations = self.annotations, []
         self.finalize_if_clause()
         self.if_clause = ast.BranchingStatement(condition, if_clause, [])
+        self.if_clause.annotations = if_clause_annotations
 
     def add_else_clause(self, else_clause: list[ast.Statement]) -> None:
         if self.if_clause is None:
@@ -79,10 +81,10 @@ class ProgramState:
         # it seems to conflict with the definition of ast.Program.
         # Issue raised in https://github.com/openqasm/openqasm/issues/468
         assert isinstance(stmt, (ast.Statement, ast.Pragma))
-        self.finalize_if_clause()
         if isinstance(stmt, ast.Statement) and self.annotations:
             stmt.annotations = self.annotations + list(stmt.annotations)
             self.annotations = []
+        self.finalize_if_clause()
         self.body.append(stmt)
 
 
