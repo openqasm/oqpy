@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -55,7 +55,7 @@ class ProgramState:
     """
 
     def __init__(self) -> None:
-        self.body: list[Union[ast.Statement, ast.Pragma]] = []
+        self.body: list[ast.Statement | ast.Pragma] = []
         self.if_clause: Optional[ast.BranchingStatement] = None
         self.annotations: list[ast.Annotation] = []
 
@@ -74,12 +74,15 @@ class ProgramState:
             if_clause, self.if_clause = self.if_clause, None
             self.add_statement(if_clause)
 
-    def add_statement(self, stmt: ast.Statement) -> None:
-        assert isinstance(stmt, ast.Statement)
-        self.finalize_if_clause()
-        if self.annotations:
+    def add_statement(self, stmt: ast.Statement | ast.Pragma) -> None:
+        # This function accepts Statement and Pragma even though
+        # it seems to conflict with the definition of ast.Program.
+        # Issue raised in https://github.com/openqasm/openqasm/issues/468
+        assert isinstance(stmt, (ast.Statement, ast.Pragma))
+        if isinstance(stmt, ast.Statement) and self.annotations:
             stmt.annotations = self.annotations + list(stmt.annotations)
             self.annotations = []
+        self.finalize_if_clause()
         self.body.append(stmt)
 
 
@@ -460,9 +463,8 @@ class Program:
     def pragma(self, command: str) -> Program:
         """Add a pragma instruction."""
         if len(self.stack) != 1:
-            raise (RuntimeError("Pragmas must be global"))
-        self._state.finalize_if_clause()
-        self._state.body.append(ast.Pragma(command))
+            raise RuntimeError("Pragmas must be global")
+        self._add_statement(ast.Pragma(command))
         return self
 
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
@@ -546,8 +548,8 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         self.generic_visit(node, context)
 
     def process_statement_list(
-        self, statements: list[Union[ast.Statement, ast.Pragma]]
-    ) -> list[Union[ast.Statement, ast.Pragma]]:
+        self, statements: list[ast.Statement | ast.Pragma]
+    ) -> list[ast.Statement | ast.Pragma]:
         new_list = []
         cal_stmts = []
         for stmt in statements:
