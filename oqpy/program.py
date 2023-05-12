@@ -457,6 +457,14 @@ class Program:
         )
         return self
 
+    def pragma(self, command: str) -> Program:
+        """Add a pragma instruction."""
+        # Pragmas must be in the global scope
+        assert len(self.stack) == 1
+        self._state.finalize_if_clause()
+        self._state.body.append(ast.Pragma(command))
+        return self
+
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):

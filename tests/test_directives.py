@@ -350,21 +350,32 @@ def test_binary_expressions():
     assert prog.to_qasm() == expected
 
 
-def test_measure_reset():
+def test_measure_reset_pragma():
     prog = Program()
     q = PhysicalQubits[0]
     c = BitVar(name="c")
     prog.reset(q)
+    prog.pragma("CLASSIFIER linear")
     prog.measure(q, c)
     prog.measure(q)
+    with oqpy.If(prog, c == 1):
+        with pytest.raises(AssertionError):
+            prog.pragma("Invalid pragma")
+        prog.gate(q, "x")
+    prog.pragma("LOAD_MEMORY all")
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         bit c;
         reset $0;
+        pragma CLASSIFIER linear
         c = measure $0;
         measure $0;
+        if (c == 1) {
+            x $0;
+        }
+        pragma LOAD_MEMORY all
         """
     ).strip()
 
