@@ -359,7 +359,7 @@ def test_measure_reset_pragma():
     prog.measure(q, c)
     prog.measure(q)
     with oqpy.If(prog, c == 1):
-        with pytest.raises(AssertionError):
+        with pytest.raises(RuntimeError):
             prog.pragma("Invalid pragma")
         prog.gate(q, "x")
     prog.pragma("LOAD_MEMORY all")

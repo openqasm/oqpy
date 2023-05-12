@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Iterable, Iterator, Optional, Union
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -55,7 +55,7 @@ class ProgramState:
     """
 
     def __init__(self) -> None:
-        self.body: list[ast.Statement] = []
+        self.body: list[Union[ast.Statement, ast.Pragma]] = []
         self.if_clause: Optional[ast.BranchingStatement] = None
         self.annotations: list[ast.Annotation] = []
 
@@ -459,8 +459,8 @@ class Program:
 
     def pragma(self, command: str) -> Program:
         """Add a pragma instruction."""
-        # Pragmas must be in the global scope
-        assert len(self.stack) == 1
+        if len(self.stack) != 1:
+            raise (RuntimeError("Pragmas must be global"))
         self._state.finalize_if_clause()
         self._state.body.append(ast.Pragma(command))
         return self
@@ -545,7 +545,9 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         node.body = self.process_statement_list(node.body)
         self.generic_visit(node, context)
 
-    def process_statement_list(self, statements: list[ast.Statement]) -> list[ast.Statement]:
+    def process_statement_list(
+        self, statements: list[Union[ast.Statement, ast.Pragma]]
+    ) -> list[Union[ast.Statement, ast.Pragma]]:
         new_list = []
         cal_stmts = []
         for stmt in statements:
