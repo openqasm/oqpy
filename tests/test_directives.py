@@ -1400,6 +1400,21 @@ def test_annotate():
     prog.annotate("first-invocation")
     prog.do_expression(f(prog, i))
 
+    prog.annotate("annotation-before-if")
+    with If(prog, i != 0):
+        prog.annotate("annotation-in-if")
+        prog.gate(q1, "x")
+    with oqpy.Else(prog):
+        prog.annotate(("annotation-in-else"))
+        prog.delay(make_duration(1e-8), q1)
+    prog.annotate("annotation-after-if")
+
+    prog.annotate("annotation-no-then-before-if")
+    with If(prog, i != 0):
+        prog.annotate("annotation-no-then-in-if")
+        prog.gate(q1, "x")
+    prog.annotate("annotation-no-then-after-if")
+
     prog.annotate("make-for-loop", "with additional info")
     with ForIn(prog, range(1, 1001), "shot") as shot:
         prog.annotate("declaring_j")
@@ -1444,6 +1459,21 @@ def test_annotate():
         qubit q1;
         @first-invocation
         f(i);
+        @annotation-before-if
+        if (i != 0) {
+        @annotation-in-if
+            x q1;
+        } else {
+        @annotation-in-else
+            delay[10.0ns] q1;
+        }
+        @annotation-after-if
+        @annotation-no-then-before-if
+        if (i != 0) {
+        @annotation-no-then-in-if
+            x q1;
+        }
+        @annotation-no-then-after-if
         @make-for-loop with additional info
         for int shot in [1:1000] {
         @declaring_j
