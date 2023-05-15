@@ -1409,11 +1409,11 @@ def test_annotate():
         prog.delay(make_duration(1e-8), q1)
     prog.annotate("annotation-after-if")
 
-    prog.annotate("annotation-no-then-before-if")
+    prog.annotate("annotation-no-else-before-if")
     with If(prog, i != 0):
-        prog.annotate("annotation-no-then-in-if")
+        prog.annotate("annotation-no-else-in-if")
         prog.gate(q1, "x")
-    prog.annotate("annotation-no-then-after-if")
+    prog.annotate("annotation-no-else-after-if")
 
     prog.annotate("make-for-loop", "with additional info")
     with ForIn(prog, range(1, 1001), "shot") as shot:
@@ -1468,12 +1468,12 @@ def test_annotate():
             delay[10.0ns] q1;
         }
         @annotation-after-if
-        @annotation-no-then-before-if
+        @annotation-no-else-before-if
         if (i != 0) {
-        @annotation-no-then-in-if
+        @annotation-no-else-in-if
             x q1;
         }
-        @annotation-no-then-after-if
+        @annotation-no-else-after-if
         @make-for-loop with additional info
         for int shot in [1:1000] {
         @declaring_j
