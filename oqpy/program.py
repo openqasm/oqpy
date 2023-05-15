@@ -55,13 +55,15 @@ class ProgramState:
     """
 
     def __init__(self) -> None:
-        self.body: list[ast.Statement] = []
+        self.body: list[ast.Statement | ast.Pragma] = []
         self.if_clause: Optional[ast.BranchingStatement] = None
         self.annotations: list[ast.Annotation] = []
 
     def add_if_clause(self, condition: ast.Expression, if_clause: list[ast.Statement]) -> None:
+        if_clause_annotations, self.annotations = self.annotations, []
         self.finalize_if_clause()
         self.if_clause = ast.BranchingStatement(condition, if_clause, [])
+        self.if_clause.annotations = if_clause_annotations
 
     def add_else_clause(self, else_clause: list[ast.Statement]) -> None:
         if self.if_clause is None:
@@ -74,12 +76,15 @@ class ProgramState:
             if_clause, self.if_clause = self.if_clause, None
             self.add_statement(if_clause)
 
-    def add_statement(self, stmt: ast.Statement) -> None:
-        assert isinstance(stmt, ast.Statement)
-        self.finalize_if_clause()
-        if self.annotations:
+    def add_statement(self, stmt: ast.Statement | ast.Pragma) -> None:
+        # This function accepts Statement and Pragma even though
+        # it seems to conflict with the definition of ast.Program.
+        # Issue raised in https://github.com/openqasm/openqasm/issues/468
+        assert isinstance(stmt, (ast.Statement, ast.Pragma))
+        if isinstance(stmt, ast.Statement) and self.annotations:
             stmt.annotations = self.annotations + list(stmt.annotations)
             self.annotations = []
+        self.finalize_if_clause()
         self.body.append(stmt)
 
 
@@ -457,6 +462,13 @@ class Program:
         )
         return self
 
+    def pragma(self, command: str) -> Program:
+        """Add a pragma instruction."""
+        if len(self.stack) != 1:
+            raise RuntimeError("Pragmas must be global")
+        self._add_statement(ast.Pragma(command))
+        return self
+
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):
@@ -537,7 +549,9 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         node.body = self.process_statement_list(node.body)
         self.generic_visit(node, context)
 
-    def process_statement_list(self, statements: list[ast.Statement]) -> list[ast.Statement]:
+    def process_statement_list(
+        self, statements: list[ast.Statement | ast.Pragma]
+    ) -> list[ast.Statement | ast.Pragma]:
         new_list = []
         cal_stmts = []
         for stmt in statements:

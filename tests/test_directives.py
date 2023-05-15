@@ -350,21 +350,32 @@ def test_binary_expressions():
     assert prog.to_qasm() == expected
 
 
-def test_measure_reset():
+def test_measure_reset_pragma():
     prog = Program()
     q = PhysicalQubits[0]
     c = BitVar(name="c")
     prog.reset(q)
+    prog.pragma("CLASSIFIER linear")
     prog.measure(q, c)
     prog.measure(q)
+    with oqpy.If(prog, c == 1):
+        with pytest.raises(RuntimeError):
+            prog.pragma("Invalid pragma")
+        prog.gate(q, "x")
+    prog.pragma("LOAD_MEMORY all")
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         bit c;
         reset $0;
+        pragma CLASSIFIER linear
         c = measure $0;
         measure $0;
+        if (c == 1) {
+            x $0;
+        }
+        pragma LOAD_MEMORY all
         """
     ).strip()
 
@@ -1389,6 +1400,21 @@ def test_annotate():
     prog.annotate("first-invocation")
     prog.do_expression(f(prog, i))
 
+    prog.annotate("annotation-before-if")
+    with If(prog, i != 0):
+        prog.annotate("annotation-in-if")
+        prog.gate(q1, "x")
+    with oqpy.Else(prog):
+        prog.annotate(("annotation-in-else"))
+        prog.delay(make_duration(1e-8), q1)
+    prog.annotate("annotation-after-if")
+
+    prog.annotate("annotation-no-else-before-if")
+    with If(prog, i != 0):
+        prog.annotate("annotation-no-else-in-if")
+        prog.gate(q1, "x")
+    prog.annotate("annotation-no-else-after-if")
+
     prog.annotate("make-for-loop", "with additional info")
     with ForIn(prog, range(1, 1001), "shot") as shot:
         prog.annotate("declaring_j")
@@ -1433,6 +1459,21 @@ def test_annotate():
         qubit q1;
         @first-invocation
         f(i);
+        @annotation-before-if
+        if (i != 0) {
+        @annotation-in-if
+            x q1;
+        } else {
+        @annotation-in-else
+            delay[10.0ns] q1;
+        }
+        @annotation-after-if
+        @annotation-no-else-before-if
+        if (i != 0) {
+        @annotation-no-else-in-if
+            x q1;
+        }
+        @annotation-no-else-after-if
         @make-for-loop with additional info
         for int shot in [1:1000] {
         @declaring_j
