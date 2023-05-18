@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oqpy"
-version = "0.2.0"
+version = "0.2.1"
 description = "Generating OpenQASM 3 + OpenPulse in Python"
 authors = ["OQpy Contributors <oqpy-contributors@amazon.com>"]
 license = "Apache-2.0"
