@@ -63,7 +63,7 @@ class OQDurationLiteral(OQPyExpression):
     def __init__(self, duration: float) -> None:
         super().__init__()
         self.duration = duration
-        self.type = ast.DurationLiteral
+        self.type = ast.DurationType
 
     def to_ast(self, program: Program) -> ast.DurationLiteral:
         # Todo (#53): make better units?

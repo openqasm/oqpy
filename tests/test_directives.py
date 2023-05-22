@@ -1572,7 +1572,7 @@ def test_duration_literal_arithmetic():
     program = oqpy.Program()
     repeated_delay = delay_repetition * delay_time
     assert isinstance(repeated_delay, OQPyExpression)
-    assert repeated_delay.type == ast.DurationLiteral
+    assert repeated_delay.type == ast.DurationType
 
     program.delay(repeated_delay, frame)
     program.shift_phase(frame, 2 * oqpy.pi * (delay_time / one_second))
