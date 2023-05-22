@@ -20,11 +20,12 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+from openpulse import ast
 from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import expr_matches, logical_and, logical_or
+from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -1569,7 +1570,11 @@ def test_duration_literal_arithmetic():
     delay_repetition = 10
 
     program = oqpy.Program()
-    program.delay(delay_repetition * delay_time, frame)
+    repeated_delay = delay_repetition * delay_time
+    assert isinstance(repeated_delay, OQPyExpression)
+    assert repeated_delay.type == ast.DurationLiteral
+
+    program.delay(repeated_delay, frame)
     program.shift_phase(frame, 2 * oqpy.pi * (delay_time / one_second))
 
     expected = textwrap.dedent(
