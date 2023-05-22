@@ -20,11 +20,12 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+from openpulse import ast
 from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import expr_matches, logical_and, logical_or
+from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -283,9 +284,11 @@ def test_binary_expressions():
     i = IntVar(5, "i")
     j = IntVar(2, "j")
     k = IntVar(0, "k")
+    f = FloatVar(0.0, "f")
     b1 = BoolVar(False, "b1")
     b2 = BoolVar(True, "b2")
     b3 = BoolVar(False, "b3")
+    d = DurationVar(5e-9, "d")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 - i) % 2)
     prog.set(j, 1 + oqpy.pi)
@@ -310,6 +313,8 @@ def test_binary_expressions():
     prog.set(b1, logical_or(b2, b3))
     prog.set(b1, logical_and(b2, True))
     prog.set(b1, logical_or(False, b3))
+    prog.set(d, d + make_duration(10e-9))
+    prog.set(f, d / make_duration(1))
 
     expected = textwrap.dedent(
         """
@@ -320,6 +325,8 @@ def test_binary_expressions():
         bool b1 = false;
         bool b2 = true;
         bool b3 = false;
+        duration d = 5.0ns;
+        float[64] f = 0.0;
         i = 2 * (i + j);
         j = 2 % (2 - i) % 2;
         j = 1 + pi;
@@ -344,6 +351,8 @@ def test_binary_expressions():
         b1 = b2 || b3;
         b1 = b2 && true;
         b1 = false || b3;
+        d = d + 10.0ns;
+        f = d / 1000000000.0ns;
         """
     ).strip()
 
@@ -1550,6 +1559,35 @@ def test_program_tracks_frame_waveform_vars():
 
     assert expr_matches(list(prog.frame_vars), [f1, f3, f2])
     assert expr_matches(list(prog.waveform_vars), [constant_wf, discrete_wf])
+
+
+def test_duration_literal_arithmetic():
+    # Test that duration literals can be used as a part of expression.
+    port = oqpy.PortVar("myport")
+    frame = oqpy.FrameVar(port, 1e9, name="myframe")
+    delay_time = oqpy.make_duration(50e-9)  # 50 ns
+    one_second = oqpy.make_duration(1)  # 1 second
+    delay_repetition = 10
+
+    program = oqpy.Program()
+    repeated_delay = delay_repetition * delay_time
+    assert isinstance(repeated_delay, OQPyExpression)
+    assert repeated_delay.type == ast.DurationType
+
+    program.delay(repeated_delay, frame)
+    program.shift_phase(frame, 2 * oqpy.pi * (delay_time / one_second))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        port myport;
+        frame myframe = newframe(myport, 1000000000.0, 0);
+        delay[10 * 50.0ns] myframe;
+        shift_phase(myframe, 2 * pi * (50.0ns / 1000000000.0ns));
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
 
 
 def test_make_duration():
