@@ -163,8 +163,14 @@ def test_array_declaration():
     multidim = ArrayVar[FloatVar[32], 3, 2](
         name="multiDim", init_expression=[[1.1, 1.2], [2.1, 2.2], [3.1, 3.2]]
     )
+    npinit = ArrayVar(
+        name="npinit",
+        init_expression=np.array([0, 1, 2, 4]) * 1e-9,
+        dimensions=[11],
+        base_type=DurationVar,
+    )
 
-    vars = [b, i, i55, u, x, y, ang, comp, comp55, ang_partial, simple, multidim]
+    vars = [b, i, i55, u, x, y, ang, comp, comp55, ang_partial, simple, multidim, npinit]
 
     prog = oqpy.Program(version=None)
     prog.declare(vars)
@@ -189,6 +195,7 @@ def test_array_declaration():
         array[angle[32], 2] ang_part = {pi, pi / 2};
         array[float[64], 5] no_init;
         array[float[32], 3, 2] multiDim = {{1.1, 1.2}, {2.1, 2.2}, {3.1, 3.2}};
+        array[duration, 11] npinit = {0.0ns, 1.0ns, 2.0ns, 4.0ns};
         i[1] = 0;
         i[idx] = val;
         """

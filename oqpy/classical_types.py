@@ -374,7 +374,7 @@ class ArrayVar(_ClassicalVar):
             array_base_type = base_type_instance.type_cls()
 
         # Automatically handle Duration array.
-        if base_type is DurationVar and kwargs["init_expression"]:
+        if base_type is DurationVar and kwargs["init_expression"] is not None:
             kwargs["init_expression"] = (make_duration(i) for i in kwargs["init_expression"])
 
         super().__init__(
