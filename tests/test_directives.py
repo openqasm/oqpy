@@ -177,12 +177,16 @@ def test_array_declaration():
     prog.set(i[1], 0)  # Set with literal values
     idx = IntVar(name="idx", init_expression=5)
     val = IntVar(name="val", init_expression=10)
+    d = DurationVar(name="d", init_expression=0)
     prog.set(i[idx], val)
+    prog.set(npinit[5], d - 2e-9)
+    prog.set(npinit[0], 2 * npinit[0] + 2e-9)
 
     expected = textwrap.dedent(
         """
         int[32] idx = 5;
         int[32] val = 10;
+        duration d = 0.0ns;
         array[bool, 2] b = {true, false};
         array[int[32], 5] i = {0, 1, 2, 3, 4};
         array[int[55], 5] i55 = {0, 1, 2, 3, 4};
@@ -198,6 +202,8 @@ def test_array_declaration():
         array[duration, 11] npinit = {0.0ns, 1.0ns, 2.0ns, 4.0ns};
         i[1] = 0;
         i[idx] = val;
+        npinit[5] = d - 2.0ns;
+        npinit[0] = 2 * npinit[0] + 2.0ns;
         """
     ).strip()
 
@@ -320,6 +326,9 @@ def test_binary_expressions():
     prog.set(b1, logical_or(b2, b3))
     prog.set(b1, logical_and(b2, True))
     prog.set(b1, logical_or(False, b3))
+    prog.set(d, d / 5)
+    prog.set(d, d + 5e-9)
+    prog.set(d, 5e-9 - d)
     prog.set(d, d + make_duration(10e-9))
     prog.set(f, d / make_duration(1))
 
@@ -358,6 +367,9 @@ def test_binary_expressions():
         b1 = b2 || b3;
         b1 = b2 && true;
         b1 = false || b3;
+        d = d / 5;
+        d = d + 5.0ns;
+        d = 5.0ns - d;
         d = d + 10.0ns;
         f = d / 1000000000.0ns;
         """

@@ -238,6 +238,17 @@ class OQPyBinaryExpression(OQPyExpression):
         else:
             raise TypeError("Neither lhs nor rhs is an expression?")
 
+        # Adding floats to durations is not allowed. So we promote types as necessary.
+        if isinstance(self.type, ast.DurationType) and self.op in [
+            ast.BinaryOperator["+"],
+            ast.BinaryOperator["-"],
+        ]:
+            # Late import to avoid circular imports.
+            from oqpy.timing import make_duration
+
+            self.lhs = make_duration(self.lhs)
+            self.rhs = make_duration(self.rhs)
+
     def to_ast(self, program: Program) -> ast.BinaryExpression:
         """Converts the OQpy expression into an ast node."""
         return ast.BinaryExpression(self.op, to_ast(program, self.lhs), to_ast(program, self.rhs))
