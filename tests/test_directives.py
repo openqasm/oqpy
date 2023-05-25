@@ -1949,3 +1949,20 @@ def test_oqpy_range():
     ).strip()
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_duration_coercion():
+    frame = FrameVar(name="f1")
+    prog = Program()
+    v = oqpy.FloatVar(0.1, name="v")
+    prog.delay(v * 100e-9, frame)
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        float v = 0.1;
+        frame f1;
+        delay[v * 1e-7 * 1s] f1;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)

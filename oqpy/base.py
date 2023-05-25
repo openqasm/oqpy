@@ -58,10 +58,13 @@ class OQPyExpression:
 
     @staticmethod
     def _to_binary(
-        op_name: str, first: AstConvertible, second: AstConvertible
+        op_name: str,
+        first: AstConvertible,
+        second: AstConvertible,
+        result_type: ast.ClassicalType | None = None,
     ) -> OQPyBinaryExpression:
         """Helper method to produce a binary expression."""
-        return OQPyBinaryExpression(ast.BinaryOperator[op_name], first, second)
+        return OQPyBinaryExpression(ast.BinaryOperator[op_name], first, second, result_type)
 
     @staticmethod
     def _to_unary(op_name: str, exp: AstConvertible) -> OQPyUnaryExpression:
@@ -93,7 +96,59 @@ class OQPyExpression:
         return self._to_binary("%", other, self)
 
     def __mul__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("*", self, other)
+        left_type = self.type
+        if isinstance(other, OQPyExpression):
+            right_type = other.type
+        elif isinstance(other, int):
+            right_type = ast.IntType()
+        elif isinstance(other, float):
+            right_type = ast.FloatType()
+        elif isinstance(other, complex):
+            right_type = ast.ComplexType(ast.FloatType())
+        else:
+            raise ValueError("Cannot multiply with ")
+        types_map = {
+            (ast.FloatType, ast.FloatType): left_type,
+            (ast.FloatType, ast.IntType): left_type,
+            (ast.FloatType, ast.UintType): left_type,
+            (ast.FloatType, ast.DurationType): right_type,
+            (ast.FloatType, ast.AngleType): right_type,
+            (ast.FloatType, ast.ComplexType): right_type,
+            (ast.IntType, ast.FloatType): right_type,
+            (ast.IntType, ast.IntType): left_type,
+            (ast.IntType, ast.UintType): left_type,
+            (ast.IntType, ast.DurationType): right_type,
+            (ast.IntType, ast.AngleType): right_type,
+            (ast.IntType, ast.ComplexType): right_type,
+            (ast.UintType, ast.FloatType): right_type,
+            (ast.UintType, ast.IntType): right_type,
+            (ast.UintType, ast.UintType): left_type,
+            (ast.UintType, ast.DurationType): right_type,
+            (ast.UintType, ast.AngleType): right_type,
+            (ast.UintType, ast.ComplexType): right_type,
+            (ast.DurationType, ast.FloatType): left_type,
+            (ast.DurationType, ast.IntType): left_type,
+            (ast.DurationType, ast.UintType): left_type,
+            (ast.DurationType, ast.DurationType): TypeError("Cannot multiply two durations"),
+            (ast.DurationType, ast.AngleType): TypeError("Cannot multiply duration and angle"),
+            (ast.DurationType, ast.ComplexType): TypeError("Cannot multiply duration and complex"),
+            (ast.AngleType, ast.FloatType): left_type,
+            (ast.AngleType, ast.IntType): left_type,
+            (ast.AngleType, ast.UintType): left_type,
+            (ast.AngleType, ast.DurationType): TypeError("Cannot multiply angle and duration"),
+            (ast.AngleType, ast.AngleType): TypeError("Cannot multiply two angles"),
+            (ast.AngleType, ast.ComplexType): TypeError("Cannot multiply angle and complex"),
+            (ast.ComplexType, ast.FloatType): left_type,
+            (ast.ComplexType, ast.IntType): left_type,
+            (ast.ComplexType, ast.UintType): left_type,
+            (ast.ComplexType, ast.DurationType): TypeError("Cannot multiply complex and duration"),
+            (ast.ComplexType, ast.AngleType): TypeError("Cannot multiply complex and angle"),
+            (ast.ComplexType, ast.ComplexType): left_type,
+        }
+        result_type = types_map[type(left_type), type(right_type)]
+        if isinstance(result_type, Exception):
+            raise result_type
+        return self._to_binary("*", self, other, result_type)
 
     def __rmul__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("*", other, self)
@@ -227,7 +282,13 @@ class OQPyUnaryExpression(OQPyExpression):
 class OQPyBinaryExpression(OQPyExpression):
     """An expression consisting of two subexpressions joined by an operator."""
 
-    def __init__(self, op: ast.BinaryOperator, lhs: AstConvertible, rhs: AstConvertible):
+    def __init__(
+        self,
+        op: ast.BinaryOperator,
+        lhs: AstConvertible,
+        rhs: AstConvertible,
+        type: ast.ClassicalType | None = None,
+    ):
         super().__init__()
         self.op = op
         self.lhs = lhs
