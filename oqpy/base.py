@@ -105,11 +105,11 @@ class OQPyExpression:
 
     def __truediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
         result_type = compute_quotient_types(self, other)
-        return self._to_binary("/", self, other)
+        return self._to_binary("/", self, other, result_type)
 
     def __rtruediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
         result_type = compute_quotient_types(other, self)
-        return self._to_binary("/", other, self)
+        return self._to_binary("/", other, self, result_type)
 
     def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("**", self, other)
@@ -189,6 +189,7 @@ def _get_type(val: AstConvertible) -> ast.ClassicalType:
 
 
 def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    """Find the result type for a product of two terms."""
     left_type = _get_type(left)
     right_type = _get_type(right)
 
@@ -237,9 +238,11 @@ def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.Cl
         raise TypeError(f"Could not identify types for product {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
+    return result_type
 
 
 def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    """Find the result type for a quotient of two terms."""
     left_type = _get_type(left)
     right_type = _get_type(right)
     float_type = ast.FloatType()
@@ -289,6 +292,7 @@ def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.C
         raise TypeError(f"Could not identify types for quotient {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
+    return result_type
 
 
 def logical_and(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:
@@ -355,7 +359,7 @@ class OQPyBinaryExpression(OQPyExpression):
         op: ast.BinaryOperator,
         lhs: AstConvertible,
         rhs: AstConvertible,
-        type: ast.ClassicalType | None = None,
+        type_: ast.ClassicalType | None = None,
     ):
         super().__init__()
         self.op = op
@@ -363,12 +367,14 @@ class OQPyBinaryExpression(OQPyExpression):
         self.rhs = rhs
         # TODO (#50): More robust type checking which considers both arguments
         #   types, as well as the operator.
-        if isinstance(lhs, OQPyExpression):
-            self.type = lhs.type
-        elif isinstance(rhs, OQPyExpression):
-            self.type = rhs.type
-        else:
-            raise TypeError("Neither lhs nor rhs is an expression?")
+        if type_ is None:
+            if isinstance(lhs, OQPyExpression):
+                type_ = lhs.type
+            elif isinstance(rhs, OQPyExpression):
+                type_ = rhs.type
+            else:
+                raise TypeError("Neither lhs nor rhs is an expression?")
+        self.type = type_
 
         # Adding floats to durations is not allowed. So we promote types as necessary.
         if isinstance(self.type, ast.DurationType) and self.op in [
