@@ -41,7 +41,7 @@ from oqpy.base import (
     to_ast,
 )
 from oqpy.pulse import FrameVar, PortVar, WaveformVar
-from oqpy.timing import make_duration
+from oqpy.timing import make_duration, make_float
 
 __all__ = ["Program"]
 
@@ -393,32 +393,32 @@ class Program:
 
     def set_phase(self, frame: AstConvertible, phase: AstConvertible) -> Program:
         """Set the phase of a particular frame."""
-        self.function_call("set_phase", [frame, phase])
+        self.function_call("set_phase", [frame, make_float(phase)])
         return self
 
     def shift_phase(self, frame: AstConvertible, phase: AstConvertible) -> Program:
         """Shift the phase of a particular frame."""
-        self.function_call("shift_phase", [frame, phase])
+        self.function_call("shift_phase", [frame, make_float(phase)])
         return self
 
     def set_frequency(self, frame: AstConvertible, freq: AstConvertible) -> Program:
         """Set the frequency of a particular frame."""
-        self.function_call("set_frequency", [frame, freq])
+        self.function_call("set_frequency", [frame, make_float(freq)])
         return self
 
     def shift_frequency(self, frame: AstConvertible, freq: AstConvertible) -> Program:
         """Shift the frequency of a particular frame."""
-        self.function_call("shift_frequency", [frame, freq])
+        self.function_call("shift_frequency", [frame, make_float(freq)])
         return self
 
     def set_scale(self, frame: AstConvertible, scale: AstConvertible) -> Program:
         """Set the amplitude scaling of a particular frame."""
-        self.function_call("set_scale", [frame, scale])
+        self.function_call("set_scale", [frame, make_float(scale)])
         return self
 
     def shift_scale(self, frame: AstConvertible, scale: AstConvertible) -> Program:
         """Shift the amplitude scaling of a particular frame."""
-        self.function_call("shift_scale", [frame, scale])
+        self.function_call("shift_scale", [frame, make_float(scale)])
         return self
 
     def returns(self, expression: AstConvertible) -> Program:

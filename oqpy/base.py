@@ -96,67 +96,19 @@ class OQPyExpression:
         return self._to_binary("%", other, self)
 
     def __mul__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        left_type = self.type
-        if isinstance(other, OQPyExpression):
-            right_type = other.type
-        elif isinstance(other, int):
-            right_type = ast.IntType()
-        elif isinstance(other, float):
-            right_type = ast.FloatType()
-        elif isinstance(other, complex):
-            right_type = ast.ComplexType(ast.FloatType())
-        else:
-            raise ValueError("Cannot multiply with ")
-        types_map = {
-            (ast.FloatType, ast.FloatType): left_type,
-            (ast.FloatType, ast.IntType): left_type,
-            (ast.FloatType, ast.UintType): left_type,
-            (ast.FloatType, ast.DurationType): right_type,
-            (ast.FloatType, ast.AngleType): right_type,
-            (ast.FloatType, ast.ComplexType): right_type,
-            (ast.IntType, ast.FloatType): right_type,
-            (ast.IntType, ast.IntType): left_type,
-            (ast.IntType, ast.UintType): left_type,
-            (ast.IntType, ast.DurationType): right_type,
-            (ast.IntType, ast.AngleType): right_type,
-            (ast.IntType, ast.ComplexType): right_type,
-            (ast.UintType, ast.FloatType): right_type,
-            (ast.UintType, ast.IntType): right_type,
-            (ast.UintType, ast.UintType): left_type,
-            (ast.UintType, ast.DurationType): right_type,
-            (ast.UintType, ast.AngleType): right_type,
-            (ast.UintType, ast.ComplexType): right_type,
-            (ast.DurationType, ast.FloatType): left_type,
-            (ast.DurationType, ast.IntType): left_type,
-            (ast.DurationType, ast.UintType): left_type,
-            (ast.DurationType, ast.DurationType): TypeError("Cannot multiply two durations"),
-            (ast.DurationType, ast.AngleType): TypeError("Cannot multiply duration and angle"),
-            (ast.DurationType, ast.ComplexType): TypeError("Cannot multiply duration and complex"),
-            (ast.AngleType, ast.FloatType): left_type,
-            (ast.AngleType, ast.IntType): left_type,
-            (ast.AngleType, ast.UintType): left_type,
-            (ast.AngleType, ast.DurationType): TypeError("Cannot multiply angle and duration"),
-            (ast.AngleType, ast.AngleType): TypeError("Cannot multiply two angles"),
-            (ast.AngleType, ast.ComplexType): TypeError("Cannot multiply angle and complex"),
-            (ast.ComplexType, ast.FloatType): left_type,
-            (ast.ComplexType, ast.IntType): left_type,
-            (ast.ComplexType, ast.UintType): left_type,
-            (ast.ComplexType, ast.DurationType): TypeError("Cannot multiply complex and duration"),
-            (ast.ComplexType, ast.AngleType): TypeError("Cannot multiply complex and angle"),
-            (ast.ComplexType, ast.ComplexType): left_type,
-        }
-        result_type = types_map[type(left_type), type(right_type)]
-        if isinstance(result_type, Exception):
-            raise result_type
+        result_type = compute_product_types(self, other)
         return self._to_binary("*", self, other, result_type)
 
     def __rmul__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("*", other, self)
+        result_type = compute_product_types(other, self)
+        return self._to_binary("*", other, self, result_type)
 
     def __truediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        result_type = compute_quotient_types(self, other)
         return self._to_binary("/", self, other)
 
     def __rtruediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
+        result_type = compute_quotient_types(other, self)
         return self._to_binary("/", other, self)
 
     def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
@@ -221,6 +173,122 @@ class OQPyExpression:
             "OQPy expressions cannot be converted to bool. This can occur if you try to check "
             "the equality of expressions using == instead of expr_matches."
         )
+
+
+def _get_type(val: AstConvertible) -> ast.ClassicalType:
+    if isinstance(val, OQPyExpression):
+        return val.type
+    elif isinstance(val, int):
+        return ast.IntType()
+    elif isinstance(val, float):
+        return ast.FloatType()
+    elif isinstance(val, complex):
+        return ast.ComplexType(ast.FloatType())
+    else:
+        raise ValueError(f"Cannot multiply/divide oqpy expression with with {type(val)}")
+
+
+def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    left_type = _get_type(left)
+    right_type = _get_type(right)
+
+    types_map = {
+        (ast.FloatType, ast.FloatType): left_type,
+        (ast.FloatType, ast.IntType): left_type,
+        (ast.FloatType, ast.UintType): left_type,
+        (ast.FloatType, ast.DurationType): right_type,
+        (ast.FloatType, ast.AngleType): right_type,
+        (ast.FloatType, ast.ComplexType): right_type,
+        (ast.IntType, ast.FloatType): right_type,
+        (ast.IntType, ast.IntType): left_type,
+        (ast.IntType, ast.UintType): left_type,
+        (ast.IntType, ast.DurationType): right_type,
+        (ast.IntType, ast.AngleType): right_type,
+        (ast.IntType, ast.ComplexType): right_type,
+        (ast.UintType, ast.FloatType): right_type,
+        (ast.UintType, ast.IntType): right_type,
+        (ast.UintType, ast.UintType): left_type,
+        (ast.UintType, ast.DurationType): right_type,
+        (ast.UintType, ast.AngleType): right_type,
+        (ast.UintType, ast.ComplexType): right_type,
+        (ast.DurationType, ast.FloatType): left_type,
+        (ast.DurationType, ast.IntType): left_type,
+        (ast.DurationType, ast.UintType): left_type,
+        (ast.DurationType, ast.DurationType): TypeError("Cannot multiply two durations"),
+        (ast.DurationType, ast.AngleType): TypeError("Cannot multiply duration and angle"),
+        (ast.DurationType, ast.ComplexType): TypeError("Cannot multiply duration and complex"),
+        (ast.AngleType, ast.FloatType): left_type,
+        (ast.AngleType, ast.IntType): left_type,
+        (ast.AngleType, ast.UintType): left_type,
+        (ast.AngleType, ast.DurationType): TypeError("Cannot multiply angle and duration"),
+        (ast.AngleType, ast.AngleType): TypeError("Cannot multiply two angles"),
+        (ast.AngleType, ast.ComplexType): TypeError("Cannot multiply angle and complex"),
+        (ast.ComplexType, ast.FloatType): left_type,
+        (ast.ComplexType, ast.IntType): left_type,
+        (ast.ComplexType, ast.UintType): left_type,
+        (ast.ComplexType, ast.DurationType): TypeError("Cannot multiply complex and duration"),
+        (ast.ComplexType, ast.AngleType): TypeError("Cannot multiply complex and angle"),
+        (ast.ComplexType, ast.ComplexType): left_type,
+    }
+
+    try:
+        result_type = types_map[type(left_type), type(right_type)]
+    except KeyError as e:
+        raise TypeError(f"Could not identify types for product {left} and {right}") from e
+    if isinstance(result_type, Exception):
+        raise result_type
+
+
+def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    left_type = _get_type(left)
+    right_type = _get_type(right)
+    float_type = ast.FloatType()
+
+    types_map = {
+        (ast.FloatType, ast.FloatType): left_type,
+        (ast.FloatType, ast.IntType): left_type,
+        (ast.FloatType, ast.UintType): left_type,
+        (ast.FloatType, ast.DurationType): TypeError("Cannot divide float by duration"),
+        (ast.FloatType, ast.AngleType): TypeError("Cannot divide float by angle"),
+        (ast.FloatType, ast.ComplexType): right_type,
+        (ast.IntType, ast.FloatType): right_type,
+        (ast.IntType, ast.IntType): float_type,
+        (ast.IntType, ast.UintType): float_type,
+        (ast.IntType, ast.DurationType): TypeError("Cannot divide int by duration"),
+        (ast.IntType, ast.AngleType): TypeError("Cannot divide int by angle"),
+        (ast.IntType, ast.ComplexType): right_type,
+        (ast.UintType, ast.FloatType): right_type,
+        (ast.UintType, ast.IntType): float_type,
+        (ast.UintType, ast.UintType): float_type,
+        (ast.UintType, ast.DurationType): TypeError("Cannot divide uint by duration"),
+        (ast.UintType, ast.AngleType): TypeError("Cannot divide uint by angle"),
+        (ast.UintType, ast.ComplexType): right_type,
+        (ast.DurationType, ast.FloatType): left_type,
+        (ast.DurationType, ast.IntType): left_type,
+        (ast.DurationType, ast.UintType): left_type,
+        (ast.DurationType, ast.DurationType): ast.FloatType(),
+        (ast.DurationType, ast.AngleType): TypeError("Cannot divide duration by angle"),
+        (ast.DurationType, ast.ComplexType): TypeError("Cannot divide duration by complex"),
+        (ast.AngleType, ast.FloatType): left_type,
+        (ast.AngleType, ast.IntType): left_type,
+        (ast.AngleType, ast.UintType): left_type,
+        (ast.AngleType, ast.DurationType): TypeError("Cannot divide by duration"),
+        (ast.AngleType, ast.AngleType): float_type,
+        (ast.AngleType, ast.ComplexType): TypeError("Cannot divide by angle by complex"),
+        (ast.ComplexType, ast.FloatType): left_type,
+        (ast.ComplexType, ast.IntType): left_type,
+        (ast.ComplexType, ast.UintType): left_type,
+        (ast.ComplexType, ast.DurationType): TypeError("Cannot divide by duration"),
+        (ast.ComplexType, ast.AngleType): TypeError("Cannot divide by angle"),
+        (ast.ComplexType, ast.ComplexType): left_type,
+    }
+
+    try:
+        result_type = types_map[type(left_type), type(right_type)]
+    except KeyError as e:
+        raise TypeError(f"Could not identify types for quotient {left} and {right}") from e
+    if isinstance(result_type, Exception):
+        raise result_type
 
 
 def logical_and(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:

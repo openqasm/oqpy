@@ -302,9 +302,9 @@ def test_non_trivial_array_access():
         """
         OPENQASM 3.0;
         port my_port;
-        array[duration, 5] duration_array = {0.0ns, 250000000.0ns, 500000000.0ns, 750000000.0ns, 1000000000.0ns};
+        array[duration, 5] duration_array = {0.0ns, 250.0ms, 500.0ms, 750.0ms, 1s};
         int[32] one = 1;
-        duration one_second = 1000000000.0ns;
+        duration one_second = 1s;
         frame my_frame = newframe(my_port, 1000000000.0, 0);
         for int idx in [0:3] {
             delay[duration_array[idx + one] + one_second] my_frame;
@@ -443,7 +443,7 @@ def test_binary_expressions():
         d = d + 5.0ns;
         d = 5.0ns - d;
         d = d + 10.0ns;
-        f = d / 1000000000.0ns;
+        f = d / 1s;
         """
     ).strip()
 
@@ -657,7 +657,7 @@ def test_for_in_var_types():
         OPENQASM 3.0;
         port my_port;
         frame my_frame = newframe(my_port, 3000000000.0, 0);
-        for duration d in {1.0ns, 2.0ns, 5.0ns, 10.0ns, 1000.0ns} {
+        for duration d in {1.0ns, 2.0ns, 5.0ns, 10.0ns, 1.0us} {
             delay[d] my_frame;
         }
         """
@@ -849,7 +849,7 @@ def test_box_and_timings():
         frame framename = newframe(portname, 1000000000.0, 0);
         box[500.0ns] {
             play(framename, constant(100.0ns, 0.5));
-            delay[20000.0ns] framename;
+            delay[20.0us] framename;
             play(framename, constant(100.0ns, 0.5));
         }
         box {
@@ -879,8 +879,8 @@ def test_play_capture():
         extern constant(duration, complex[float[64]]) -> waveform;
         port portname;
         frame framename = newframe(portname, 1000000000.0, 0);
-        waveform kernel = constant(1000.0ns, 1);
-        play(framename, constant(1000.0ns, 0.5));
+        waveform kernel = constant(1.0us, 1);
+        play(framename, constant(1.0us, 0.5));
         capture(framename, kernel);
         """
     ).strip()
@@ -966,27 +966,27 @@ def test_defcals():
         frame tx_frame = newframe(tx_port, 5752000000.0, 0);
         frame rx_frame = newframe(rx_port, 5752000000.0, 0);
         defcal x $2 {
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         defcal rx(angle[32] theta) $2 {
             theta += 0.1;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         defcal rx(pi / 3) $2 {
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         defcal xy(angle[32] theta, pi / 2) $1, $2 {
             theta += 0.1;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
             theta += 0.1;
             phi += 0.2;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         defcal readout $2 -> bit {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            capture(rx_frame, constant(2400.0ns, 1));
+            play(tx_frame, constant(2.4us, 0.2));
+            capture(rx_frame, constant(2.4us, 1));
         }
         """
     ).strip()
@@ -997,7 +997,7 @@ def test_defcals():
         """
         defcal rx(angle[32] theta) $2 {
             theta += 0.1;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         """
     ).strip()
@@ -1008,7 +1008,7 @@ def test_defcals():
     expect_defcal_rx_pio2 = textwrap.dedent(
         """
         defcal rx(pi / 3) $2 {
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         """
     ).strip()
@@ -1020,7 +1020,7 @@ def test_defcals():
         """
         defcal xy(angle[32] theta, pi / 2) $1, $2 {
             theta += 0.1;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         """
     ).strip()
@@ -1035,7 +1035,7 @@ def test_defcals():
         defcal xy(angle[32] theta, float[64] phi, 10) $1, $2 {
             theta += 0.1;
             phi += 0.2;
-            play(q_frame, constant(1000.0ns, 0.1));
+            play(q_frame, constant(1.0us, 0.1));
         }
         """
     ).strip()
@@ -1049,8 +1049,8 @@ def test_defcals():
     expect_defcal_readout_q2 = textwrap.dedent(
         """
         defcal readout $2 -> bit {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            capture(rx_frame, constant(2400.0ns, 1));
+            play(tx_frame, constant(2.4us, 0.2));
+            capture(rx_frame, constant(2.4us, 1));
         }
         """
     ).strip()
@@ -1103,8 +1103,8 @@ def test_returns():
         frame tx_frame = newframe(tx_port, 5752000000.0, 0);
         frame rx_frame = newframe(rx_port, 5752000000.0, 0);
         defcal measure_v1 $0 -> bit {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            return capture_v2(rx_frame, 2400.0ns);
+            play(tx_frame, constant(2.4us, 0.2));
+            return capture_v2(rx_frame, 2.4us);
         }
         int[32] j = 0;
         int[32] k = 0;
@@ -1118,8 +1118,8 @@ def test_returns():
     expected_defcal_measure_v1_q0 = textwrap.dedent(
         """
         defcal measure_v1 $0 -> bit {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            return capture_v2(rx_frame, 2400.0ns);
+            play(tx_frame, constant(2.4us, 0.2));
+            return capture_v2(rx_frame, 2.4us);
         }
         """
     ).strip()
@@ -1211,18 +1211,18 @@ def test_ramsey_example():
             frame tx_frame = newframe(tx_port, 5752000000.0, 0);
         }
         defcal readout $2 {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            capture(rx_frame, constant(2400.0ns, 1));
+            play(tx_frame, constant(2.4us, 0.2));
+            capture(rx_frame, constant(2.4us, 1));
         }
         defcal x90 $2 {
             play(q_frame, gaussian(32.0ns, 8.0ns, 0.2063, 0.0));
         }
         cal {
             for int shot in [0:1000] {
-                duration ramsey_delay = 12000.0ns;
+                duration ramsey_delay = 12.0us;
                 angle[32] tppi_angle = 0;
                 for int delay_increment in [0:80] {
-                    delay[100000.0ns];
+                    delay[100.0us];
                     set_phase(q_frame, 0);
                     set_phase(rx_frame, 0);
                     set_phase(tx_frame, 0);
@@ -1250,8 +1250,8 @@ def test_ramsey_example():
     expect_defcal_readout_q2 = textwrap.dedent(
         """
         defcal readout $2 {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            capture(rx_frame, constant(2400.0ns, 1));
+            play(tx_frame, constant(2.4us, 0.2));
+            capture(rx_frame, constant(2.4us, 1));
         }
         """
     ).strip()
@@ -1309,12 +1309,12 @@ def test_rabi_example():
             frame q0_readout_tx_frame = newframe(zcu216_dac230_0, 3571600000, 0);
             frame q0_readout_rx_frame = newframe(zcu216_adc225_0, 3571600000, 0);
             waveform rabi_pulse_wf = gaussian(52.0ns, 13.0ns, 1.0, 0.0);
-            waveform readout_waveform_wf = constant(1600.0ns, 0.02);
-            waveform readout_kernel_wf = constant(1600.0ns, 1);
+            waveform readout_waveform_wf = constant(1.6us, 0.02);
+            waveform readout_kernel_wf = constant(1.6us, 1);
             for int shot in [1:1000] {
                 set_scale(q0_transmon_xy_frame, -0.2);
                 for int amplitude in [1:101] {
-                    delay[200000.0ns] q0_transmon_xy_frame, q0_readout_tx_frame, q0_readout_rx_frame;
+                    delay[200.0us] q0_transmon_xy_frame, q0_readout_tx_frame, q0_readout_rx_frame;
                     set_phase(q0_transmon_xy_frame, 0);
                     set_phase(q0_readout_tx_frame, 0);
                     set_phase(q0_readout_rx_frame, 0);
@@ -1362,7 +1362,7 @@ def test_program_add():
         port p1;
         frame f1 = newframe(p1, 5000000000.0, 0);
         waveform wf = constant(100.0ns, 0.5);
-        delay[1000.0ns];
+        delay[1.0us];
         defcal x180 $1 {
             play(f1, wf);
         }
@@ -1723,7 +1723,7 @@ def test_duration_literal_arithmetic():
     program = oqpy.Program()
     repeated_delay = delay_repetition * delay_time
     assert isinstance(repeated_delay, OQPyExpression)
-    assert repeated_delay.type == ast.DurationType
+    assert repeated_delay.type == ast.DurationType()
 
     program.delay(repeated_delay, frame)
     program.shift_phase(frame, 2 * oqpy.pi * (delay_time / one_second))
@@ -1734,7 +1734,7 @@ def test_duration_literal_arithmetic():
         port myport;
         frame myframe = newframe(myport, 1000000000.0, 0);
         delay[10 * 50.0ns] myframe;
-        shift_phase(myframe, 2 * pi * (50.0ns / 1000000000.0ns));
+        shift_phase(myframe, 2 * pi * (50.0ns / 1s));
         """
     ).strip()
 
@@ -1784,12 +1784,12 @@ def test_autoencal():
             extern constant(duration, complex[float[64]]) -> waveform;
             port portname;
             frame framename = newframe(portname, 1000000000.0, 0);
-            waveform kernel = constant(1000.0ns, 1);
+            waveform kernel = constant(1.0us, 1);
         }
         int[32] i = 0;
         i += 1;
         cal {
-            play(framename, constant(1000.0ns, 0.5));
+            play(framename, constant(1.0us, 0.5));
             capture(framename, kernel);
         }
         """
@@ -1869,11 +1869,11 @@ def test_ramsey_example_blog():
         }
         duration delay_time = 0.0ns;
         defcal reset $1 {
-            delay[1000000.0ns];
+            delay[1.0ms];
         }
         defcal measure $1 {
-            play(tx_frame, constant(2400.0ns, 0.2));
-            capture(rx_frame, constant(2400.0ns, 1));
+            play(tx_frame, constant(2.4us, 0.2));
+            capture(rx_frame, constant(2.4us, 1));
         }
         defcal x90 $1 {
             play(xy_frame, gaussian(32.0ns, 8.0ns, 0.2063));
@@ -1956,12 +1956,16 @@ def test_duration_coercion():
     prog = Program()
     v = oqpy.FloatVar(0.1, name="v")
     prog.delay(v * 100e-9, frame)
+    d = oqpy.DurationVar(100e-9, name="d")
+    prog.shift_phase(frame, d * 1e4)
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
-        float v = 0.1;
+        float[64] v = 0.1;
         frame f1;
-        delay[v * 1e-7 * 1s] f1;
+        duration d = 100.0ns;
+        delay[v * 1e-07 * 1s] f1;
+        shift_phase(f1, d * 10000.0 / 1s);
         """
     ).strip()
     assert prog.to_qasm() == expected

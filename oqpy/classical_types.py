@@ -156,15 +156,15 @@ class Identifier(OQPyExpression):
 
     name: str
 
-    def __init__(self, name: str) -> None:
-        self.type = None
+    def __init__(self, name: str, type: ast.ClassicalType) -> None:
         self.name = name
+        self.type = type
 
     def to_ast(self, program: Program) -> ast.Expression:
         return ast.Identifier(name=self.name)
 
 
-pi = Identifier(name="pi")
+pi = Identifier(name="pi", type=ast.FloatType())
 
 
 class _ClassicalVar(Var, OQPyExpression):

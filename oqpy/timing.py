@@ -62,20 +62,26 @@ def make_duration(time: AstConvertible) -> HasToAst:
     )
 
 
+def make_float(value: AstConvertible) -> AstConvertible:
+    if isinstance(value, OQPyExpression) and isinstance(value.type, ast.DurationType):
+        value = value / OQDurationLiteral(1)
+    return value
+
+
 class OQDurationLiteral(OQPyExpression):
     """An expression corresponding to a duration literal."""
 
     def __init__(self, duration_seconds: float) -> None:
         super().__init__()
         self.duration_seconds = duration_seconds
-        self.type = ast.DurationType
+        self.type = ast.DurationType()
 
     def to_ast(self, program: Program) -> ast.DurationLiteral:
         # Todo (#53): make better units?
         if self.duration_seconds >= 1:
             return ast.DurationLiteral(self.duration_seconds, ast.TimeUnit.s)
         if self.duration_seconds >= 1e-3:
-            return ast.DurationLiteral(1e3 * self.duration_seconds, ast.TimeUnit.ms)
+            return ast.DurationLiteral(round(1e3 * self.duration_seconds, 12), ast.TimeUnit.ms)
         if self.duration_seconds >= 1e-6:
-            return ast.DurationLiteral(1e6 * self.duration_seconds, ast.TimeUnit.us)
-        return ast.DurationLiteral(1e9 * self.duration_seconds, ast.TimeUnit.ns)
+            return ast.DurationLiteral(round(1e6 * self.duration_seconds, 12), ast.TimeUnit.us)
+        return ast.DurationLiteral(round(1e9 * self.duration_seconds, 12), ast.TimeUnit.ns)
