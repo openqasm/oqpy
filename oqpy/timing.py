@@ -78,10 +78,11 @@ class OQDurationLiteral(OQPyExpression):
 
     def to_ast(self, program: Program) -> ast.DurationLiteral:
         # Todo (#53): make better units?
+        n = program.DURATION_MAX_DIGITS
         if self.duration_seconds >= 1:
-            return ast.DurationLiteral(self.duration_seconds, ast.TimeUnit.s)
+            return ast.DurationLiteral(round(self.duration_seconds, n), ast.TimeUnit.s)
         if self.duration_seconds >= 1e-3:
-            return ast.DurationLiteral(round(1e3 * self.duration_seconds, 12), ast.TimeUnit.ms)
+            return ast.DurationLiteral(round(1e3 * self.duration_seconds, n), ast.TimeUnit.ms)
         if self.duration_seconds >= 1e-6:
-            return ast.DurationLiteral(round(1e6 * self.duration_seconds, 12), ast.TimeUnit.us)
-        return ast.DurationLiteral(round(1e9 * self.duration_seconds, 12), ast.TimeUnit.ns)
+            return ast.DurationLiteral(round(1e6 * self.duration_seconds, n), ast.TimeUnit.us)
+        return ast.DurationLiteral(round(1e9 * self.duration_seconds, n), ast.TimeUnit.ns)

@@ -215,7 +215,9 @@ def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.Cl
         (ast.DurationType, ast.FloatType): left_type,
         (ast.DurationType, ast.IntType): left_type,
         (ast.DurationType, ast.UintType): left_type,
-        (ast.DurationType, ast.DurationType): TypeError("Cannot multiply two durations"),
+        (ast.DurationType, ast.DurationType): TypeError(
+            "Cannot multiply two durations. You may need to re-group computations to eliminate this."
+        ),
         (ast.DurationType, ast.AngleType): TypeError("Cannot multiply duration and angle"),
         (ast.DurationType, ast.ComplexType): TypeError("Cannot multiply duration and complex"),
         (ast.AngleType, ast.FloatType): left_type,
@@ -359,22 +361,22 @@ class OQPyBinaryExpression(OQPyExpression):
         op: ast.BinaryOperator,
         lhs: AstConvertible,
         rhs: AstConvertible,
-        type_: ast.ClassicalType | None = None,
+        ast_type: ast.ClassicalType | None = None,
     ):
         super().__init__()
         self.op = op
         self.lhs = lhs
         self.rhs = rhs
-        # TODO (#50): More robust type checking which considers both arguments
+        # TODO (#9): More robust type checking which considers both arguments
         #   types, as well as the operator.
-        if type_ is None:
+        if ast_type is None:
             if isinstance(lhs, OQPyExpression):
-                type_ = lhs.type
+                ast_type = lhs.type
             elif isinstance(rhs, OQPyExpression):
-                type_ = rhs.type
+                ast_type = rhs.type
             else:
                 raise TypeError("Neither lhs nor rhs is an expression?")
-        self.type = type_
+        self.type = ast_type
 
         # Adding floats to durations is not allowed. So we promote types as necessary.
         if isinstance(self.type, ast.DurationType) and self.op in [

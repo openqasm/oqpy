@@ -91,6 +91,8 @@ class ProgramState:
 class Program:
     """A builder class for OpenQASM/OpenPulse programs."""
 
+    DURATION_MAX_DIGITS = 12
+
     def __init__(self, version: Optional[str] = "3.0", simplify_constants: bool = True) -> None:
         self.stack: list[ProgramState] = [ProgramState()]
         self.defcals: dict[
