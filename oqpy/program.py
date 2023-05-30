@@ -91,7 +91,7 @@ class ProgramState:
 class Program:
     """A builder class for OpenQASM/OpenPulse programs."""
 
-    def __init__(self, version: Optional[str] = "3.0") -> None:
+    def __init__(self, version: Optional[str] = "3.0", simplify_constants: bool = True) -> None:
         self.stack: list[ProgramState] = [ProgramState()]
         self.defcals: dict[
             tuple[tuple[str, ...], str, tuple[str, ...]], ast.CalibrationDefinition
@@ -100,6 +100,7 @@ class Program:
         self.externs: dict[str, ast.ExternDeclaration] = {}
         self.declared_vars: dict[str, Var] = {}
         self.undeclared_vars: dict[str, Var] = {}
+        self.simplify_constants = simplify_constants
 
         if version is None or (
             len(version.split(".")) in [1, 2]

@@ -21,12 +21,15 @@ they are converted to AST nodes.
 
 from __future__ import annotations
 
+import math
 import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, Union
 
 import numpy as np
 from openpulse import ast
+
+from oqpy import classical_types
 
 if sys.version_info >= (3, 8):
     from typing import Protocol, runtime_checkable
@@ -314,7 +317,13 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
         return ast.IntegerLiteral(item)
     if isinstance(item, (float, np.floating)):
         if item < 0:
-            return ast.UnaryExpression(ast.UnaryOperator["-"], ast.FloatLiteral(-item))
+            if program.simplify_constants:
+                neg_ast_term = detect_and_convert_constants(-item, program)
+            else:
+                neg_ast_term = ast.FloatLiteral(-item)
+            return ast.UnaryExpression(ast.UnaryOperator["-"], neg_ast_term)
+        if program.simplify_constants:
+            return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
     if isinstance(item, Iterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
@@ -347,3 +356,27 @@ def make_annotations(vals: Sequence[str | tuple[str, str]]) -> list[ast.Annotati
             keyword, command = val
             anns.append(ast.Annotation(keyword, command))
     return anns
+
+
+def detect_and_convert_constants(val: float | np.floating[Any], program: Program) -> ast.Expression:
+    """Construct a float ast expression which is either a literal or an expression using constants."""
+    if val == 0:
+        return ast.FloatLiteral(val)
+    x = val / (math.pi / 4.0)
+    rx = round(x)
+    if rx > 100 or not math.isclose(x, rx, rel_tol=1e-12):
+        return ast.FloatLiteral(val)
+    term: OQPyExpression
+    if rx == 4:
+        term = classical_types.pi
+    elif rx == 2:
+        term = classical_types.pi / 2
+    elif rx == 1:
+        term = classical_types.pi / 4
+    elif rx % 4 == 0:
+        term = (rx // 4) * classical_types.pi
+    elif rx % 2 == 0:
+        term = (rx // 2) * classical_types.pi / 2
+    else:
+        term = rx * classical_types.pi / 4
+    return term.to_ast(program)
