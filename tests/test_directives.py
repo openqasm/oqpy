@@ -379,6 +379,39 @@ def test_binary_expressions():
     assert prog.to_qasm() == expected
 
 
+@pytest.mark.xfail
+def test_add_incomptible_type():
+    # This test should fail since we add float to a duration and then don't type cast things
+    # properly. This test should be fixed once we land this support.
+    prog = oqpy.Program()
+    port = oqpy.PortVar(name="my_port")
+    frame = oqpy.FrameVar(name="my_frame", port=port, frequency=5e9, phase=0)
+    delay = oqpy.DurationVar(10e-9, name="d")
+    f = oqpy.FloatVar(5e-9, "f")
+
+    prog.delay(delay + f, frame)
+
+    # Note the automatic conversion of float to duration. Do note that OpenQASM spec does not allows
+    # `float * duration` but does allow for `const float * duration`. So this example is not
+    # entirely spec-compliant. Though arguably the spec should be changed.
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        defcalgrammar "openpulse";
+        cal {
+            port my_port;
+            frame my_frame = newframe(my_port, 5000000000.0, 0);
+        }
+        duration d = 10.0ns;
+        float[64] f = 5e-09;
+
+        delay[d + f * 1s] my_frame;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+
 def test_measure_reset_pragma():
     prog = Program()
     q = PhysicalQubits[0]
