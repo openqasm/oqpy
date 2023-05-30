@@ -15,6 +15,7 @@
 ############################################################################
 
 import copy
+import math
 import textwrap
 from dataclasses import dataclass
 
@@ -1759,3 +1760,35 @@ def test_ramsey_example_blog():
     ).strip()
 
     assert full_prog.to_qasm(encal_declarations=True) == expected
+
+
+def test_constant_conversion():
+    w = oqpy.FloatVar(math.pi, name="w")
+    x = oqpy.FloatVar(3 * math.pi / 4, name="x")
+    y = oqpy.FloatVar(math.pi / 2, name="y")
+    z = oqpy.FloatVar(7 * math.pi, name="z")
+    prog = Program()
+    prog.declare([w, x, y, z])
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        float[64] w = pi;
+        float[64] x = 3 * pi / 4;
+        float[64] y = pi / 2;
+        float[64] z = 7 * pi;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+
+    prog = Program(simplify_constants=False)
+    prog.declare([w, x, y, z])
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        float[64] w = 3.141592653589793;
+        float[64] x = 2.356194490192345;
+        float[64] y = 1.5707963267948966;
+        float[64] z = 21.991148575128552;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
