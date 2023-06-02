@@ -146,7 +146,8 @@ for int shot_index in [0:99] {
 ## Contributing
 
 We welcome contributions to OQpy including bug fixes, feature requests, etc. To get started, check
-out our [contributing guidelines](CONTRIBUTING.md).
+out our [contributing guidelines](CONTRIBUTING.md). Those who make a nontrivial contribution to the
+source code will be added as an author to the [`CITATION.cff`][citation-file] file (see below).
 
 ## Citation
 
