@@ -23,6 +23,18 @@ authors:
     given-names: Li
     affiliation: "AWS Center for Quantum Computing"
     orcid: "https://orcid.org/0000-0002-1700-7503"
+  - family-names: Thorgrimsson
+    given-names: Brandur
+    affiliation: "Atlantic Quantum"
+    orcid: "https://orcid.org/0000-0002-4491-1717"
+  - family-names: Mishra
+    given-names: Anurag
+    affiliation: "AWS Center for Quantum Computing"
+    orcid: "https://orcid.org/0000-0003-1325-4387"
+  - family-names: D'Ewart
+    given-names: Mitch
+    affiliation: "AWS Center for Quantum Computing"
+    orcid: "https://orcid.org/0000-0001-8916-560X"
   - family-names: Sivarajah
     given-names: Prasahnt
     affiliation: "AWS Center for Quantum Computing"
