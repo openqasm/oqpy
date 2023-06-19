@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["If", "Else", "ForIn", "While"]
+__all__ = ["If", "Else", "ForIn", "While", "Range"]
 
 
 @contextlib.contextmanager
@@ -129,16 +129,43 @@ def ForIn(
             iterator = (make_duration(i) for i in iterator)
 
         set_declaration = ast.DiscreteSet([to_ast(program, i) for i in iterator])
-    elif isinstance(iterator, _ClassicalVar):
-        set_declaration = to_ast(program, iterator)
-        assert isinstance(set_declaration, ast.Identifier), type(set_declaration)
     else:
-        raise TypeError(f"'{type(iterator)}' object is not iterable")
+        set_declaration = to_ast(program, iterator)
 
     stmt = ast.ForInLoop(
         identifier_type.type_cls(), var.to_ast(program), set_declaration, state.body
     )
     program._add_statement(stmt)
+
+
+class Range:
+    """AstConvertible which creates an integer range.
+
+    Unlike builtin python range, this allows the components to be AstConvertible,
+    instead of just int.
+    """
+
+    def __init__(
+        self,
+        start: int | AstConvertible,
+        stop: int | AstConvertible,
+        step: int | AstConvertible = 1,
+    ):
+        self.start = start
+        self.stop = stop
+        self.step = step
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Convert to an ast.RangeDefinition."""
+        return ast.RangeDefinition(
+            to_ast(program, self.start),
+            ast.BinaryExpression(
+                lhs=to_ast(program, self.stop),
+                op=ast.BinaryOperator["-"],
+                rhs=ast.IntegerLiteral(value=1),
+            ),
+            to_ast(program, self.step) if self.step != 1 else None,
+        )
 
 
 @contextlib.contextmanager
