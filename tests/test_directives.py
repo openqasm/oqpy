@@ -16,19 +16,68 @@
 
 import copy
 import math
+import sys
 import textwrap
-from dataclasses import dataclass
+import types
+import typing
+from dataclasses import dataclass, fields
 
 import numpy as np
 import pytest
 from openpulse import ast
 from openpulse.printer import dumps
+from openpulse.parser import QASMVisitor
 
 import oqpy
 from oqpy import *
 from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
+
+
+def _type_matches(val, type_hint) -> bool:
+    """Return true if the value could be an element of type_hint.
+
+    This is more general than `isinstance` since it handles annotated and union types.
+    """
+    origin = typing.get_origin(type_hint)
+    if origin is None:
+        return isinstance(val, type_hint)
+    args = typing.get_args(type_hint)
+
+    union_types = [typing.Union]
+    if sys.version_info >= (3, 10):
+        union_types.append(types.UnionType)  # 3.9 has no types.UnionType
+
+    if origin in union_types:
+        for arg in args:
+            if _type_matches(val, arg):
+                return True
+        return False
+
+    if origin is typing.Annotated:
+        return _type_matches(val, args[0])
+
+    return isinstance(val, origin)
+
+
+class AstTypeHintChecker(QASMVisitor):
+    def generic_visit(self, node, context=None):
+        cls = type(node)
+        type_hints = typing.get_type_hints(cls)
+        for field in fields(cls):
+            val = getattr(node, field.name)
+            type_hint = type_hints[field.name]
+            if not _type_matches(val, type_hint):
+                raise TypeError(
+                    f"node of type {type(node).__name__} has type mismatch on field {field.name}\n"
+                    f"Got {val} of type {type(val)} but expected something of type {type_hint}"
+                )
+        super().generic_visit(node, context)
+
+
+def _check_respects_type_hints(prog):
+    AstTypeHintChecker().visit(prog.to_ast())
 
 
 def test_version_string():
@@ -44,6 +93,7 @@ def test_version_string():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_variable_declaration():
@@ -90,6 +140,7 @@ def test_variable_declaration():
 
     assert isinstance(arr[14], BitVar)
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_complex_numbers_declaration():
@@ -139,6 +190,7 @@ def test_complex_numbers_declaration():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_array_declaration():
@@ -209,6 +261,9 @@ def test_array_declaration():
     ).strip()
 
     assert prog.to_qasm() == expected
+    # TODO: Fix type hint on ArrayType.base_type to allow duration
+    # TODO: Return IndexedIdentifier instead of IndexExpression for lvalue when assigning to array
+    # _check_respects_type_hints(prog)
 
 
 def test_non_trivial_array_access():
@@ -246,6 +301,8 @@ def test_non_trivial_array_access():
     ).strip()
 
     assert prog.to_qasm() == expected
+    # TODO: Fix type hint on ArrayType.base_type to allow duration
+    # _check_respects_type_hints(prog)
 
 
 def test_non_trivial_variable_declaration():
@@ -266,6 +323,7 @@ def test_non_trivial_variable_declaration():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_variable_assignment():
@@ -291,6 +349,7 @@ def test_variable_assignment():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_binary_expressions():
@@ -377,6 +436,7 @@ def test_binary_expressions():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 @pytest.mark.xfail
@@ -410,6 +470,7 @@ def test_add_incomptible_type():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_measure_reset_pragma():
@@ -442,6 +503,7 @@ def test_measure_reset_pragma():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_bare_if():
@@ -469,6 +531,7 @@ def test_bare_if():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_if_else():
@@ -505,6 +568,7 @@ def test_if_else():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_for_in():
@@ -541,6 +605,7 @@ def test_for_in():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_for_in_var_types():
@@ -565,6 +630,7 @@ def test_for_in_var_types():
     ).strip()
 
     assert program.to_qasm() == expected
+    _check_respects_type_hints(program)
 
     # Test over duration array.
     program = oqpy.Program()
@@ -601,6 +667,8 @@ def test_for_in_var_types():
         }
         """
     ).strip()
+    assert program.to_qasm() == expected
+    _check_respects_type_hints(program)
 
     # Test indexing over an ArrayVar
     program = oqpy.Program()
@@ -625,6 +693,7 @@ def test_for_in_var_types():
     ).strip()
 
     assert program.to_qasm() == expected
+    _check_respects_type_hints(program)
 
 
 def test_while():
@@ -649,6 +718,7 @@ def test_while():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_create_frame():
@@ -671,6 +741,7 @@ def test_create_frame():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_subroutine_with_return():
@@ -736,6 +807,7 @@ def test_subroutine_with_return():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_box_and_timings():
@@ -774,6 +846,7 @@ def test_box_and_timings():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_play_capture():
@@ -799,6 +872,7 @@ def test_play_capture():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_set_shift_frequency():
@@ -820,6 +894,7 @@ def test_set_shift_frequency():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_defcals():
@@ -902,6 +977,8 @@ def test_defcals():
         """
     ).strip()
     assert prog.to_qasm() == expected
+    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
+    # _check_respects_type_hints(prog)
 
     expect_defcal_rx_theta = textwrap.dedent(
         """
@@ -1023,6 +1100,8 @@ def test_returns():
     ).strip()
     print(prog.to_qasm())
     assert prog.to_qasm() == expected
+    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
+    # _check_respects_type_hints(prog)
 
     expected_defcal_measure_v1_q0 = textwrap.dedent(
         """
@@ -1166,6 +1245,8 @@ def test_ramsey_example():
     ).strip()
 
     assert prog.to_qasm() == expected
+    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
+    # _check_respects_type_hints(prog)
     assert dumps(prog.defcals[(("$2",), "x90", ())], indent="    ").strip() == expect_defcal_x90_q2
     assert (
         dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip()
@@ -1239,6 +1320,7 @@ def test_rabi_example():
     ).strip()
 
     assert prog.to_qasm(encal=True, include_externs=False) == expected
+    _check_respects_type_hints(prog)
 
 
 def test_program_add():
@@ -1283,6 +1365,8 @@ def test_program_add():
 
     prog = prog1 + prog2
     assert prog.to_qasm() == expected
+    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
+    # _check_respects_type_hints(prog)
 
     with pytest.raises(RuntimeError):
         with If(prog2, i == 0):
@@ -1329,6 +1413,7 @@ def test_expression_convertible():
         """
     ).strip()
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_waveform_extern_arg_passing():
@@ -1361,6 +1446,7 @@ def test_waveform_extern_arg_passing():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_needs_declaration():
@@ -1397,6 +1483,7 @@ def test_needs_declaration():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_discrete_waveform():
@@ -1429,6 +1516,7 @@ def test_discrete_waveform():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_annotate():
@@ -1555,6 +1643,7 @@ def test_annotate():
         """
     ).strip()
     assert prog.to_qasm(encal_declarations=True) == expected
+    _check_respects_type_hints(prog)
 
 
 def test_var_and_expr_matches():
@@ -1641,6 +1730,7 @@ def test_duration_literal_arithmetic():
     ).strip()
 
     assert program.to_qasm() == expected
+    _check_respects_type_hints(program)
 
 
 def test_make_duration():
@@ -1697,6 +1787,7 @@ def test_autoencal():
     ).strip()
 
     assert prog.to_qasm(encal_declarations=True) == expected
+    _check_respects_type_hints(prog)
 
 
 def test_ramsey_example_blog():
@@ -1793,6 +1884,8 @@ def test_ramsey_example_blog():
     ).strip()
 
     assert full_prog.to_qasm(encal_declarations=True) == expected
+    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
+    # _check_respects_type_hints(prog)
 
 
 def test_constant_conversion():
@@ -1812,6 +1905,7 @@ def test_constant_conversion():
         """
     ).strip()
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
     prog = Program(simplify_constants=False)
     prog.declare([w, x, y, z])
@@ -1825,6 +1919,7 @@ def test_constant_conversion():
         """
     ).strip()
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_oqpy_range():
@@ -1845,3 +1940,4 @@ def test_oqpy_range():
         """
     ).strip()
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
