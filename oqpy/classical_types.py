@@ -29,6 +29,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    Literal,
 )
 
 from openpulse import ast
@@ -177,7 +178,7 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         name: str | None = None,
         needs_declaration: bool = True,
         annotations: Sequence[str | tuple[str, str]] = (),
@@ -196,6 +197,10 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
+        if self.init_expression == "input" or self.init_expression == "output":
+            return ast.IODeclaration(
+                ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
+            )
         init_expression_ast = optional_ast(program, self.init_expression)
         stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
         stmt.annotations = make_annotations(self.annotations)
