@@ -979,8 +979,7 @@ def test_defcals():
         """
     ).strip()
     assert prog.to_qasm() == expected
-    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
-    # _check_respects_type_hints(prog)
+    _check_respects_type_hints(prog)
 
     expect_defcal_rx_theta = textwrap.dedent(
         """
@@ -1102,8 +1101,7 @@ def test_returns():
     ).strip()
     print(prog.to_qasm())
     assert prog.to_qasm() == expected
-    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
-    # _check_respects_type_hints(prog)
+    _check_respects_type_hints(prog)
 
     expected_defcal_measure_v1_q0 = textwrap.dedent(
         """
@@ -1247,8 +1245,7 @@ def test_ramsey_example():
     ).strip()
 
     assert prog.to_qasm() == expected
-    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
-    # _check_respects_type_hints(prog)
+    _check_respects_type_hints(prog)
     assert dumps(prog.defcals[(("$2",), "x90", ())], indent="    ").strip() == expect_defcal_x90_q2
     assert (
         dumps(prog.defcals[(("$2",), "readout", ())], indent="    ").strip()
@@ -1367,8 +1364,7 @@ def test_program_add():
 
     prog = prog1 + prog2
     assert prog.to_qasm() == expected
-    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
-    # _check_respects_type_hints(prog)
+    _check_respects_type_hints(prog)
 
     with pytest.raises(RuntimeError):
         with If(prog2, i == 0):
@@ -1886,8 +1882,7 @@ def test_ramsey_example_blog():
     ).strip()
 
     assert full_prog.to_qasm(encal_declarations=True) == expected
-    # TODO: restore after openpulse fixes import of Union in openpulse.ast module
-    # _check_respects_type_hints(prog)
+    _check_respects_type_hints(full_prog)
 
 
 def test_constant_conversion():
