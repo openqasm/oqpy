@@ -107,7 +107,6 @@ def subroutine(
                 return_hint = type_hints["return"]()
                 if isinstance(return_hint, _ClassicalVar):
                     return_type = return_hint.type
-                    print(return_hint.type)
                 elif return_hint is not None:
                     raise ValueError(
                         f"Type hint for return variable on subroutine {name} is not an oqpy classical type."
