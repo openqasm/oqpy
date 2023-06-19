@@ -1825,3 +1825,23 @@ def test_constant_conversion():
         """
     ).strip()
     assert prog.to_qasm() == expected
+
+
+def test_oqpy_range():
+    prog = Program()
+    sum = oqpy.IntVar(0, "sum")
+    with ForIn(prog, range(10), "i") as i:
+        with ForIn(prog, oqpy.Range(1, i), "j") as j:
+            prog.increment(sum, j)
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] sum = 0;
+        for int i in [0:9] {
+            for int j in [1:i - 1] {
+                sum += j;
+            }
+        }
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
