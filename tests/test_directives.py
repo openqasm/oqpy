@@ -77,6 +77,8 @@ class AstTypeHintChecker(QASMVisitor):
 
 
 def _check_respects_type_hints(prog):
+    if sys.version_info < (3, 9):
+        return  # typing module interface is too different before 3.9
     AstTypeHintChecker().visit(prog.to_ast())
 
 
