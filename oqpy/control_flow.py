@@ -145,12 +145,7 @@ class Range:
     instead of just int.
     """
 
-    def __init__(
-        self,
-        start: int | AstConvertible,
-        stop: int | AstConvertible,
-        step: int | AstConvertible = 1,
-    ):
+    def __init__(self, start: AstConvertible, stop: AstConvertible, step: AstConvertible = 1):
         self.start = start
         self.stop = stop
         self.step = step
