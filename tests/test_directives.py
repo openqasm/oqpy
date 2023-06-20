@@ -1949,3 +1949,31 @@ def test_oqpy_range():
     ).strip()
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_io_declaration():
+    x = oqpy.DurationVar("input", name="x")
+    y = oqpy.FloatVar("output", name="y")
+    wf = oqpy.WaveformVar("input", name="wf")
+    port = oqpy.PortVar(name="my_port", init_expression="input")
+    frame = oqpy.FrameVar(port, 5e9, 0, name="my_frame")
+
+    prog = Program()
+    prog.declare(x)
+    prog.set(y, 1)
+    prog.play(frame, wf)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        input port my_port;
+        output float[64] y;
+        frame my_frame = newframe(my_port, 5000000000.0, 0.0);
+        input waveform wf;
+        input duration x;
+        y = 1;
+        play(my_frame, wf);
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)

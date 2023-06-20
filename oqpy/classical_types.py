@@ -197,7 +197,7 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
-        if self.init_expression == "input" or self.init_expression == "output":
+        if isinstance(self.init_expression, str) and self.init_expression in ("input", "output"):
             return ast.IODeclaration(
                 ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
             )
@@ -300,7 +300,7 @@ class ComplexVar(_ClassicalVar):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         *args: Any,
         base_type: ast.FloatType = float64,
         **kwargs: Any,
@@ -308,7 +308,7 @@ class ComplexVar(_ClassicalVar):
         assert isinstance(base_type, ast.FloatType)
         self.base_type = base_type
 
-        if not isinstance(init_expression, (complex, type(None), OQPyExpression)):
+        if not isinstance(init_expression, (complex, type(None), str, OQPyExpression)):
             init_expression = complex(init_expression)  # type: ignore[arg-type]
         super().__init__(init_expression, *args, **kwargs, base_type=base_type)
 
@@ -320,12 +320,12 @@ class DurationVar(_ClassicalVar):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         name: str | None = None,
         *args: Any,
         **type_kwargs: Any,
     ) -> None:
-        if init_expression is not None:
+        if init_expression is not None and not isinstance(init_expression, str):
             init_expression = make_duration(init_expression)
         super().__init__(init_expression, name, *args, **type_kwargs)
 
