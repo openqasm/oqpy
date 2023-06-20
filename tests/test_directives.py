@@ -42,7 +42,8 @@ def _type_matches(val, type_hint) -> bool:
     """
     origin = typing.get_origin(type_hint)
     if origin is None:
-        return isinstance(val, type_hint)
+        # Make an exception for int where float is requested.
+        return isinstance(val, type_hint) or (isinstance(val, int) and issubclass(type_hint, float))
     args = typing.get_args(type_hint)
 
     union_types = [typing.Union]
