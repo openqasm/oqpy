@@ -516,7 +516,7 @@ def test_measure_reset_pragma():
 
     assert prog.to_qasm() == expected
     # Todo: Pragmas aren't currently statements
-    _check_respects_type_hints(prog, ("statements"))
+    _check_respects_type_hints(prog, ["statements"])
 
 
 def test_bare_if():
@@ -860,7 +860,7 @@ def test_box_and_timings():
 
     assert prog.to_qasm() == expected
     # Todo: box only currently technically allows QuantumStatements (i.e. gates)
-    _check_respects_type_hints(prog, "body")
+    _check_respects_type_hints(prog, ["body"])
 
 
 def test_play_capture():
