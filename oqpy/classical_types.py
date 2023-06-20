@@ -25,12 +25,14 @@ from typing import (
     Any,
     Callable,
     Iterable,
-    Literal,
     Sequence,
     Type,
     TypeVar,
     Union,
 )
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 from openpulse import ast
 
