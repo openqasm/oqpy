@@ -402,8 +402,8 @@ def test_binary_expressions():
     prog.set(d, d / 5)
     prog.set(d, d + 5e-9)
     prog.set(d, 5e-9 - d)
-    prog.set(d, d + make_duration(10e-9))
-    prog.set(f, d / make_duration(1))
+    prog.set(d, d + convert_float_to_duration(10e-9))
+    prog.set(f, d / convert_float_to_duration(1))
 
     expected = textwrap.dedent(
         """
@@ -840,7 +840,7 @@ def test_box_and_timings():
 
     with pytest.raises(TypeError):
         f = FloatVar(200e-9, "f", needs_declaration=False)
-        make_duration(f.to_ast(prog))
+        convert_float_to_duration(f.to_ast(prog))
 
     expected = textwrap.dedent(
         """
@@ -1567,7 +1567,7 @@ def test_annotate():
         prog.gate(q1, "x")
     with oqpy.Else(prog):
         prog.annotate(("annotation-in-else"))
-        prog.delay(make_duration(1e-8), q1)
+        prog.delay(convert_float_to_duration(1e-8), q1)
     prog.annotate("annotation-after-if")
 
     prog.annotate("annotation-no-else-before-if")
@@ -1717,8 +1717,8 @@ def test_duration_literal_arithmetic():
     # Test that duration literals can be used as a part of expression.
     port = oqpy.PortVar("myport")
     frame = oqpy.FrameVar(port, 1e9, name="myframe")
-    delay_time = oqpy.make_duration(50e-9)  # 50 ns
-    one_second = oqpy.make_duration(1)  # 1 second
+    delay_time = oqpy.convert_float_to_duration(50e-9)  # 50 ns
+    one_second = oqpy.convert_float_to_duration(1)  # 1 second
     delay_repetition = 10
 
     program = oqpy.Program()
@@ -1744,24 +1744,24 @@ def test_duration_literal_arithmetic():
 
 
 def test_make_duration():
-    assert expr_matches(make_duration(1e-3), OQDurationLiteral(1e-3))
-    assert expr_matches(make_duration(OQDurationLiteral(1e-4)), OQDurationLiteral(1e-4))
+    assert expr_matches(convert_float_to_duration(1e-3), OQDurationLiteral(1e-3))
+    assert expr_matches(convert_float_to_duration(OQDurationLiteral(1e-4)), OQDurationLiteral(1e-4))
 
     class MyExprConvertible:
         def _to_oqpy_expression(self):
             return OQDurationLiteral(1e-5)
 
-    assert expr_matches(make_duration(MyExprConvertible()), OQDurationLiteral(1e-5))
+    assert expr_matches(convert_float_to_duration(MyExprConvertible()), OQDurationLiteral(1e-5))
 
     class MyToAst:
         def to_ast(self):
             return OQDurationLiteral(1e-6)
 
     obj = MyToAst()
-    assert make_duration(obj) is obj
+    assert convert_float_to_duration(obj) is obj
 
     with pytest.raises(TypeError):
-        make_duration("asdf")
+        convert_float_to_duration("asdf")
 
 
 def test_autoencal():

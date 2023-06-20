@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING, Iterator, cast
+import warnings
 
 from openpulse import ast
 
@@ -29,14 +30,14 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["Box", "make_duration"]
+__all__ = ["Box", "convert_float_to_duration", "convert_float_to_duration", "make_duration"]
 
 
 @contextlib.contextmanager
 def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[None]:
     """Creates a section of the program with a specified duration."""
     if duration is not None:
-        duration = make_duration(duration)
+        duration = convert_float_to_duration(duration)
     program._push()
     yield
     state = program._pop()
@@ -44,6 +45,15 @@ def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[No
 
 
 def make_duration(time: AstConvertible) -> HasToAst:
+    warnings.warn(
+        "make_duration name is deprecated in favor of convert_float_to_duration",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return convert_duration_to_float(time)
+
+
+def convert_float_to_duration(time: AstConvertible) -> HasToAst:
     """Make value into an expression representing a duration."""
     if isinstance(time, (float, int)):
         return OQDurationLiteral(time)
@@ -62,7 +72,7 @@ def make_duration(time: AstConvertible) -> HasToAst:
     )
 
 
-def make_float(value: AstConvertible) -> AstConvertible:
+def convert_duration_to_float(value: AstConvertible) -> AstConvertible:
     if isinstance(value, OQPyExpression) and isinstance(value.type, ast.DurationType):
         value = value / OQDurationLiteral(1)
     return value

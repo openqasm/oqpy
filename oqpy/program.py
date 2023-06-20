@@ -41,7 +41,7 @@ from oqpy.base import (
     to_ast,
 )
 from oqpy.pulse import FrameVar, PortVar, WaveformVar
-from oqpy.timing import make_duration, make_float
+from oqpy.timing import convert_float_to_duration, convert_duration_to_float
 
 __all__ = ["Program"]
 
@@ -366,7 +366,7 @@ class Program:
         """Apply a delay to a set of qubits or frames."""
         if not isinstance(qubits_or_frames, Iterable):
             qubits_or_frames = [qubits_or_frames]
-        ast_duration = to_ast(self, make_duration(time))
+        ast_duration = to_ast(self, convert_float_to_duration(time))
         ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
         self._add_statement(ast.DelayInstruction(ast_duration, ast_qubits_or_frames))
         return self
@@ -400,32 +400,32 @@ class Program:
         # such as s^{-1}. For instance, in 2 * oqpy.pi * tppi * DurationVar(1e-8),
         # tppi is a float but has a frequency unit. This will coerce the result type
         # to a float by assuming the duration should be represented in seconds."
-        self.function_call("set_phase", [frame, make_float(phase)])
+        self.function_call("set_phase", [frame, convert_duration_to_float(phase)])
         return self
 
     def shift_phase(self, frame: AstConvertible, phase: AstConvertible) -> Program:
         """Shift the phase of a particular frame."""
-        self.function_call("shift_phase", [frame, make_float(phase)])
+        self.function_call("shift_phase", [frame, convert_duration_to_float(phase)])
         return self
 
     def set_frequency(self, frame: AstConvertible, freq: AstConvertible) -> Program:
         """Set the frequency of a particular frame."""
-        self.function_call("set_frequency", [frame, make_float(freq)])
+        self.function_call("set_frequency", [frame, convert_duration_to_float(freq)])
         return self
 
     def shift_frequency(self, frame: AstConvertible, freq: AstConvertible) -> Program:
         """Shift the frequency of a particular frame."""
-        self.function_call("shift_frequency", [frame, make_float(freq)])
+        self.function_call("shift_frequency", [frame, convert_duration_to_float(freq)])
         return self
 
     def set_scale(self, frame: AstConvertible, scale: AstConvertible) -> Program:
         """Set the amplitude scaling of a particular frame."""
-        self.function_call("set_scale", [frame, make_float(scale)])
+        self.function_call("set_scale", [frame, convert_duration_to_float(scale)])
         return self
 
     def shift_scale(self, frame: AstConvertible, scale: AstConvertible) -> Program:
         """Shift the amplitude scaling of a particular frame."""
-        self.function_call("shift_scale", [frame, make_float(scale)])
+        self.function_call("shift_scale", [frame, convert_duration_to_float(scale)])
         return self
 
     def returns(self, expression: AstConvertible) -> Program:
@@ -480,7 +480,7 @@ class Program:
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):
-            value = make_duration(value)
+            value = convert_float_to_duration(value)
         var_ast = to_ast(self, var)
         if isinstance(var_ast, ast.IndexExpression):
             assert isinstance(var_ast.collection, ast.Identifier)

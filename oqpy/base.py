@@ -384,10 +384,10 @@ class OQPyBinaryExpression(OQPyExpression):
             ast.BinaryOperator["-"],
         ]:
             # Late import to avoid circular imports.
-            from oqpy.timing import make_duration
+            from oqpy.timing import convert_float_to_duration
 
-            self.lhs = make_duration(self.lhs)
-            self.rhs = make_duration(self.rhs)
+            self.lhs = convert_float_to_duration(self.lhs)
+            self.rhs = convert_float_to_duration(self.rhs)
 
     def to_ast(self, program: Program) -> ast.BinaryExpression:
         """Converts the OQpy expression into an ast node."""

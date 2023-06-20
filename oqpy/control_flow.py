@@ -30,7 +30,7 @@ from oqpy.classical_types import (
     _ClassicalVar,
     convert_range,
 )
-from oqpy.timing import make_duration
+from oqpy.timing import convert_float_to_duration
 
 ClassicalVarT = TypeVar("ClassicalVarT", bound=_ClassicalVar)
 
@@ -126,7 +126,7 @@ def ForIn(
         set_declaration = convert_range(program, iterator)
     elif isinstance(iterator, Iterable):
         if identifier_type is DurationVar:
-            iterator = (make_duration(i) for i in iterator)
+            iterator = (convert_float_to_duration(i) for i in iterator)
 
         set_declaration = ast.DiscreteSet([to_ast(program, i) for i in iterator])
     else:
