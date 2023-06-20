@@ -25,11 +25,11 @@ from typing import (
     Any,
     Callable,
     Iterable,
+    Literal,
     Sequence,
     Type,
     TypeVar,
     Union,
-    Literal,
 )
 
 from openpulse import ast

@@ -1968,7 +1968,7 @@ def test_io_declaration():
         OPENQASM 3.0;
         input port my_port;
         output float[64] y;
-        frame my_frame = newframe(my_port, 5000000000.0, 0.0);
+        frame my_frame = newframe(my_port, 5000000000.0, 0);
         input waveform wf;
         input duration x;
         y = 1;
