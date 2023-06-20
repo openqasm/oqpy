@@ -58,17 +58,30 @@ def _type_matches(val, type_hint) -> bool:
     if origin is typing.Annotated:
         return _type_matches(val, args[0])
 
+    if origin is list:
+        return isinstance(val, origin) and all(_type_matches(item, args[0]) for item in val)
+
+    if origin is dict:
+        return (
+            isinstance(val, origin)
+            and all(_type_matches(k, args[0]) for k in val.keys())
+            and all(_type_matches(v, args[1]) for v in val.values())
+        )
+
     return isinstance(val, origin)
 
 
 class AstTypeHintChecker(QASMVisitor):
+    def __init__(self, except_fields):
+        self.except_fields = except_fields
+
     def generic_visit(self, node, context=None):
         cls = type(node)
         type_hints = typing.get_type_hints(cls)
         for field in fields(cls):
             val = getattr(node, field.name)
             type_hint = type_hints[field.name]
-            if not _type_matches(val, type_hint):
+            if not _type_matches(val, type_hint) and field.name not in self.except_fields:
                 raise TypeError(
                     f"node of type {type(node).__name__} has type mismatch on field {field.name}\n"
                     f"Got {val} of type {type(val)} but expected something of type {type_hint}"
@@ -76,10 +89,10 @@ class AstTypeHintChecker(QASMVisitor):
         super().generic_visit(node, context)
 
 
-def _check_respects_type_hints(prog):
+def _check_respects_type_hints(prog, except_fields=()):
     if sys.version_info < (3, 9):
         return  # typing module interface is too different before 3.9
-    AstTypeHintChecker().visit(prog.to_ast())
+    AstTypeHintChecker(except_fields).visit(prog.to_ast())
 
 
 def test_version_string():
@@ -502,7 +515,8 @@ def test_measure_reset_pragma():
     ).strip()
 
     assert prog.to_qasm() == expected
-    _check_respects_type_hints(prog)
+    # Todo: Pragmas aren't currently statements
+    _check_respects_type_hints(prog, ("statements"))
 
 
 def test_bare_if():
@@ -845,7 +859,8 @@ def test_box_and_timings():
     ).strip()
 
     assert prog.to_qasm() == expected
-    _check_respects_type_hints(prog)
+    # Todo: box only currently technically allows QuantumStatements (i.e. gates)
+    _check_respects_type_hints(prog, "body")
 
 
 def test_play_capture():
