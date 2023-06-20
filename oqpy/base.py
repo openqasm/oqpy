@@ -323,6 +323,7 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     if isinstance(item, (bool, np.bool_)):
         return ast.BooleanLiteral(item)
     if isinstance(item, (int, np.integer)):
+        item = int(item)
         if item < 0:
             return ast.UnaryExpression(ast.UnaryOperator["-"], ast.IntegerLiteral(-item))
         return ast.IntegerLiteral(item)

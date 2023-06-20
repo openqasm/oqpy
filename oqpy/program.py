@@ -239,7 +239,7 @@ class Program:
                     openpulse_externs.append(extern_statement)
                     break
             else:
-                if isinstance(extern_statement.return_type.type, openpulse_types):
+                if isinstance(extern_statement.return_type, openpulse_types):
                     openpulse_externs.append(extern_statement)
                 else:
                     openqasm_externs.append(extern_statement)
@@ -474,9 +474,13 @@ class Program:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):
             value = make_duration(value)
+        var_ast = to_ast(self, var)
+        if isinstance(var_ast, ast.IndexExpression):
+            assert isinstance(var_ast.collection, ast.Identifier)
+            var_ast = ast.IndexedIdentifier(name=var_ast.collection, indices=[var_ast.index])
         self._add_statement(
             ast.ClassicalAssignment(
-                to_ast(self, var),
+                var_ast,
                 ast.AssignmentOperator[op],
                 to_ast(self, value),
             )

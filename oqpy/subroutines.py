@@ -106,7 +106,7 @@ def subroutine(
             if type_hints.get("return", False):
                 return_hint = type_hints["return"]()
                 if isinstance(return_hint, _ClassicalVar):
-                    return_type = return_hint
+                    return_type = return_hint.type
                 elif return_hint is not None:
                     raise ValueError(
                         f"Type hint for return variable on subroutine {name} is not an oqpy classical type."
@@ -176,7 +176,7 @@ def declare_extern(
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
         [ast.ExternArgument(type=t) for t in arg_types],
-        ast.ExternArgument(type=return_type),
+        return_type,
     )
     extern_decl.annotations = make_annotations(annotations)
 
