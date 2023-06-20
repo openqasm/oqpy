@@ -31,9 +31,6 @@ from typing import (
     Union,
 )
 
-if TYPE_CHECKING:
-    from typing import Literal
-
 from openpulse import ast
 
 from oqpy.base import (
@@ -48,6 +45,8 @@ from oqpy.base import (
 from oqpy.timing import make_duration
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from oqpy.program import Program
 
 __all__ = [
