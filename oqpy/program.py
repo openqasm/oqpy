@@ -41,7 +41,7 @@ from oqpy.base import (
     to_ast,
 )
 from oqpy.pulse import FrameVar, PortVar, WaveformVar
-from oqpy.timing import convert_float_to_duration, convert_duration_to_float
+from oqpy.timing import convert_duration_to_float, convert_float_to_duration
 
 __all__ = ["Program"]
 

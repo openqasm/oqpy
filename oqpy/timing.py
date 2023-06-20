@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, cast
 import warnings
+from typing import TYPE_CHECKING, Iterator, cast
 
 from openpulse import ast
 
@@ -45,12 +45,13 @@ def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[No
 
 
 def make_duration(time: AstConvertible) -> HasToAst:
+    """Make value into an expression representing a duration."""
     warnings.warn(
         "make_duration name is deprecated in favor of convert_float_to_duration",
         DeprecationWarning,
         stacklevel=2,
     )
-    return convert_duration_to_float(time)
+    return convert_float_to_duration(time)
 
 
 def convert_float_to_duration(time: AstConvertible) -> HasToAst:
