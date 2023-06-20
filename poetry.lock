@@ -982,20 +982,20 @@ files = [
 
 [[package]]
 name = "openpulse"
-version = "0.4.2"
+version = "0.5.0"
 description = "Reference OpenPulse AST in Python"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "openpulse-0.4.2-py3-none-any.whl", hash = "sha256:16634b102f3f1783292d24e5e13f6d430021edabba173993e08e9ca1e12009b1"},
-    {file = "openpulse-0.4.2.tar.gz", hash = "sha256:77b8724216abdbe47e086f64bea15c8c6369f62f954d90e9f4e88f065d2ab36e"},
+    {file = "openpulse-0.5.0-py3-none-any.whl", hash = "sha256:c91b69633366381f3fdbc0c9be8c37c114b2d8e469f667ff9b0f78632e00c395"},
+    {file = "openpulse-0.5.0.tar.gz", hash = "sha256:d7b1d940c0e081975f5ebdad2b378d24e4a612b73fce1bc2e26948d907f5db1c"},
 ]
 
 [package.dependencies]
 antlr4-python3-runtime = ">=4.7,<4.12"
 importlib-metadata = {version = "*", markers = "python_version < \"3.10\""}
-openqasm3 = {version = "0.4.0", extras = ["parser"]}
+openqasm3 = {version = ">=0.5.0", extras = ["parser"]}
 
 [package.extras]
 all = ["pytest (>=6.0)", "pyyaml"]
@@ -1019,23 +1019,23 @@ Pygments = ">=2.0,<3.0"
 
 [[package]]
 name = "openqasm3"
-version = "0.4.0"
+version = "0.5.0"
 description = "Reference OpenQASM AST in Python"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "openqasm3-0.4.0-py3-none-any.whl", hash = "sha256:a61428b64d53b7acc51e4f23c30722268ce5dfafaf70666721ef6c1e94f9dd2f"},
-    {file = "openqasm3-0.4.0.tar.gz", hash = "sha256:34f137790389bd9bdee32c2906cfdcca34afbc249a21ade5d09c44c4429e4a4c"},
+    {file = "openqasm3-0.5.0-py3-none-any.whl", hash = "sha256:40991ac057b9e3c208d1b34242b0aad8a3b9840df0335a652b1e4e4248937b1c"},
+    {file = "openqasm3-0.5.0.tar.gz", hash = "sha256:bf8bf4ed098393447e552eaea18b0a34a2429d228477683d6b579348bc17bfc8"},
 ]
 
 [package.dependencies]
-antlr4-python3-runtime = {version = ">=4.7,<4.12", optional = true, markers = "extra == \"parser\""}
+antlr4-python3-runtime = {version = ">=4.7,<4.14", optional = true, markers = "extra == \"parser\""}
 importlib-metadata = {version = "*", optional = true, markers = "python_version < \"3.10\" and extra == \"parser\""}
 
 [package.extras]
-all = ["antlr4-python3-runtime (>=4.7,<4.12)", "importlib-metadata", "pytest (>=6.0)", "pyyaml"]
-parser = ["antlr4-python3-runtime (>=4.7,<4.12)", "importlib-metadata"]
+all = ["antlr4-python3-runtime (>=4.7,<4.14)", "importlib-metadata", "pytest (>=6.0)", "pyyaml"]
+parser = ["antlr4-python3-runtime (>=4.7,<4.14)", "importlib-metadata"]
 tests = ["pytest (>=6.0)", "pyyaml"]
 
 [[package]]
@@ -2043,4 +2043,4 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4.0"
-content-hash = "69f867b9231f7bceccd484595b77828f4debb1bc6bf88eeda544f9b7de409db6"
+content-hash = "8281d954b2542224c14ce59e7ec11e4a5d368302df3bbc5f45636627a554a65c"
