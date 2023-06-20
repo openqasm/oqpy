@@ -395,6 +395,11 @@ class Program:
 
     def set_phase(self, frame: AstConvertible, phase: AstConvertible) -> Program:
         """Set the phase of a particular frame."""
+        # We use make_float to force phase to be a unitless (i.e. non-duration) quantity.
+        # Users are expected to keep track the units that are not expressible in openqasm
+        # such as s^{-1}. For instance, in 2 * oqpy.pi * tppi * DurationVar(1e-8),
+        # tppi is a float but has a frequency unit. This will coerce the result type
+        # to a float by assuming the duration should be represented in seconds."
         self.function_call("set_phase", [frame, make_float(phase)])
         return self
 
