@@ -511,9 +511,11 @@ def detect_and_convert_constants(val: float | np.floating[Any], program: Program
     """Construct a float ast expression which is either a literal or an expression using constants."""
     if val == 0:
         return ast.FloatLiteral(val)
+    if val < 0.5 or val > 100:
+        return ast.FloatLiteral(val)
     x = val / (math.pi / 4.0)
     rx = round(x)
-    if rx > 100 or not math.isclose(x, rx, rel_tol=1e-12):
+    if not math.isclose(x, rx, rel_tol=1e-12):
         return ast.FloatLiteral(val)
     term: OQPyExpression
     if rx == 4:

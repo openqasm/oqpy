@@ -45,6 +45,8 @@ from oqpy.base import (
 from oqpy.timing import convert_float_to_duration
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from oqpy.program import Program
 
 __all__ = [
@@ -177,7 +179,7 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         name: str | None = None,
         needs_declaration: bool = True,
         annotations: Sequence[str | tuple[str, str]] = (),
@@ -196,6 +198,10 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
+        if isinstance(self.init_expression, str) and self.init_expression in ("input", "output"):
+            return ast.IODeclaration(
+                ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
+            )
         init_expression_ast = optional_ast(program, self.init_expression)
         stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
         stmt.annotations = make_annotations(self.annotations)
@@ -295,7 +301,7 @@ class ComplexVar(_ClassicalVar):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         *args: Any,
         base_type: ast.FloatType = float64,
         **kwargs: Any,
@@ -303,7 +309,7 @@ class ComplexVar(_ClassicalVar):
         assert isinstance(base_type, ast.FloatType)
         self.base_type = base_type
 
-        if not isinstance(init_expression, (complex, type(None), OQPyExpression)):
+        if not isinstance(init_expression, (complex, type(None), str, OQPyExpression)):
             init_expression = complex(init_expression)  # type: ignore[arg-type]
         super().__init__(init_expression, *args, **kwargs, base_type=base_type)
 
@@ -315,12 +321,12 @@ class DurationVar(_ClassicalVar):
 
     def __init__(
         self,
-        init_expression: AstConvertible | None = None,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
         name: str | None = None,
         *args: Any,
         **type_kwargs: Any,
     ) -> None:
-        if init_expression is not None:
+        if init_expression is not None and not isinstance(init_expression, str):
             init_expression = convert_float_to_duration(init_expression)
         super().__init__(init_expression, name, *args, **type_kwargs)
 
