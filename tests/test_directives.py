@@ -1968,7 +1968,7 @@ def test_duration_coercion():
         delay[v * 1e-07 * 1s] f1;
         shift_phase(f1, d * 10000.0 / 1s);
         """
-    strip()
+    ).strip()
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
