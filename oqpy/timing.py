@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import warnings
 from typing import TYPE_CHECKING, Iterator, cast
 
 from openpulse import ast
@@ -29,14 +30,14 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["Box", "make_duration"]
+__all__ = ["Box", "convert_float_to_duration", "convert_float_to_duration", "make_duration"]
 
 
 @contextlib.contextmanager
 def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[None]:
     """Creates a section of the program with a specified duration."""
     if duration is not None:
-        duration = make_duration(duration)
+        duration = convert_float_to_duration(duration)
     program._push()
     yield
     state = program._pop()
@@ -45,8 +46,23 @@ def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[No
 
 def make_duration(time: AstConvertible) -> HasToAst:
     """Make value into an expression representing a duration."""
+    warnings.warn(
+        "make_duration name is deprecated in favor of convert_float_to_duration",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return convert_float_to_duration(time)
+
+
+def convert_float_to_duration(time: AstConvertible) -> HasToAst:
+    """Make value into an expression representing a duration."""
     if isinstance(time, (float, int)):
         return OQDurationLiteral(time)
+    if isinstance(time, OQPyExpression):
+        if isinstance(time.type, (ast.UintType, ast.IntType, ast.FloatType)):
+            time = time * OQDurationLiteral(1)
+        elif not isinstance(time.type, ast.DurationType):
+            raise TypeError(f"Cannot convert expression with type {time.type} to duration")
     if hasattr(time, "to_ast"):
         return time  # type: ignore[return-value]
     if hasattr(time, "_to_oqpy_expression"):
@@ -57,14 +73,27 @@ def make_duration(time: AstConvertible) -> HasToAst:
     )
 
 
+def convert_duration_to_float(value: AstConvertible) -> AstConvertible:
+    if isinstance(value, OQPyExpression) and isinstance(value.type, ast.DurationType):
+        value = value / OQDurationLiteral(1)
+    return value
+
+
 class OQDurationLiteral(OQPyExpression):
     """An expression corresponding to a duration literal."""
 
-    def __init__(self, duration: float) -> None:
+    def __init__(self, duration_seconds: float) -> None:
         super().__init__()
-        self.duration = duration
-        self.type = ast.DurationType
+        self.duration_seconds = duration_seconds
+        self.type = ast.DurationType()
 
     def to_ast(self, program: Program) -> ast.DurationLiteral:
         # Todo (#53): make better units?
-        return ast.DurationLiteral(1e9 * self.duration, ast.TimeUnit.ns)
+        n = program.DURATION_MAX_DIGITS
+        if self.duration_seconds >= 1:
+            return ast.DurationLiteral(round(self.duration_seconds, n), ast.TimeUnit.s)
+        if self.duration_seconds >= 1e-3:
+            return ast.DurationLiteral(round(1e3 * self.duration_seconds, n), ast.TimeUnit.ms)
+        if self.duration_seconds >= 1e-6:
+            return ast.DurationLiteral(round(1e6 * self.duration_seconds, n), ast.TimeUnit.us)
+        return ast.DurationLiteral(round(1e9 * self.duration_seconds, n), ast.TimeUnit.ns)
