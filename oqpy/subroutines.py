@@ -28,7 +28,7 @@ import oqpy.program
 from oqpy.base import AstConvertible, OQPyExpression, make_annotations, to_ast
 from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
-from oqpy.timing import make_duration
+from oqpy.timing import convert_float_to_duration
 
 __all__ = ["subroutine", "annotate_subroutine", "declare_extern", "declare_waveform_generator"]
 
@@ -200,14 +200,14 @@ def declare_extern(
                 raise TypeError(f"{name}() got multiple values for argument '{k}'.")
 
             if type(arg_types[k_idx]) == ast.DurationType:
-                new_args[k_idx] = make_duration(call_kwargs[k])
+                new_args[k_idx] = convert_float_to_duration(call_kwargs[k])
             else:
                 new_args[k_idx] = call_kwargs[k]
 
         # Casting floats into durations for the non-keyword arguments
         for i, a in enumerate(call_args):
             if type(arg_types[i]) == ast.DurationType:
-                new_args[i] = make_duration(a)
+                new_args[i] = convert_float_to_duration(a)
         return OQFunctionCall(name, new_args, return_type, extern_decl=extern_decl)
 
     return call_extern

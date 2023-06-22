@@ -58,10 +58,13 @@ class OQPyExpression:
 
     @staticmethod
     def _to_binary(
-        op_name: str, first: AstConvertible, second: AstConvertible
+        op_name: str,
+        first: AstConvertible,
+        second: AstConvertible,
+        result_type: ast.ClassicalType | None = None,
     ) -> OQPyBinaryExpression:
         """Helper method to produce a binary expression."""
-        return OQPyBinaryExpression(ast.BinaryOperator[op_name], first, second)
+        return OQPyBinaryExpression(ast.BinaryOperator[op_name], first, second, result_type)
 
     @staticmethod
     def _to_unary(op_name: str, exp: AstConvertible) -> OQPyUnaryExpression:
@@ -93,16 +96,20 @@ class OQPyExpression:
         return self._to_binary("%", other, self)
 
     def __mul__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("*", self, other)
+        result_type = compute_product_types(self, other)
+        return self._to_binary("*", self, other, result_type)
 
     def __rmul__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("*", other, self)
+        result_type = compute_product_types(other, self)
+        return self._to_binary("*", other, self, result_type)
 
     def __truediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("/", self, other)
+        result_type = compute_quotient_types(self, other)
+        return self._to_binary("/", self, other, result_type)
 
     def __rtruediv__(self, other: AstConvertible) -> OQPyBinaryExpression:
-        return self._to_binary("/", other, self)
+        result_type = compute_quotient_types(other, self)
+        return self._to_binary("/", other, self, result_type)
 
     def __pow__(self, other: AstConvertible) -> OQPyBinaryExpression:
         return self._to_binary("**", self, other)
@@ -168,6 +175,128 @@ class OQPyExpression:
         )
 
 
+def _get_type(val: AstConvertible) -> ast.ClassicalType:
+    if isinstance(val, OQPyExpression):
+        return val.type
+    elif isinstance(val, int):
+        return ast.IntType()
+    elif isinstance(val, float):
+        return ast.FloatType()
+    elif isinstance(val, complex):
+        return ast.ComplexType(ast.FloatType())
+    else:
+        raise ValueError(f"Cannot multiply/divide oqpy expression with with {type(val)}")
+
+
+def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    """Find the result type for a product of two terms."""
+    left_type = _get_type(left)
+    right_type = _get_type(right)
+
+    types_map = {
+        (ast.FloatType, ast.FloatType): left_type,
+        (ast.FloatType, ast.IntType): left_type,
+        (ast.FloatType, ast.UintType): left_type,
+        (ast.FloatType, ast.DurationType): right_type,
+        (ast.FloatType, ast.AngleType): right_type,
+        (ast.FloatType, ast.ComplexType): right_type,
+        (ast.IntType, ast.FloatType): right_type,
+        (ast.IntType, ast.IntType): left_type,
+        (ast.IntType, ast.UintType): left_type,
+        (ast.IntType, ast.DurationType): right_type,
+        (ast.IntType, ast.AngleType): right_type,
+        (ast.IntType, ast.ComplexType): right_type,
+        (ast.UintType, ast.FloatType): right_type,
+        (ast.UintType, ast.IntType): right_type,
+        (ast.UintType, ast.UintType): left_type,
+        (ast.UintType, ast.DurationType): right_type,
+        (ast.UintType, ast.AngleType): right_type,
+        (ast.UintType, ast.ComplexType): right_type,
+        (ast.DurationType, ast.FloatType): left_type,
+        (ast.DurationType, ast.IntType): left_type,
+        (ast.DurationType, ast.UintType): left_type,
+        (ast.DurationType, ast.DurationType): TypeError(
+            "Cannot multiply two durations. You may need to re-group computations to eliminate this."
+        ),
+        (ast.DurationType, ast.AngleType): TypeError("Cannot multiply duration and angle"),
+        (ast.DurationType, ast.ComplexType): TypeError("Cannot multiply duration and complex"),
+        (ast.AngleType, ast.FloatType): left_type,
+        (ast.AngleType, ast.IntType): left_type,
+        (ast.AngleType, ast.UintType): left_type,
+        (ast.AngleType, ast.DurationType): TypeError("Cannot multiply angle and duration"),
+        (ast.AngleType, ast.AngleType): TypeError("Cannot multiply two angles"),
+        (ast.AngleType, ast.ComplexType): TypeError("Cannot multiply angle and complex"),
+        (ast.ComplexType, ast.FloatType): left_type,
+        (ast.ComplexType, ast.IntType): left_type,
+        (ast.ComplexType, ast.UintType): left_type,
+        (ast.ComplexType, ast.DurationType): TypeError("Cannot multiply complex and duration"),
+        (ast.ComplexType, ast.AngleType): TypeError("Cannot multiply complex and angle"),
+        (ast.ComplexType, ast.ComplexType): left_type,
+    }
+
+    try:
+        result_type = types_map[type(left_type), type(right_type)]
+    except KeyError as e:
+        raise TypeError(f"Could not identify types for product {left} and {right}") from e
+    if isinstance(result_type, Exception):
+        raise result_type
+    return result_type
+
+
+def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
+    """Find the result type for a quotient of two terms."""
+    left_type = _get_type(left)
+    right_type = _get_type(right)
+    float_type = ast.FloatType()
+
+    types_map = {
+        (ast.FloatType, ast.FloatType): left_type,
+        (ast.FloatType, ast.IntType): left_type,
+        (ast.FloatType, ast.UintType): left_type,
+        (ast.FloatType, ast.DurationType): TypeError("Cannot divide float by duration"),
+        (ast.FloatType, ast.AngleType): TypeError("Cannot divide float by angle"),
+        (ast.FloatType, ast.ComplexType): right_type,
+        (ast.IntType, ast.FloatType): right_type,
+        (ast.IntType, ast.IntType): float_type,
+        (ast.IntType, ast.UintType): float_type,
+        (ast.IntType, ast.DurationType): TypeError("Cannot divide int by duration"),
+        (ast.IntType, ast.AngleType): TypeError("Cannot divide int by angle"),
+        (ast.IntType, ast.ComplexType): right_type,
+        (ast.UintType, ast.FloatType): right_type,
+        (ast.UintType, ast.IntType): float_type,
+        (ast.UintType, ast.UintType): float_type,
+        (ast.UintType, ast.DurationType): TypeError("Cannot divide uint by duration"),
+        (ast.UintType, ast.AngleType): TypeError("Cannot divide uint by angle"),
+        (ast.UintType, ast.ComplexType): right_type,
+        (ast.DurationType, ast.FloatType): left_type,
+        (ast.DurationType, ast.IntType): left_type,
+        (ast.DurationType, ast.UintType): left_type,
+        (ast.DurationType, ast.DurationType): ast.FloatType(),
+        (ast.DurationType, ast.AngleType): TypeError("Cannot divide duration by angle"),
+        (ast.DurationType, ast.ComplexType): TypeError("Cannot divide duration by complex"),
+        (ast.AngleType, ast.FloatType): left_type,
+        (ast.AngleType, ast.IntType): left_type,
+        (ast.AngleType, ast.UintType): left_type,
+        (ast.AngleType, ast.DurationType): TypeError("Cannot divide by duration"),
+        (ast.AngleType, ast.AngleType): float_type,
+        (ast.AngleType, ast.ComplexType): TypeError("Cannot divide by angle by complex"),
+        (ast.ComplexType, ast.FloatType): left_type,
+        (ast.ComplexType, ast.IntType): left_type,
+        (ast.ComplexType, ast.UintType): left_type,
+        (ast.ComplexType, ast.DurationType): TypeError("Cannot divide by duration"),
+        (ast.ComplexType, ast.AngleType): TypeError("Cannot divide by angle"),
+        (ast.ComplexType, ast.ComplexType): left_type,
+    }
+
+    try:
+        result_type = types_map[type(left_type), type(right_type)]
+    except KeyError as e:
+        raise TypeError(f"Could not identify types for quotient {left} and {right}") from e
+    if isinstance(result_type, Exception):
+        raise result_type
+    return result_type
+
+
 def logical_and(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:
     """Logical AND."""
     return OQPyBinaryExpression(ast.BinaryOperator["&&"], first, second)
@@ -227,19 +356,27 @@ class OQPyUnaryExpression(OQPyExpression):
 class OQPyBinaryExpression(OQPyExpression):
     """An expression consisting of two subexpressions joined by an operator."""
 
-    def __init__(self, op: ast.BinaryOperator, lhs: AstConvertible, rhs: AstConvertible):
+    def __init__(
+        self,
+        op: ast.BinaryOperator,
+        lhs: AstConvertible,
+        rhs: AstConvertible,
+        ast_type: ast.ClassicalType | None = None,
+    ):
         super().__init__()
         self.op = op
         self.lhs = lhs
         self.rhs = rhs
-        # TODO (#50): More robust type checking which considers both arguments
+        # TODO (#9): More robust type checking which considers both arguments
         #   types, as well as the operator.
-        if isinstance(lhs, OQPyExpression):
-            self.type = lhs.type
-        elif isinstance(rhs, OQPyExpression):
-            self.type = rhs.type
-        else:
-            raise TypeError("Neither lhs nor rhs is an expression?")
+        if ast_type is None:
+            if isinstance(lhs, OQPyExpression):
+                ast_type = lhs.type
+            elif isinstance(rhs, OQPyExpression):
+                ast_type = rhs.type
+            else:
+                raise TypeError("Neither lhs nor rhs is an expression?")
+        self.type = ast_type
 
         # Adding floats to durations is not allowed. So we promote types as necessary.
         if isinstance(self.type, ast.DurationType) and self.op in [
@@ -247,10 +384,10 @@ class OQPyBinaryExpression(OQPyExpression):
             ast.BinaryOperator["-"],
         ]:
             # Late import to avoid circular imports.
-            from oqpy.timing import make_duration
+            from oqpy.timing import convert_float_to_duration
 
-            self.lhs = make_duration(self.lhs)
-            self.rhs = make_duration(self.rhs)
+            self.lhs = convert_float_to_duration(self.lhs)
+            self.rhs = convert_float_to_duration(self.rhs)
 
     def to_ast(self, program: Program) -> ast.BinaryExpression:
         """Converts the OQpy expression into an ast node."""
@@ -374,9 +511,11 @@ def detect_and_convert_constants(val: float | np.floating[Any], program: Program
     """Construct a float ast expression which is either a literal or an expression using constants."""
     if val == 0:
         return ast.FloatLiteral(val)
+    if val < 0.5 or val > 100:
+        return ast.FloatLiteral(val)
     x = val / (math.pi / 4.0)
     rx = round(x)
-    if rx > 100 or not math.isclose(x, rx, rel_tol=1e-12):
+    if not math.isclose(x, rx, rel_tol=1e-12):
         return ast.FloatLiteral(val)
     term: OQPyExpression
     if rx == 4:
