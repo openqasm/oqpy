@@ -276,26 +276,31 @@ class Program:
                 if the variables have openpulse types, automatically wrap the
                 declarations in cal blocks.
         """
-        if not ignore_needs_declaration and self.undeclared_vars:
-            self.autodeclare(encal=encal_declarations)
+        mutating_prog = Program(self.version, self.simplify_constants)
+        mutating_prog += self
 
-        assert len(self.stack) == 1
-        self._state.finalize_if_clause()
-        if self._state.annotations:
-            warnings.warn(f"Annotation(s) {self._state.annotations} not applied to any statement")
+        if not ignore_needs_declaration and mutating_prog.undeclared_vars:
+            mutating_prog.autodeclare(encal=encal_declarations)
+
+        assert len(mutating_prog.stack) == 1
+        mutating_prog._state.finalize_if_clause()
+        if mutating_prog._state.annotations:
+            warnings.warn(
+                f"Annotation(s) {mutating_prog._state.annotations} not applied to any statement"
+            )
         statements = []
         if include_externs:
-            statements += self._make_externs_statements(encal_declarations)
+            statements += mutating_prog._make_externs_statements(encal_declarations)
         statements += [
-            self.subroutines[subroutine_name]
-            for subroutine_name in self.subroutines
-            if subroutine_name not in self.declared_subroutines
-        ] + self._state.body
+            mutating_prog.subroutines[subroutine_name]
+            for subroutine_name in mutating_prog.subroutines
+            if subroutine_name not in mutating_prog.declared_subroutines
+        ] + mutating_prog._state.body
         if encal:
             statements = [ast.CalibrationStatement(statements)]
         if encal_declarations:
             statements = [ast.CalibrationGrammarDeclaration("openpulse")] + statements
-        prog = ast.Program(statements=statements, version=self.version)
+        prog = ast.Program(statements=statements, version=mutating_prog.version)
         if encal_declarations:
             MergeCalStatementsPass().visit(prog)
         return prog

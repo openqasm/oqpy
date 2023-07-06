@@ -1149,7 +1149,6 @@ def test_returns():
         k = increment_variable_return(j);
         """
     ).strip()
-    print(prog.to_qasm())
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
@@ -1530,8 +1529,59 @@ def test_needs_declaration():
         """
     ).strip()
 
+    declared_vars = {}
+    undeclared_vars= ["i1", "i2", "f1", "f2", "q1", "q2"]
+    statement_ast = [
+        ast.ClassicalAssignment(
+            lvalue=ast.Identifier(name="i1"),
+            op=ast.AssignmentOperator["+="],
+            rvalue=ast.IntegerLiteral(value=1),
+        ),
+        ast.ClassicalAssignment(
+            lvalue=ast.Identifier(name="i2"),
+            op=ast.AssignmentOperator["+="],
+            rvalue=ast.IntegerLiteral(value=1),
+        ),
+        ast.ExpressionStatement(
+            expression=ast.FunctionCall(
+                name=ast.Identifier(name="set_phase"),
+                arguments=[ast.Identifier(name="f1"), ast.IntegerLiteral(value=0)],
+            )
+        ),
+        ast.ExpressionStatement(
+            expression=ast.FunctionCall(
+                name=ast.Identifier(name="set_phase"),
+                arguments=[ast.Identifier(name="f2"), ast.IntegerLiteral(value=0)],
+            )
+        ),
+        ast.QuantumGate(
+            modifiers=[],
+            name=ast.Identifier(name="X"),
+            arguments=[],
+            qubits=[ast.Identifier(name="q1")],
+            duration=None,
+        ),
+        ast.QuantumGate(
+            modifiers=[],
+            name=ast.Identifier(name="X"),
+            arguments=[],
+            qubits=[ast.Identifier(name="q2")],
+            duration=None,
+        ),
+    ]
+
+    # testing variables before calling to_ast
+    assert prog.declared_vars == declared_vars
+    assert list(prog.undeclared_vars.keys()) == undeclared_vars
+    assert prog._state.body == statement_ast
+
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+    # testing variables after calling to_ast, checking mutations
+    assert prog.declared_vars == declared_vars
+    assert list(prog.undeclared_vars.keys()) == undeclared_vars
+    assert prog._state.body == statement_ast
 
 
 def test_discrete_waveform():
