@@ -761,20 +761,22 @@ def test_create_frame():
 def test_subroutine_with_return():
     prog = Program()
 
-    @subroutine
+    @subroutine(prog)
     def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
         return x * y
 
     y = IntVar(2, "y")
     prog.set(y, multiply(prog, y, 3))
 
-    @subroutine
+    @subroutine(prog)
     def declare(prog: Program, x: IntVar):
         prog.declare([x])
 
+    # This won't define a subroutine because it was not called with do_expression.
+    # The call is NOT added to the program neither
     declare(prog, y)
 
-    @subroutine
+    @subroutine(prog)
     def delay50ns(prog: Program, q: Qubit) -> None:
         prog.delay(50e-9, q)
 
@@ -783,7 +785,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine
+        @subroutine(prog)
         def return1(prog: Program) -> float:
             return 1.0
 
@@ -791,7 +793,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine
+        @subroutine(prog)
         def return2(prog: Program) -> float:
             prog.returns(1.0)
 
@@ -799,7 +801,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine
+        @subroutine(prog)
         def add(prog: Program, x: IntVar, y) -> IntVar:
             return x + y
 
@@ -813,6 +815,41 @@ def test_subroutine_with_return():
         }
         def delay50ns(qubit q) {
             delay[50.0ns] q;
+        }
+        int[32] y = 2;
+        y = multiply(y, 3);
+        delay50ns($0);
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_subroutine_order():
+    prog = Program()
+
+    @subroutine(prog)
+    def delay50ns(prog: Program, q: Qubit) -> None:
+        prog.delay(50e-9, q)
+
+    @subroutine(prog)
+    def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
+        return x * y
+
+    y = IntVar(2, "y")
+    prog.set(y, multiply(prog, y, 3))
+    q = PhysicalQubits[0]
+    prog.do_expression(delay50ns(prog, q))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        def delay50ns(qubit q) {
+            delay[50.0ns] q;
+        }
+        def multiply(int[32] x, int[32] y) -> int[32] {
+            return x * y;
         }
         int[32] y = 2;
         y = multiply(y, 3);
@@ -1079,7 +1116,7 @@ def test_returns():
         prog.play(tx_frame, constant(2.4e-6, 0.2))
         prog.returns(capture_v2(rx_frame, 2.4e-6))
 
-    @subroutine
+    @subroutine(prog)
     def increment_variable_return(prog: Program, i: IntVar) -> IntVar:
         prog.increment(i, 1)
         prog.returns(i)
@@ -1554,7 +1591,7 @@ def test_annotate():
 
     @annotate_subroutine("inline")
     @annotate_subroutine("optimize", "-O3")
-    @subroutine
+    @subroutine(prog)
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
 

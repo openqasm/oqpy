@@ -103,6 +103,7 @@ class Program:
         self.declared_vars: dict[str, Var] = {}
         self.undeclared_vars: dict[str, Var] = {}
         self.simplify_constants = simplify_constants
+        self._subroutine_definition_order: list[str] = []
 
         if version is None or (
             len(version.split(".")) in [1, 2]
@@ -212,6 +213,8 @@ class Program:
         Subroutines are added to the top of the program upon conversion to ast.
         """
         self.subroutines[name] = stmt
+        if name not in self._subroutine_definition_order:
+            self._subroutine_definition_order.append(name)
 
     def _add_defcal(
         self,
@@ -280,7 +283,11 @@ class Program:
         statements = []
         if include_externs:
             statements += self._make_externs_statements(encal_declarations)
-        statements += list(self.subroutines.values()) + self._state.body
+        statements += [
+            self.subroutines[subroutine_name]
+            for subroutine_name in self._subroutine_definition_order
+            if subroutine_name in self.subroutines
+        ] + self._state.body
         if encal:
             statements = [ast.CalibrationStatement(statements)]
         if encal_declarations:
