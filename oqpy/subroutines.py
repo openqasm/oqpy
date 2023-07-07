@@ -35,7 +35,12 @@ __all__ = ["subroutine", "annotate_subroutine", "declare_extern", "declare_wavef
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
 
-def subroutine(prog: oqpy.Program | None = None):
+def subroutine(
+    prog: oqpy.Program | None = None,
+) -> Callable[
+    [Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None]],
+    Callable[[oqpy.Program, VarArg(AstConvertible)], OQFunctionCall],
+]:
     """Decorator to declare a subroutine.
 
     The function should take a program as well as any other arguments required.
