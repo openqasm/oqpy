@@ -34,13 +34,25 @@ __all__ = ["subroutine", "annotate_subroutine", "declare_extern", "declare_wavef
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
+FnType = TypeVar("FnType", bound=Callable[..., Any])
 
+
+def enable_decorator_arguments(f: FnType) -> Callable[..., FnType]:
+    @functools.wraps(f)
+    def decorator(*args, **kwargs):  # type: ignore[no-untyped-def]
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            return f(args[0])
+        else:
+            return lambda realf: f(realf, *args, **kwargs)
+
+    return decorator
+
+
+@enable_decorator_arguments
 def subroutine(
+    func: Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None],
     prog: oqpy.Program | None = None,
-) -> Callable[
-    [Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None]],
-    Callable[[oqpy.Program, VarArg(AstConvertible)], OQFunctionCall],
-]:
+) -> Callable[[oqpy.Program, VarArg(AstConvertible)], OQFunctionCall]:
     """Decorator to declare a subroutine.
 
     The function should take a program as well as any other arguments required.
@@ -69,82 +81,72 @@ def subroutine(
         increment_variable(j);
 
     """
+    if prog is not None and func.__name__ not in prog._subroutine_definition_order:
+        prog._subroutine_definition_order.append(func.__name__)
 
-    def subroutine_decorator(
-        func: Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None]
-    ) -> Callable[[oqpy.Program, VarArg(AstConvertible)], OQFunctionCall]:
-        if prog is not None:
-            if func.__name__ not in prog._subroutine_definition_order:
-                prog._subroutine_definition_order.append(func.__name__)
+    @functools.wraps(func)
+    def wrapper(
+        program: oqpy.Program,
+        *args: AstConvertible,
+        annotations: Sequence[str | tuple[str, str]] = (),
+    ) -> OQFunctionCall:
+        name = func.__name__
+        identifier = ast.Identifier(func.__name__)
+        argnames = list(inspect.signature(func).parameters.keys())
+        type_hints = get_type_hints(func)
+        inputs = {}  # used as inputs when calling the actual python function
+        arguments = []  # used in the ast definition of the subroutine
+        for argname in argnames[1:]:  # arg 0 should be program
+            if argname not in type_hints:
+                raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
+            input_ = inputs[argname] = type_hints[argname](name=argname)
 
-        @functools.wraps(func)
-        def wrapper(
-            program: oqpy.Program,
-            *args: AstConvertible,
-            annotations: Sequence[str | tuple[str, str]] = (),
-        ) -> OQFunctionCall:
-            name = func.__name__
-            identifier = ast.Identifier(func.__name__)
-            argnames = list(inspect.signature(func).parameters.keys())
-            type_hints = get_type_hints(func)
-            inputs = {}  # used as inputs when calling the actual python function
-            arguments = []  # used in the ast definition of the subroutine
-            for argname in argnames[1:]:  # arg 0 should be program
-                if argname not in type_hints:
-                    raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
-                input_ = inputs[argname] = type_hints[argname](name=argname)
-
-                if isinstance(input_, _ClassicalVar):
-                    arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
-                elif isinstance(input_, Qubit):
-                    arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
-                else:
-                    raise ValueError(
-                        f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
-                    )
-
-            inner_prog = oqpy.Program()
-            for input_val in inputs.values():
-                inner_prog._mark_var_declared(input_val)
-            output = func(inner_prog, **inputs)
-            inner_prog.autodeclare()
-            inner_prog._state.finalize_if_clause()
-            body = inner_prog._state.body
-            if isinstance(output, OQPyExpression):
-                return_type = output.type
-                body.append(ast.ReturnStatement(to_ast(inner_prog, output)))
-            elif output is None:
-                return_type = None
-                if type_hints.get("return", False):
-                    return_hint = type_hints["return"]()
-                    if isinstance(return_hint, _ClassicalVar):
-                        return_type = return_hint.type
-                    elif return_hint is not None:
-                        raise ValueError(
-                            f"Type hint for return variable on subroutine {name} is not an oqpy classical type."
-                        )
+            if isinstance(input_, _ClassicalVar):
+                arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
+            elif isinstance(input_, Qubit):
+                arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
             else:
                 raise ValueError(
-                    "Output type of subroutine {name} was neither oqpy expression nor None."
+                    f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
                 )
-            program.defcals.update(inner_prog.defcals)
-            program.subroutines.update(inner_prog.subroutines)
-            program.externs.update(inner_prog.externs)
-            stmt = ast.SubroutineDefinition(
-                identifier,
-                arguments=arguments,
-                return_type=return_type,
-                body=body,
+
+        inner_prog = oqpy.Program()
+        for input_val in inputs.values():
+            inner_prog._mark_var_declared(input_val)
+        output = func(inner_prog, **inputs)
+        inner_prog.autodeclare()
+        inner_prog._state.finalize_if_clause()
+        body = inner_prog._state.body
+        if isinstance(output, OQPyExpression):
+            return_type = output.type
+            body.append(ast.ReturnStatement(to_ast(inner_prog, output)))
+        elif output is None:
+            return_type = None
+            if type_hints.get("return", False):
+                return_hint = type_hints["return"]()
+                if isinstance(return_hint, _ClassicalVar):
+                    return_type = return_hint.type
+                elif return_hint is not None:
+                    raise ValueError(
+                        f"Type hint for return variable on subroutine {name} is not an oqpy classical type."
+                    )
+        else:
+            raise ValueError(
+                "Output type of subroutine {name} was neither oqpy expression nor None."
             )
-            stmt.annotations = make_annotations(annotations)
-            return OQFunctionCall(identifier, args, return_type, subroutine_decl=stmt)
+        program.defcals.update(inner_prog.defcals)
+        program.subroutines.update(inner_prog.subroutines)
+        program.externs.update(inner_prog.externs)
+        stmt = ast.SubroutineDefinition(
+            identifier,
+            arguments=arguments,
+            return_type=return_type,
+            body=body,
+        )
+        stmt.annotations = make_annotations(annotations)
+        return OQFunctionCall(identifier, args, return_type, subroutine_decl=stmt)
 
-        return wrapper
-
-    return subroutine_decorator
-
-
-FnType = TypeVar("FnType", bound=Callable[..., Any])
+    return wrapper
 
 
 def annotate_subroutine(keyword: str, command: str | None = None) -> Callable[[FnType], FnType]:

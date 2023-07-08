@@ -761,14 +761,14 @@ def test_create_frame():
 def test_subroutine_with_return():
     prog = Program()
 
-    @subroutine(prog)
+    @subroutine
     def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
         return x * y
 
     y = IntVar(2, "y")
     prog.set(y, multiply(prog, y, 3))
 
-    @subroutine(prog)
+    @subroutine
     def declare(prog: Program, x: IntVar):
         prog.declare([x])
 
@@ -776,7 +776,7 @@ def test_subroutine_with_return():
     # The call is NOT added to the program neither
     declare(prog, y)
 
-    @subroutine(prog)
+    @subroutine
     def delay50ns(prog: Program, q: Qubit) -> None:
         prog.delay(50e-9, q)
 
@@ -785,7 +785,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine(prog)
+        @subroutine
         def return1(prog: Program) -> float:
             return 1.0
 
@@ -793,7 +793,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine(prog)
+        @subroutine
         def return2(prog: Program) -> float:
             prog.returns(1.0)
 
@@ -801,7 +801,7 @@ def test_subroutine_with_return():
 
     with pytest.raises(ValueError):
 
-        @subroutine(prog)
+        @subroutine
         def add(prog: Program, x: IntVar, y) -> IntVar:
             return x + y
 
@@ -1116,7 +1116,7 @@ def test_returns():
         prog.play(tx_frame, constant(2.4e-6, 0.2))
         prog.returns(capture_v2(rx_frame, 2.4e-6))
 
-    @subroutine(prog)
+    @subroutine
     def increment_variable_return(prog: Program, i: IntVar) -> IntVar:
         prog.increment(i, 1)
         prog.returns(i)
@@ -1591,7 +1591,7 @@ def test_annotate():
 
     @annotate_subroutine("inline")
     @annotate_subroutine("optimize", "-O3")
-    @subroutine(prog)
+    @subroutine
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
 
