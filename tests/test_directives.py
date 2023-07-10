@@ -1999,3 +1999,41 @@ def test_io_declaration():
     ).strip()
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_nested_subroutines():
+    @oqpy.subroutine
+    def f(prog: oqpy.Program) -> oqpy.IntVar:
+        i = oqpy.IntVar(name="i", init_expression=1)
+        with oqpy.If(prog, i == 1):
+            prog.increment(i, 1)
+        return i
+
+    @oqpy.subroutine
+    def g(prog: oqpy.Program) -> oqpy.IntVar:
+        return f(prog)
+
+
+    prog = oqpy.Program()
+    x = oqpy.IntVar(name="x")
+    prog.set(x, g(prog))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        def f() -> int[32] {
+            int[32] i = 1;
+            if (i == 1) {
+                i += 1;
+            }
+            return i;
+        }
+        def g() -> int[32] {
+            return f();
+        }
+        int[32] x;
+        x = g();
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
