@@ -207,13 +207,15 @@ class Program:
         """Add a statment to the current context's program state."""
         self._state.add_statement(stmt)
 
-    def _add_subroutine(self, name: str, stmt: ast.SubroutineDefinition) -> None:
+    def _add_subroutine(
+        self, name: str, stmt: ast.SubroutineDefinition, _needs_declaration: bool = True
+    ) -> None:
         """Register a subroutine which has been used.
 
         Subroutines are added to the top of the program upon conversion to ast.
         """
         self.subroutines[name] = stmt
-        if name not in self._subroutine_definition_order:
+        if _needs_declaration and name not in self._subroutine_definition_order:
             self._subroutine_definition_order.append(name)
 
     def _add_defcal(

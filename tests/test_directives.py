@@ -988,7 +988,6 @@ def test_defcals():
         prog.capture(rx_frame, constant(2.4e-6, 1))
 
     with pytest.raises(AssertionError):
-
         with defcal(prog, q2, "readout", return_type=bool):
             prog.play(tx_frame, constant(2.4e-6, 0.2))
             prog.capture(rx_frame, constant(2.4e-6, 1))
@@ -1589,9 +1588,7 @@ def test_annotate():
     q1 = Qubit("q1", annotations=["some_qubit"])
     q2 = Qubit("q2", annotations=["other_qubit"])
 
-    @annotate_subroutine("inline")
-    @annotate_subroutine("optimize", "-O3")
-    @subroutine
+    @subroutine(annotations=["inline", ("optimize", "-O3")])
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
 
@@ -1690,6 +1687,34 @@ def test_annotate():
         """
     ).strip()
     assert prog.to_qasm(encal_declarations=True) == expected
+    _check_respects_type_hints(prog)
+
+
+def test_in_place_subroutine_declaration():
+    prog = Program()
+
+    i = IntVar(0, name="i")
+    prog.declare(i)
+
+    @subroutine(prog, in_place_declaration=True, annotations=["inline", ("optimize", "-O3")])
+    def f(prog: Program, x: IntVar) -> IntVar:
+        return x
+
+    prog.increment(i, 1)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] i = 0;
+        @inline
+        @optimize -O3
+        def f(int[32] x) -> int[32] {
+            return x;
+        }
+        i += 1;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
 
