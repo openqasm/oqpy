@@ -40,7 +40,6 @@ FnType = TypeVar("FnType", bound=Callable[..., Any])
 def enable_decorator_arguments(f: FnType) -> Callable[..., FnType]:
     @functools.wraps(f)
     def decorator(*args, **kwargs):  # type: ignore[no-untyped-def]
-        print(args, kwargs)
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
             return f(args[0])
         else:
@@ -151,7 +150,8 @@ def subroutine(
         *args: AstConvertible,
     ) -> OQFunctionCall:
         program.defcals.update(inner_prog.defcals)
-        program.subroutines.update(inner_prog.subroutines)
+        for name, subroutine_stmt in inner_prog.subroutines.items():
+            program._add_subroutine(name, subroutine_stmt)
         program.externs.update(inner_prog.externs)
         return OQFunctionCall(
             identifier,
