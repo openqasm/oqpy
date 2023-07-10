@@ -97,6 +97,7 @@ def subroutine(
         for input_val in inputs.values():
             inner_prog._mark_var_declared(input_val)
         output = func(inner_prog, **inputs)
+        inner_prog.autodeclare()
         inner_prog._state.finalize_if_clause()
         body = inner_prog._state.body
         if isinstance(output, OQPyExpression):
