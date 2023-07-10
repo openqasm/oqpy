@@ -439,7 +439,7 @@ AstConvertible = Union[
 def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     """Convert an object to an AST node."""
     if hasattr(item, "_to_oqpy_expression"):
-        return item._to_oqpy_expression().to_ast(program)
+        return item._to_oqpy_expression().to_ast(program)  # type: ignore[union-attr]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:
             return to_ast(program, item.real)
@@ -479,7 +479,7 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     if isinstance(item, ast.Expression):
         return item
     if hasattr(item, "to_ast"):  # Using isinstance(HasToAst) slowish
-        return item.to_ast(program)
+        return item.to_ast(program)  # type: ignore[union-attr]
     raise TypeError(f"Cannot convert {item} of type {type(item)} to ast")
 
 
