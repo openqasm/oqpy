@@ -82,9 +82,14 @@ def subroutine(
         increment_variable(j);
 
     Args:
-        annotations str | tuple[str, str]: a string or a tuple of string that annotates
-            the subroutine.
+        func (Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None]):
+            function to decorate. Its first argument must be an OQpy program.
+        annotations (Sequence[str | tuple[str, str]]): a collection of strings or
+            tuples of string that annotate the subroutine.
 
+    Returns:
+        Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None]:
+            decorated function with added subroutine_declaration attribute.
     """
     name = func.__name__
     identifier = ast.Identifier(func.__name__)
