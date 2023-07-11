@@ -51,8 +51,6 @@ def enable_decorator_arguments(f: FnType) -> Callable[..., FnType]:
 @enable_decorator_arguments
 def subroutine(
     func: Callable[[oqpy.Program, VarArg(AstConvertible)], AstConvertible | None],
-    prog: oqpy.Program | None = None,
-    in_place_declaration: bool = False,
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[[oqpy.Program, VarArg(AstConvertible)], OQFunctionCall]:
     """Decorator to declare a subroutine.
@@ -64,7 +62,7 @@ def subroutine(
 
     .. code-block:: python
 
-        @subroutine
+        @subroutine(annotations=("optimize", "-O3"))
         def increment_variable(program: Program, i: IntVar):
             program.increment(i, 1)
 
@@ -75,12 +73,17 @@ def subroutine(
 
     .. code-block:: qasm3
 
+        @optimize -O3
         def increment_variable(int[32] i) {
             i += 1;
         }
 
         int[32] j = 0;
         increment_variable(j);
+
+    Args:
+        annotations str | tuple[str, str]: a string or a tuple of string that annotates
+            the subroutine.
 
     """
     name = func.__name__
@@ -133,17 +136,6 @@ def subroutine(
     )
     stmt.annotations = make_annotations(annotations)
 
-    if prog is not None:
-        prog.defcals.update(inner_prog.defcals)
-        prog.subroutines.update(inner_prog.subroutines)
-        prog.externs.update(inner_prog.externs)
-        if in_place_declaration:
-            prog._add_statement(stmt)
-            prog._add_subroutine(name, stmt, _needs_declaration=False)
-        else:
-            if func.__name__ not in prog._subroutine_definition_order:
-                prog._subroutine_definition_order.append(func.__name__)
-
     @functools.wraps(func)
     def wrapper(
         program: oqpy.Program,
@@ -157,9 +149,10 @@ def subroutine(
             identifier,
             args,
             return_type,
-            subroutine_decl=stmt if not in_place_declaration else None,
+            subroutine_decl=stmt,
         )
 
+    setattr(wrapper, "subroutine_declaration", (name, stmt))
     return wrapper
 
 

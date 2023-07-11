@@ -829,15 +829,16 @@ def test_subroutine_with_return():
 def test_subroutine_order():
     prog = Program()
 
-    @subroutine(prog)
+    @subroutine
     def delay50ns(prog: Program, q: Qubit) -> None:
         prog.delay(50e-9, q)
 
-    @subroutine(prog)
+    @subroutine
     def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
         return x * y
 
     y = IntVar(2, "y")
+    prog.declare([delay50ns, multiply, y])
     prog.set(y, multiply(prog, y, 3))
     q = PhysicalQubits[0]
     prog.do_expression(delay50ns(prog, q))
@@ -1691,15 +1692,13 @@ def test_annotate():
 
 
 def test_in_place_subroutine_declaration():
-    prog = Program()
-
-    i = IntVar(0, name="i")
-    prog.declare(i)
-
-    @subroutine(prog, in_place_declaration=True, annotations=["inline", ("optimize", "-O3")])
+    @subroutine(annotations=["inline", ("optimize", "-O3")])
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
-
+    
+    prog = Program()
+    i = IntVar(0, name="i")
+    prog.declare([i,f])
     prog.increment(i, 1)
 
     expected = textwrap.dedent(
