@@ -103,6 +103,7 @@ class Program:
         self.declared_vars: dict[str, Var] = {}
         self.undeclared_vars: dict[str, Var] = {}
         self.simplify_constants = simplify_constants
+        self.declared_subroutines: set[str] = set()
 
         if version is None or (
             len(version.split(".")) in [1, 2]
@@ -121,7 +122,8 @@ class Program:
         self._state.if_clause = other._state.if_clause
         self._state.finalize_if_clause()
         self.defcals.update(other.defcals)
-        self.subroutines.update(other.subroutines)
+        for name, subroutine_stmt in other.subroutines.items():
+            self._add_subroutine(name, subroutine_stmt)
         self.externs.update(other.externs)
         for var in other.declared_vars.values():
             self._mark_var_declared(var)
@@ -206,12 +208,16 @@ class Program:
         """Add a statment to the current context's program state."""
         self._state.add_statement(stmt)
 
-    def _add_subroutine(self, name: str, stmt: ast.SubroutineDefinition) -> None:
+    def _add_subroutine(
+        self, name: str, stmt: ast.SubroutineDefinition, needs_declaration: bool = True
+    ) -> None:
         """Register a subroutine which has been used.
 
         Subroutines are added to the top of the program upon conversion to ast.
         """
         self.subroutines[name] = stmt
+        if not needs_declaration:
+            self.declared_subroutines.add(name)
 
     def _add_defcal(
         self,
@@ -280,7 +286,11 @@ class Program:
         statements = []
         if include_externs:
             statements += self._make_externs_statements(encal_declarations)
-        statements += list(self.subroutines.values()) + self._state.body
+        statements += [
+            self.subroutines[subroutine_name]
+            for subroutine_name in self.subroutines
+            if subroutine_name not in self.declared_subroutines
+        ] + self._state.body
         if encal:
             statements = [ast.CalibrationStatement(statements)]
         if encal_declarations:
@@ -342,12 +352,18 @@ class Program:
             openqasm_vars.reverse()
 
         for var in openqasm_vars:
-            stmt = var.make_declaration_statement(self)
+            if callable(var) and hasattr(var, "subroutine_declaration"):
+                name, stmt = var.subroutine_declaration  # type: ignore[attr-defined]
+                self._add_subroutine(name, stmt, needs_declaration=False)
+            else:
+                stmt = var.make_declaration_statement(self)
+                self._mark_var_declared(var)
+
             if to_beginning:
                 self._state.body.insert(0, stmt)
             else:
                 self._add_statement(stmt)
-            self._mark_var_declared(var)
+
         if openpulse_vars:
             cal_stmt = ast.CalibrationStatement([])
             for var in openpulse_vars:

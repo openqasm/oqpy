@@ -772,6 +772,8 @@ def test_subroutine_with_return():
     def declare(prog: Program, x: IntVar):
         prog.declare([x])
 
+    # This won't define a subroutine because it was not called with do_expression.
+    # The call is NOT added to the program neither
     declare(prog, y)
 
     @subroutine
@@ -813,6 +815,42 @@ def test_subroutine_with_return():
         }
         def delay50ns(qubit q) {
             delay[50.0ns] q;
+        }
+        int[32] y = 2;
+        y = multiply(y, 3);
+        delay50ns($0);
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_subroutine_order():
+    prog = Program()
+
+    @subroutine
+    def delay50ns(prog: Program, q: Qubit) -> None:
+        prog.delay(50e-9, q)
+
+    @subroutine
+    def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
+        return x * y
+
+    y = IntVar(2, "y")
+    prog.declare([delay50ns, multiply, y])
+    prog.set(y, multiply(prog, y, 3))
+    q = PhysicalQubits[0]
+    prog.do_expression(delay50ns(prog, q))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        def delay50ns(qubit q) {
+            delay[50.0ns] q;
+        }
+        def multiply(int[32] x, int[32] y) -> int[32] {
+            return x * y;
         }
         int[32] y = 2;
         y = multiply(y, 3);
@@ -951,7 +989,6 @@ def test_defcals():
         prog.capture(rx_frame, constant(2.4e-6, 1))
 
     with pytest.raises(AssertionError):
-
         with defcal(prog, q2, "readout", return_type=bool):
             prog.play(tx_frame, constant(2.4e-6, 0.2))
             prog.capture(rx_frame, constant(2.4e-6, 1))
@@ -1552,9 +1589,7 @@ def test_annotate():
     q1 = Qubit("q1", annotations=["some_qubit"])
     q2 = Qubit("q2", annotations=["other_qubit"])
 
-    @annotate_subroutine("inline")
-    @annotate_subroutine("optimize", "-O3")
-    @subroutine
+    @subroutine(annotations=["inline", ("optimize", "-O3")])
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
 
@@ -1653,6 +1688,32 @@ def test_annotate():
         """
     ).strip()
     assert prog.to_qasm(encal_declarations=True) == expected
+    _check_respects_type_hints(prog)
+
+
+def test_in_place_subroutine_declaration():
+    @subroutine(annotations=["inline", ("optimize", "-O3")])
+    def f(prog: Program, x: IntVar) -> IntVar:
+        return x
+    
+    prog = Program()
+    i = IntVar(0, name="i")
+    prog.declare([i,f])
+    prog.increment(i, 1)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] i = 0;
+        @inline
+        @optimize -O3
+        def f(int[32] x) -> int[32] {
+            return x;
+        }
+        i += 1;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
 
