@@ -123,7 +123,9 @@ class Program:
         self._state.finalize_if_clause()
         self.defcals.update(other.defcals)
         for name, subroutine_stmt in other.subroutines.items():
-            self._add_subroutine(name, subroutine_stmt)
+            self._add_subroutine(
+                name, subroutine_stmt, needs_declaration=name not in other.declared_subroutines
+            )
         self.externs.update(other.externs)
         for var in other.declared_vars.values():
             self._mark_var_declared(var)
