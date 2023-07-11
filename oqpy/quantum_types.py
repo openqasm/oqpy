@@ -111,7 +111,7 @@ def defcal(
     elif len(variables) == 1:
         yield variables[0]
     else:
-        yield
+        yield None
     state = program._pop()
 
     stmt = ast.CalibrationDefinition(
