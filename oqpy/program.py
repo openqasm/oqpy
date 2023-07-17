@@ -309,7 +309,7 @@ class Program:
         return prog
 
     @staticmethod
-    def from_qasm(source: str) -> None:
+    def from_qasm(source: str) -> Program:
         """Build an OQPy program by parsing OpenQASM text."""
         prog = Program()
         oqasm_ast = parse(source)
@@ -864,7 +864,7 @@ class ProgramBuilder(QASMVisitor[Program]):
         return {"node": node, "value": True if node.value else False}
 
     def visit_DurationLiteral(self, node: ast.DurationLiteral, context: Program) -> dict[str, Any]:
-        return {"node": node, "value": make_duration(node.value * 1e-9)}
+        return {"node": node, "value": convert_float_to_duration(node.value * 1e-9)}
 
     def visit_ArrayLiteral(self, node: ast.ArrayLiteral, context: Program) -> dict[str, Any]:
         return {
@@ -889,10 +889,11 @@ class ProgramBuilder(QASMVisitor[Program]):
         lhs = res["value"]["lhs"]
         rhs = res["value"]["rhs"]
 
+        # FIXME: pass the right type to ast_type
         if isinstance(lhs, str):
-            lhs = classical_types.Identifier(lhs)
+            lhs = classical_types.Identifier(lhs, ast.ClassicalType)
         if isinstance(rhs, str):
-            rhs = classical_types.Identifier(rhs)
+            rhs = classical_types.Identifier(rhs, ast.ClassicalType)
 
         op = ast.BinaryOperator
 

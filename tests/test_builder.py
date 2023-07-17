@@ -41,7 +41,7 @@ def test_version_string():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -88,7 +88,7 @@ def test_variable_declaration():
     ).strip()
 
     assert isinstance(arr[14], BitVar)
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -138,7 +138,7 @@ def test_complex_numbers_declaration():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -159,7 +159,7 @@ def test_non_trivial_variable_declaration():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -185,7 +185,7 @@ def test_variable_assignment():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -206,7 +206,7 @@ def test_binary_expressions():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -228,7 +228,7 @@ def test_measure_reset():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -256,7 +256,7 @@ def test_bare_if():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -293,7 +293,7 @@ def test_if_else():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -332,7 +332,7 @@ def test_for_in():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -357,7 +357,7 @@ def test_while():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -382,7 +382,7 @@ def test_create_frame():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -444,7 +444,7 @@ def test_subroutine_with_return():
         """
     ).strip()
 
-    prog_from_text = Program(oqasm_text=expected)
+    prog_from_text = Program.from_qasm(source=expected)
     assert prog_from_text.to_qasm() == expected
     assert (
         dumps(prog_from_text.subroutines["multiply"], indent="    ").strip()
@@ -491,7 +491,7 @@ def test_box_and_timings():
         """
     ).strip()
 
-    prog_from_text = Program(oqasm_text=expected)
+    prog_from_text = Program.from_qasm(source=expected)
     assert prog_from_text.to_qasm(encal_declarations=True) == expected
     prog_from_text.externs["constant"] == ast.ExternDeclaration(
         name=ast.Identifier(name="constant"),
@@ -533,7 +533,7 @@ def test_play_capture():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    assert Program.from_qasm(source=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -557,7 +557,7 @@ def test_set_shift_frequency():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -644,7 +644,7 @@ def test_defcals():
         """
     ).strip()
 
-    prog_from_text = Program(oqasm_text=expected)
+    prog_from_text = Program.from_qasm(source=expected)
 
     assert prog_from_text.to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
@@ -833,7 +833,7 @@ def test_ramsey_example():
         """
     ).strip()
 
-    prog_from_text = Program(oqasm_text=expected)
+    prog_from_text = Program.from_qasm(source=expected)
     assert prog_from_text.to_qasm(encal_declarations=True) == expected
     assert (
         dumps(prog_from_text.defcals[(("$2",), "x90", ())], indent="    ").strip()
@@ -911,7 +911,7 @@ def test_rabi_example():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -952,7 +952,7 @@ def test_program_add():
     ).strip()
 
     prog = prog1 + prog2
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    assert Program.from_qasm(source=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
     with pytest.raises(RuntimeError):
@@ -982,7 +982,7 @@ def test_expression_convertible():
         delay[a2] f1;
         """
     ).strip()
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -1018,7 +1018,7 @@ def test_waveform_extern_arg_passing():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    assert Program.from_qasm(source=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -1059,7 +1059,7 @@ def test_needs_declaration():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -1093,7 +1093,7 @@ def test_discrete_waveform():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm() == expected
+    assert Program.from_qasm(source=expected).to_qasm() == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -1224,7 +1224,7 @@ def test_autoencal():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    assert Program.from_qasm(source=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
 
 
@@ -1321,5 +1321,5 @@ def test_ramsey_example_blog():
         """
     ).strip()
 
-    assert Program(oqasm_text=expected).to_qasm(encal_declarations=True) == expected
+    assert Program.from_qasm(source=expected).to_qasm(encal_declarations=True) == expected
     # assert prog == Program(oqasm_text=prog.to_qasm())
