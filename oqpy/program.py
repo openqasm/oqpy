@@ -360,7 +360,7 @@ class Program:
 
         for var in openqasm_vars:
             if callable(var) and hasattr(var, "subroutine_declaration"):
-                name, stmt = var.subroutine_declaration  # type: ignore[attr-defined]
+                name, stmt = var.subroutine_declaration
                 self._add_subroutine(name, stmt, needs_declaration=False)
             else:
                 stmt = var.make_declaration_statement(self)
