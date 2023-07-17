@@ -309,8 +309,8 @@ class ComplexVar(_ClassicalVar):
         assert isinstance(base_type, ast.FloatType)
         self.base_type = base_type
 
-        if not isinstance(init_expression, (complex, type(None), OQPyExpression, ast.Expression)):
-            init_expression = complex(init_expression)  # type: ignore[call-overload]
+        if not isinstance(init_expression, (complex, type(None), str, OQPyExpression)):
+            init_expression = complex(init_expression)  # type: ignore[arg-type]
         super().__init__(init_expression, *args, **kwargs, base_type=base_type)
 
 
