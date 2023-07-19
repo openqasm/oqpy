@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Any, Callable, Sequence, TypeVar, get_type_hints
+from typing import Any, Callable, Optional, Sequence, TypeVar, get_type_hints
 
 from mypy_extensions import VarArg
 from openpulse import ast
@@ -164,7 +164,7 @@ def subroutine(
 def declare_extern(
     name: str,
     args: list[tuple[str, ast.ClassicalType]],
-    return_type: ast.ClassicalType,
+    return_type: Optional[ast.ClassicalType] = None,
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Declare an extern and return a callable which adds the extern.

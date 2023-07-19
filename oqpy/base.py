@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union
 
 import numpy as np
 from openpulse import ast
@@ -50,7 +50,7 @@ class OQPyExpression:
     ``==`` which produces a new expression instead of producing a python boolean.
     """
 
-    type: ast.ClassicalType
+    type: Optional[ast.ClassicalType]
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the oqpy expression into an ast node."""
@@ -175,7 +175,7 @@ class OQPyExpression:
         )
 
 
-def _get_type(val: AstConvertible) -> ast.ClassicalType:
+def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
     if isinstance(val, OQPyExpression):
         return val.type
     elif isinstance(val, int):
