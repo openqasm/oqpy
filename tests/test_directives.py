@@ -25,8 +25,8 @@ from dataclasses import dataclass, fields
 import numpy as np
 import pytest
 from openpulse import ast
-from openpulse.printer import dumps
 from openpulse.parser import QASMVisitor
+from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
@@ -950,6 +950,54 @@ def test_set_shift_frequency():
     _check_respects_type_hints(prog)
 
 
+def test_declare_extern():
+    program = Program()
+
+    # Test an extern with one input and output
+    sqrt = declare_extern("sqrt", [("x", float32)], float32)
+
+    # Test an extern with two inputs and one output
+    arctan = declare_extern("arctan", [("x", float32), ("y", float32)], float32)
+
+    # Test an extern with no input and one output
+    time = declare_extern("time", [], int32)
+
+    # Test an extern with one input and no output
+    set_global_voltage = declare_extern("set_voltage", [("voltage", int32)])
+
+    # Test an extern with no input and no output
+    fire_bazooka = declare_extern("fire_bazooka", [])
+
+    f = oqpy.FloatVar(name="f", init_expression=0.0)
+    i = oqpy.IntVar(name="i", init_expression=5)
+
+    program.set(f, sqrt(f))
+    program.set(f, arctan(f, f))
+    program.set(i, time())
+    program.do_expression(set_global_voltage(i))
+    program.do_expression(fire_bazooka())
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        extern sqrt(float[32]) -> float[32];
+        extern arctan(float[32], float[32]) -> float[32];
+        extern time() -> int[32];
+        extern set_voltage(int[32]);
+        extern fire_bazooka();
+        float[64] f = 0.0;
+        int[32] i = 5;
+        f = sqrt(f);
+        f = arctan(f, f);
+        i = time();
+        set_voltage(i);
+        fire_bazooka();
+        """
+    ).strip()
+
+    assert program.to_qasm() == expected
+
+
 def test_defcals():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -1530,7 +1578,7 @@ def test_needs_declaration():
     ).strip()
 
     declared_vars = {}
-    undeclared_vars= ["i1", "i2", "f1", "f2", "q1", "q2"]
+    undeclared_vars = ["i1", "i2", "f1", "f2", "q1", "q2"]
     statement_ast = [
         ast.ClassicalAssignment(
             lvalue=ast.Identifier(name="i1"),
@@ -1745,10 +1793,10 @@ def test_in_place_subroutine_declaration():
     @subroutine(annotations=["inline", ("optimize", "-O3")])
     def f(prog: Program, x: IntVar) -> IntVar:
         return x
-    
+
     prog = Program()
     i = IntVar(0, name="i")
-    prog.declare([i,f])
+    prog.declare([i, f])
     prog.increment(i, 1)
 
     expected = textwrap.dedent(
@@ -2123,7 +2171,6 @@ def test_nested_subroutines():
     @oqpy.subroutine
     def g(prog: oqpy.Program) -> oqpy.IntVar:
         return f(prog)
-
 
     prog = oqpy.Program()
     x = oqpy.IntVar(name="x")
