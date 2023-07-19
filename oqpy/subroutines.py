@@ -180,8 +180,8 @@ def declare_extern(
         program.set(var, sqrt(0.5))
 
     """
-    arg_names = list(zip(*(args)))[0]
-    arg_types = list(zip(*(args)))[1]
+    arg_names = list(zip(*(args)))[0] if args else []
+    arg_types = list(zip(*(args)))[1] if args else []
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
         [ast.ExternArgument(type=t) for t in arg_types],
