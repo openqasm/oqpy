@@ -875,6 +875,13 @@ def test_barrier_delay_arguments():
     prog.delay(3e-7, frame1)
     prog.delay(4e-7, [frame, frame1])
 
+    def frame_generator(frames):
+        for frame in frames:
+            yield frame
+
+    prog.barrier(frame_generator([frame, frame1]))
+    prog.delay(5e-7, frame_generator([frame, frame1]))
+
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
@@ -886,6 +893,8 @@ def test_barrier_delay_arguments():
         barrier frame0, frame1;
         delay[300.0ns] frame1;
         delay[400.0ns] frame0, frame1;
+        barrier frame0, frame1;
+        delay[500.0ns] frame0, frame1;
         """
     ).strip()
 
