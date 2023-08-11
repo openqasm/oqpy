@@ -899,6 +899,7 @@ def test_barrier_delay_arguments():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_box_and_timings():
