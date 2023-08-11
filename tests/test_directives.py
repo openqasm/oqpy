@@ -1540,8 +1540,8 @@ def test_expression_convertible():
         """
         OPENQASM 3.0;
         duration a1 = 100.0ns;
-        frame f1;
         duration a2 = 100.0ns;
+        frame f1;
         a1 = 2;
         delay[a2] f1;
         """
