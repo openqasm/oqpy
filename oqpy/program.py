@@ -99,11 +99,13 @@ class Program:
             tuple[tuple[str, ...], str, tuple[str, ...]], ast.CalibrationDefinition
         ] = {}
         self.subroutines: dict[str, ast.SubroutineDefinition] = {}
+        self.gates: dict[str, ast.QuantumGateDefinition] = {}
         self.externs: dict[str, ast.ExternDeclaration] = {}
         self.declared_vars: dict[str, Var] = {}
         self.undeclared_vars: dict[str, Var] = {}
         self.simplify_constants = simplify_constants
         self.declared_subroutines: set[str] = set()
+        self.declared_gates: set[str] = set()
 
         if version is None or (
             len(version.split(".")) in [1, 2]
@@ -125,6 +127,10 @@ class Program:
         for name, subroutine_stmt in other.subroutines.items():
             self._add_subroutine(
                 name, subroutine_stmt, needs_declaration=name not in other.declared_subroutines
+            )
+        for name, gate_stmt in other.gates.items():
+            self._add_gate(
+                name, gate_stmt, needs_declaration=name not in other.declared_gates
             )
         self.externs.update(other.externs)
         for var in other.declared_vars.values():
@@ -221,6 +227,17 @@ class Program:
         if not needs_declaration:
             self.declared_subroutines.add(name)
 
+    def _add_gate(
+        self, name: str, stmt: ast.QuantumGateDefinition, needs_declaration: bool = True
+    ) -> None:
+        """Register a gate definition which has been used.
+
+        Gate definitions are added to the top of the program upon conversion to ast.
+        """
+        self.gates[name] = stmt
+        if not needs_declaration:
+            self.declared_gates.add(name)
+
     def _add_defcal(
         self,
         qubit_names: list[str],
@@ -297,6 +314,10 @@ class Program:
             mutating_prog.subroutines[subroutine_name]
             for subroutine_name in mutating_prog.subroutines
             if subroutine_name not in mutating_prog.declared_subroutines
+        ] + [
+            mutating_prog.gates[gate_name]
+            for gate_name in mutating_prog.gates
+            if gate_name not in mutating_prog.declared_gates
         ] + mutating_prog._state.body
         if encal:
             statements = [ast.CalibrationStatement(statements)]
@@ -362,6 +383,9 @@ class Program:
             if callable(var) and hasattr(var, "subroutine_declaration"):
                 name, stmt = var.subroutine_declaration
                 self._add_subroutine(name, stmt, needs_declaration=False)
+            elif callable(var) and hasattr(var, "gate_declaration"):
+                name, stmt = var.gate_declaration
+                self._add_gate(name, stmt, needs_declaration=False)
             else:
                 stmt = var.make_declaration_statement(self)
                 self._mark_var_declared(var)

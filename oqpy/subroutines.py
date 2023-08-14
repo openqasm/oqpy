@@ -25,12 +25,12 @@ from mypy_extensions import VarArg
 from openpulse import ast
 
 import oqpy.program
-from oqpy.base import AstConvertible, OQPyExpression, make_annotations, to_ast
-from oqpy.classical_types import OQFunctionCall, _ClassicalVar
+from oqpy.base import AstConvertible, OQPyExpression, make_annotations, map_to_ast, to_ast
+from oqpy.classical_types import OQFunctionCall, _ClassicalVar, AngleVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import convert_float_to_duration
 
-__all__ = ["subroutine", "declare_extern", "declare_waveform_generator"]
+__all__ = ["subroutine", "gate", "declare_extern", "declare_waveform_generator"]
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
@@ -158,6 +158,82 @@ def subroutine(
         )
 
     setattr(wrapper, "subroutine_declaration", (name, stmt))
+    return wrapper
+
+
+@enable_decorator_arguments
+def gate(
+    func: Callable[[oqpy.Program, VarArg(AstConvertible)], None],
+    annotations: Sequence[str | tuple[str, str]] = (),
+) -> Callable[[oqpy.Program, VarArg(AstConvertible)], ast.QuantumGate]:
+    """Decorator to declare a gate definition.
+    TODO: finish docstring
+    """
+    name = func.__name__
+    identifier = ast.Identifier(func.__name__)
+    argnames = list(inspect.signature(func).parameters.keys())
+    type_hints = get_type_hints(func)
+    inputs = {}  # used as inputs when calling the actual python function
+    qubits = []  # used in the ast definition of the subroutine
+    angles = []  # used in the ast definition of the subroutine
+    for argname in argnames[1:]:  # arg 0 should be program
+        if argname not in type_hints:
+            raise ValueError(f"No type hint provided for {argname} on gate {name}.")
+        input_ = inputs[argname] = type_hints[argname](name=argname)
+        # TODO: enforce the order of the arguments in some way
+        if isinstance(input_, AngleVar):
+            angles.append(ast.Identifier(argname))
+        elif isinstance(input_, Qubit):
+            qubits.append(ast.Identifier(input_.name))
+        else:
+            raise ValueError(f"Type hint for {argname} on gate {name} is not Qubit or AngleVar.")
+
+    inner_prog = oqpy.Program()
+    for input_val in inputs.values():
+        inner_prog._mark_var_declared(input_val)
+    output = func(inner_prog, **inputs)
+    inner_prog.autodeclare()
+    inner_prog._state.finalize_if_clause()
+    body = inner_prog._state.body
+    # TODO: validation on body that everything is allowed in a gate definition
+    if output is not None:
+        raise ValueError(
+            f"Return value of gate definition {name} is not None. "
+            f"Gate definitions are not allowed to return any value."
+        )
+    stmt = ast.QuantumGateDefinition(
+        identifier,
+        arguments=angles,
+        qubits=qubits,
+        body=body,
+    )
+    stmt.annotations = make_annotations(annotations)
+
+    @functools.wraps(func)
+    def wrapper(
+        program: oqpy.Program,
+        *args: AstConvertible,
+    ) -> ast.QuantumGate:
+        for gate_name, gate_stmt in inner_prog.gates.items():
+            program._add_gate(gate_name, gate_stmt)
+        program._add_gate(name, stmt)
+        angles = []
+        qubits = []
+        for arg in args:
+            if isinstance(arg, Qubit):
+                qubits.append(arg)
+            else:
+                angles.append(arg)
+        gate_call = ast.QuantumGate(
+            [],
+            ast.Identifier(name),
+            map_to_ast(program, angles),
+            map_to_ast(program, qubits),
+        )
+        program._add_statement(gate_call)
+        return gate_call
+
+    setattr(wrapper, "gate_declaration", (name, stmt))
     return wrapper
 
 

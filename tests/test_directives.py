@@ -2195,3 +2195,33 @@ def test_nested_subroutines():
     ).strip()
 
     assert prog.to_qasm() == expected
+
+
+def test_nested_gates():
+    @oqpy.gate
+    def rz(prog: oqpy.Program, q: oqpy.Qubit, theta: oqpy.AngleVar) -> None:
+        prog.gate(q, "U", theta, 0, 0)
+
+    @oqpy.gate
+    def t(prog: oqpy.Program, q: oqpy.Qubit) -> None:
+        rz(prog, q, 0.3927)
+        
+    prog = oqpy.Program()
+    t(prog, oqpy.PhysicalQubits[1])
+    t(prog, oqpy.PhysicalQubits[2])
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        gate rz(theta) q {
+            U(theta, 0, 0) q;
+        }
+        gate t q {
+            rz(0.3927) q;
+        }
+        t $1;
+        t $2;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
