@@ -2205,7 +2205,7 @@ def test_nested_gates():
     @oqpy.gate
     def t(prog: oqpy.Program, q: oqpy.Qubit) -> None:
         rz(prog, q, 0.3927)
-        
+
     prog = oqpy.Program()
     t(prog, oqpy.PhysicalQubits[1])
     t(prog, oqpy.PhysicalQubits[2])
