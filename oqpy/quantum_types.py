@@ -24,13 +24,13 @@ from openpulse import ast
 from openpulse.printer import dumps
 
 from oqpy.base import AstConvertible, Var, make_annotations, to_ast
-from oqpy.classical_types import _ClassicalVar
+from oqpy.classical_types import _ClassicalVar, AngleVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["Qubit", "QubitArray", "defcal", "PhysicalQubits", "Cal"]
+__all__ = ["Qubit", "QubitArray", "defcal", "gate", "PhysicalQubits", "Cal"]
 
 
 class Qubit(Var):
@@ -71,6 +71,53 @@ class PhysicalQubits:
 # Todo (#51): support QubitArray
 class QubitArray:
     """Represents an array of qubits."""
+
+
+@contextlib.contextmanager
+def gate(
+    program: Program,
+    qubits: Union[Qubit, list[Qubit]],
+    name: str,
+    arguments: Optional[list[AstConvertible]] = None,
+) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
+    """Context manager for creating a gate.
+
+    .. code-block:: python
+
+        with gate(program, q1, "HRzH", [AngleVar(name="theta")]) as theta:
+            program.gate(q1, "H")
+            program.gate(q1, "Rz", theta)
+            program.gate(q1, "H")
+    """
+    if isinstance(qubits, Qubit):
+        qubits = [qubits]
+
+    arguments_ast = []
+    variables = []
+    if arguments is not None:
+        for arg in arguments:
+            if not isinstance(arg, AngleVar):
+                raise ValueError(arg, "Gates only support args of type AngleVar.")
+            arguments_ast.append(ast.Identifier(name=arg.name))
+            arg._needs_declaration = False
+            variables.append(arg)
+
+    program._push()
+    if len(variables) > 1:
+        yield variables
+    elif len(variables) == 1:
+        yield variables[0]
+    else:
+        yield None
+    state = program._pop()
+
+    stmt = ast.QuantumGateDefinition(
+        name=ast.Identifier(name),
+        arguments=arguments_ast,
+        qubits=[ast.Identifier(q.name) for q in qubits],
+        body=state.body,
+    )
+    program._add_gate(name, stmt)
 
 
 @contextlib.contextmanager

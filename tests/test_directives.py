@@ -2198,17 +2198,15 @@ def test_nested_subroutines():
 
 
 def test_nested_gates():
-    @oqpy.gate
-    def rz(prog: oqpy.Program, q: oqpy.Qubit, theta: oqpy.AngleVar) -> None:
-        prog.gate(q, "U", theta, 0, 0)
-
-    @oqpy.gate
-    def t(prog: oqpy.Program, q: oqpy.Qubit) -> None:
-        rz(prog, q, 0.3927)
-
     prog = oqpy.Program()
-    t(prog, oqpy.PhysicalQubits[1])
-    t(prog, oqpy.PhysicalQubits[2])
+    q = oqpy.Qubit("q", needs_declaration=False)
+    with oqpy.quantum_types.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
+        prog.gate(q, "U", theta, 0, 0)
+    with oqpy.quantum_types.gate(prog, q, "t"):
+        prog.gate(q, "rz", oqpy.pi/8)
+
+    prog.gate(oqpy.PhysicalQubits[1], "t")
+    prog.gate(oqpy.PhysicalQubits[2], "t")
 
     expected = textwrap.dedent(
         """
@@ -2217,7 +2215,7 @@ def test_nested_gates():
             U(theta, 0, 0) q;
         }
         gate t q {
-            rz(0.3927) q;
+            rz(pi / 8) q;
         }
         t $1;
         t $2;
