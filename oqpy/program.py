@@ -383,9 +383,6 @@ class Program:
             if callable(var) and hasattr(var, "subroutine_declaration"):
                 name, stmt = var.subroutine_declaration
                 self._add_subroutine(name, stmt, needs_declaration=False)
-            elif callable(var) and hasattr(var, "gate_declaration"):
-                name, stmt = var.gate_declaration
-                self._add_gate(name, stmt, needs_declaration=False)
             else:
                 stmt = var.make_declaration_statement(self)
                 self._mark_var_declared(var)
