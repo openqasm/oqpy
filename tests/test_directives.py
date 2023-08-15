@@ -2223,7 +2223,7 @@ def test_nested_gates():
     with oqpy.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
         prog.gate(q, "u", theta, 0, 0)
     with oqpy.gate(prog, q, "t"):
-        prog.gate(q, "rz", oqpy.pi/8)
+        prog.gate(q, "rz", oqpy.pi / 4)
 
     prog.gate(oqpy.PhysicalQubits[1], "t")
     prog.gate(oqpy.PhysicalQubits[2], "t")
@@ -2241,7 +2241,7 @@ def test_nested_gates():
             u(theta, 0, 0) q;
         }
         gate t q {
-            rz(pi / 8) q;
+            rz(pi / 4) q;
         }
         t $1;
         t $2;
