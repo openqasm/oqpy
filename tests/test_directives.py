@@ -2197,11 +2197,31 @@ def test_nested_subroutines():
     assert prog.to_qasm() == expected
 
 
+def test_invalid_gates():
+    # missing qubits argument
+    prog = oqpy.Program()
+    with pytest.raises(TypeError):
+        with oqpy.gate(prog, None, "u"):
+            pass
+
+    # invalid argument type
+    prog = oqpy.Program()
+    with pytest.raises(ValueError):
+        q = oqpy.Qubit("q", needs_declaration=False)
+        with oqpy.gate(prog, q, "u", [oqpy.FloatVar(name="a")]) as a:
+            pass
+
+
 def test_nested_gates():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
+    with oqpy.gate(prog, q, "u", [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")]) as (alpha, beta, gamma):
+        prog.gate(q, "a", alpha)
+        prog.gate(q, "b", beta)
+        prog.gate(q, "c", gamma)
+        prog.gate(q, "d")
     with oqpy.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
-        prog.gate(q, "U", theta, 0, 0)
+        prog.gate(q, "u", theta, 0, 0)
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi/8)
 
@@ -2211,8 +2231,14 @@ def test_nested_gates():
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
+        gate u(alpha, beta, gamma) q {
+            a(alpha) q;
+            b(beta) q;
+            c(gamma) q;
+            d q;
+        }
         gate rz(theta) q {
-            U(theta, 0, 0) q;
+            u(theta, 0, 0) q;
         }
         gate t q {
             rz(pi / 8) q;
