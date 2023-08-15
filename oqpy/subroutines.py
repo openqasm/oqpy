@@ -25,8 +25,8 @@ from mypy_extensions import VarArg
 from openpulse import ast
 
 import oqpy.program
-from oqpy.base import AstConvertible, OQPyExpression, make_annotations, map_to_ast, to_ast
-from oqpy.classical_types import OQFunctionCall, _ClassicalVar, AngleVar
+from oqpy.base import AstConvertible, OQPyExpression, make_annotations, to_ast
+from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import convert_float_to_duration
 
