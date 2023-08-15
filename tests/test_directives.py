@@ -2200,9 +2200,9 @@ def test_nested_subroutines():
 def test_nested_gates():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
-    with oqpy.quantum_types.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
+    with oqpy.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
         prog.gate(q, "U", theta, 0, 0)
-    with oqpy.quantum_types.gate(prog, q, "t"):
+    with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi/8)
 
     prog.gate(oqpy.PhysicalQubits[1], "t")
