@@ -2212,7 +2212,7 @@ def test_invalid_gates():
             pass
 
 
-def test_nested_gates():
+def test_gate_declarations():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
     with oqpy.gate(prog, q, "u", [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")]) as (alpha, beta, gamma):
@@ -2220,7 +2220,7 @@ def test_nested_gates():
         prog.gate(q, "b", beta)
         prog.gate(q, "c", gamma)
         prog.gate(q, "d")
-    with oqpy.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")]) as theta:
+    with oqpy.gate(prog, q, "rz", [oqpy.AngleVar(name="theta")], declare_here=True) as theta:
         prog.gate(q, "u", theta, 0, 0)
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi / 4)
@@ -2237,11 +2237,11 @@ def test_nested_gates():
             c(gamma) q;
             d q;
         }
-        gate rz(theta) q {
-            u(theta, 0, 0) q;
-        }
         gate t q {
             rz(pi / 4) q;
+        }
+        gate rz(theta) q {
+            u(theta, 0, 0) q;
         }
         t $1;
         t $2;

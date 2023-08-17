@@ -79,6 +79,7 @@ def gate(
     qubits: Union[Qubit, list[Qubit]],
     name: str,
     arguments: Optional[list[AstConvertible]] = None,
+    declare_here: bool = False,
 ) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
     """Context manager for creating a gate.
 
@@ -117,7 +118,9 @@ def gate(
         qubits=[ast.Identifier(q.name) for q in qubits],
         body=state.body,
     )
-    program._add_gate(name, stmt)
+    if declare_here:
+        program._add_statement(stmt)
+    program._add_gate(name, stmt, needs_declaration=not declare_here)
 
 
 @contextlib.contextmanager
