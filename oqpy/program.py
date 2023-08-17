@@ -129,9 +129,7 @@ class Program:
                 name, subroutine_stmt, needs_declaration=name not in other.declared_subroutines
             )
         for name, gate_stmt in other.gates.items():
-            self._add_gate(
-                name, gate_stmt, needs_declaration=name not in other.declared_gates
-            )
+            self._add_gate(name, gate_stmt, needs_declaration=name not in other.declared_gates)
         self.externs.update(other.externs)
         for var in other.declared_vars.values():
             self._mark_var_declared(var)
@@ -310,15 +308,19 @@ class Program:
         statements = []
         if include_externs:
             statements += mutating_prog._make_externs_statements(encal_declarations)
-        statements += [
-            mutating_prog.subroutines[subroutine_name]
-            for subroutine_name in mutating_prog.subroutines
-            if subroutine_name not in mutating_prog.declared_subroutines
-        ] + [
-            mutating_prog.gates[gate_name]
-            for gate_name in mutating_prog.gates
-            if gate_name not in mutating_prog.declared_gates
-        ] + mutating_prog._state.body
+        statements += (
+            [
+                mutating_prog.subroutines[subroutine_name]
+                for subroutine_name in mutating_prog.subroutines
+                if subroutine_name not in mutating_prog.declared_subroutines
+            ]
+            + [
+                mutating_prog.gates[gate_name]
+                for gate_name in mutating_prog.gates
+                if gate_name not in mutating_prog.declared_gates
+            ]
+            + mutating_prog._state.body
+        )
         if encal:
             statements = [ast.CalibrationStatement(statements)]
         if encal_declarations:

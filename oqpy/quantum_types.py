@@ -24,7 +24,7 @@ from openpulse import ast
 from openpulse.printer import dumps
 
 from oqpy.base import AstConvertible, Var, make_annotations, to_ast
-from oqpy.classical_types import _ClassicalVar, AngleVar
+from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
@@ -80,7 +80,7 @@ def gate(
     name: str,
     arguments: Optional[list[AstConvertible]] = None,
     declare_here: bool = False,
-) -> Union[Iterator[None], Iterator[list[_ClassicalVar]], Iterator[_ClassicalVar]]:
+) -> Union[Iterator[None], Iterator[list[AngleVar]], Iterator[AngleVar]]:
     """Context manager for creating a gate.
 
     .. code-block:: python
