@@ -20,12 +20,9 @@ from __future__ import annotations
 import contextlib
 from typing import (
     TYPE_CHECKING,
-    Any,
-    Callable,
     Iterator,
     Optional,
     Sequence,
-    TypeVar,
     Union,
 )
 
@@ -58,8 +55,6 @@ __all__ = [
     "pow",
     "OQpyGateModifier",
 ]
-
-FnType = TypeVar("FnType", bound=Callable[..., Any])
 
 
 class Qubit(Var):
