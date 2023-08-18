@@ -105,7 +105,12 @@ class OQpyGateModifier(HasToAst):
             and len(rhs._state.body) >= 0
             and isinstance(rhs._state.body[-1], ast.QuantumGate)
         ):
-            rhs._state.body[-1].modifiers = map_to_ast(rhs, self.modifiers)
+            modifiers_ast = self.to_ast(rhs)
+            rhs._state.body[-1].modifiers = (
+                [modifiers_ast]
+                if isinstance(modifiers_ast, ast.QuantumGateModifier)
+                else modifiers_ast
+            )
             return rhs
         else:
             raise RuntimeError(
@@ -114,7 +119,7 @@ class OQpyGateModifier(HasToAst):
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
-        raise NotImplementedError
+        return map_to_ast(program, self.modifiers)
 
 
 class ctrl(OQpyGateModifier):
