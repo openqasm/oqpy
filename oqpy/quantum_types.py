@@ -18,19 +18,48 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+)
 
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import AstConvertible, Var, make_annotations, to_ast
+import oqpy
+from oqpy.base import (
+    AstConvertible,
+    HasToAst,
+    Var,
+    make_annotations,
+    map_to_ast,
+    to_ast,
+)
 from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
 
+__all__ = [
+    "Qubit",
+    "QubitArray",
+    "defcal",
+    "gate",
+    "PhysicalQubits",
+    "Cal",
+    "ctrl",
+    "inv",
+    "pow",
+    "OQpyGateModifier",
+]
 
-__all__ = ["Qubit", "QubitArray", "defcal", "gate", "PhysicalQubits", "Cal"]
+FnType = TypeVar("FnType", bound=Callable[..., Any])
 
 
 class Qubit(Var):
@@ -71,6 +100,60 @@ class PhysicalQubits:
 # Todo (#51): support QubitArray
 class QubitArray:
     """Represents an array of qubits."""
+
+
+class OQpyGateModifier(HasToAst):
+    """A generic gate modifier."""
+
+    def __init__(self, modifiers: list[OQpyGateModifier] | None = None) -> None:
+        self.modifiers = modifiers if modifiers else [self]
+
+    def __matmul__(self, rhs: Program | OQpyGateModifier) -> Program | OQpyGateModifier:
+        if isinstance(rhs, OQpyGateModifier):
+            return OQpyGateModifier(self.modifiers + [rhs])
+        elif (
+            isinstance(rhs, oqpy.Program)
+            and len(rhs._state.body) >= 0
+            and isinstance(rhs._state.body[-1], ast.QuantumGate)
+        ):
+            rhs._state.body[-1].modifiers = map_to_ast(rhs, self.modifiers)
+            return rhs
+        else:
+            raise RuntimeError(
+                "Gate modifiers cannot be applied to anything else than a gate. Ignoring the modifier."
+            )
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        raise NotImplementedError
+
+
+class ctrl(OQpyGateModifier):
+    """ctrl gate modifier."""
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        return ast.QuantumGateModifier(ast.GateModifierName.ctrl)
+
+
+class inv(OQpyGateModifier):
+    """inv gate modifier."""
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        return ast.QuantumGateModifier(ast.GateModifierName.inv)
+
+
+class pow(OQpyGateModifier):  # pylint: disable=redefined-builtin
+    """pow gate modifier."""
+
+    def __init__(self, expression: AstConvertible) -> None:
+        self.expression = expression
+        super().__init__()
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        return ast.QuantumGateModifier(ast.GateModifierName.pow, to_ast(program, self.expression))
 
 
 @contextlib.contextmanager

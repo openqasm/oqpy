@@ -480,7 +480,10 @@ class Program:
         return self
 
     def gate(
-        self, qubits: AstConvertible | Iterable[AstConvertible], name: str, *args: Any
+        self,
+        qubits: AstConvertible | Iterable[AstConvertible],
+        name: str,
+        *args: Any,
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
         if isinstance(qubits, quantum_types.Qubit):

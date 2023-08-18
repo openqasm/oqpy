@@ -2195,6 +2195,7 @@ def test_nested_subroutines():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_invalid_gates():
@@ -2215,7 +2216,12 @@ def test_invalid_gates():
 def test_gate_declarations():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
-    with oqpy.gate(prog, q, "u", [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")]) as (alpha, beta, gamma):
+    with oqpy.gate(
+        prog,
+        q,
+        "u",
+        [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")],
+    ) as (alpha, beta, gamma):
         prog.gate(q, "a", alpha)
         prog.gate(q, "b", beta)
         prog.gate(q, "c", gamma)
@@ -2249,3 +2255,39 @@ def test_gate_declarations():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_gate_modifiers():
+    prog = oqpy.Program()
+    reg = [oqpy.PhysicalQubits[i] for i in range(1, 3)]
+
+    oqpy.ctrl() @ prog.gate(reg, "t")
+    oqpy.pow(1 / 2) @ prog.gate(oqpy.PhysicalQubits[2], "t")
+    oqpy.inv() @ prog.gate(oqpy.PhysicalQubits[3], "rz")
+    oqpy.ctrl() @ oqpy.pow(1 / 2) @ oqpy.inv() @ prog.gate(reg, "x")
+
+    mod = oqpy.inv() @ oqpy.pow(oqpy.IntVar(5, "i") / 2)
+    mod @ prog.gate(oqpy.PhysicalQubits[0], "x")
+
+    with pytest.raises(RuntimeError):
+        # FIXME: This still adds the shift frequency instructions despite raising the error
+        frame = FrameVar(name="f1")
+        oqpy.ctrl() @ prog.shift_frequency(frame, 1e6)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] i = 5;
+        frame f1;
+        ctrl @ t $1, $2;
+        pow(0.5) @ t $2;
+        inv @ rz $3;
+        ctrl @ pow(0.5) @ inv @ x $1, $2;
+        inv @ pow(i / 2) @ x $0;
+        shift_frequency(f1, 1000000.0);
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
