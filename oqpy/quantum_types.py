@@ -146,17 +146,31 @@ class pow(OQpyGateModifier):  # pylint: disable=redefined-builtin
 class ctrl(OQpyGateModifier):
     """ctrl gate modifier."""
 
+    def __init__(self, control_number: AstConvertible | None = None) -> None:
+        self.control_number = control_number
+        super().__init__()
+
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(ast.GateModifierName.ctrl)
+        return ast.QuantumGateModifier(
+            ast.GateModifierName.ctrl,
+            to_ast(program, self.control_number) if self.control_number else None,
+        )
 
 
 class negctrl(OQpyGateModifier):
-    """ctrl gate modifier."""
+    """negctrl gate modifier."""
+
+    def __init__(self, control_number: AstConvertible | None = None) -> None:
+        self.control_number = control_number
+        super().__init__()
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(ast.GateModifierName.negctrl)
+        return ast.QuantumGateModifier(
+            ast.GateModifierName.negctrl,
+            to_ast(program, self.control_number) if self.control_number else None,
+        )
 
 
 @contextlib.contextmanager

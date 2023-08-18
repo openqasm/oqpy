@@ -2260,13 +2260,14 @@ def test_gate_declarations():
 
 def test_gate_modifiers():
     prog = oqpy.Program()
-    reg = [oqpy.PhysicalQubits[i] for i in range(1, 3)]
+    two_qubit_reg = [oqpy.PhysicalQubits[i] for i in range(1, 3)]
+    six_qubit_reg = [oqpy.PhysicalQubits[i] for i in [1, 4, 7, 2, 3, 5]]
 
-    oqpy.ctrl() @ prog.gate(reg, "t")
-    oqpy.negctrl() @ prog.gate(reg, "x")
+    oqpy.ctrl() @ prog.gate(two_qubit_reg, "t")
+    oqpy.negctrl() @ prog.gate(two_qubit_reg, "x")
     oqpy.pow(1 / 2) @ prog.gate(oqpy.PhysicalQubits[2], "t")
     oqpy.inv() @ prog.gate(oqpy.PhysicalQubits[3], "rz")
-    oqpy.ctrl() @ oqpy.pow(1 / 2) @ oqpy.inv() @ prog.gate(reg, "x")
+    oqpy.ctrl(2) @ oqpy.pow(1 / 2) @ oqpy.negctrl(3) @ oqpy.inv() @ prog.gate(six_qubit_reg, "x")
 
     mod = oqpy.inv() @ oqpy.pow(oqpy.IntVar(5, "i") / 2)
     mod @ prog.gate(oqpy.PhysicalQubits[0], "x")
@@ -2285,7 +2286,7 @@ def test_gate_modifiers():
         negctrl @ x $1, $2;
         pow(0.5) @ t $2;
         inv @ rz $3;
-        ctrl @ pow(0.5) @ inv @ x $1, $2;
+        ctrl(2) @ pow(0.5) @ negctrl(3) @ inv @ x $1, $4, $7, $2, $3, $5;
         inv @ pow(i / 2) @ x $0;
         shift_frequency(f1, 1000000.0);
         """
