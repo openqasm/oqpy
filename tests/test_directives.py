@@ -489,6 +489,8 @@ def test_add_incomptible_type():
 def test_measure_reset_pragma():
     prog = Program()
     q = PhysicalQubits[0]
+    with pytest.raises(AssertionError):
+        reg = PhysicalQubits[0:1]
     c = BitVar(name="c")
     prog.reset(q)
     prog.pragma("CLASSIFIER linear")

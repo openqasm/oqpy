@@ -84,6 +84,7 @@ class PhysicalQubits:
     """
 
     def __class_getitem__(cls, item: int) -> Qubit:
+        assert isinstance(item, int)
         return Qubit(f"${item}", needs_declaration=False)
 
 
