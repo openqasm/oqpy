@@ -44,10 +44,11 @@ __all__ = [
     "gate",
     "PhysicalQubits",
     "Cal",
-    "ctrl",
+    "OQpyGateModifier",
     "inv",
     "pow",
-    "OQpyGateModifier",
+    "ctrl",
+    "negctrl",
 ]
 
 
@@ -122,14 +123,6 @@ class OQpyGateModifier(HasToAst):
         return map_to_ast(program, self.modifiers)
 
 
-class ctrl(OQpyGateModifier):
-    """ctrl gate modifier."""
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(ast.GateModifierName.ctrl)
-
-
 class inv(OQpyGateModifier):
     """inv gate modifier."""
 
@@ -148,6 +141,22 @@ class pow(OQpyGateModifier):  # pylint: disable=redefined-builtin
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
         return ast.QuantumGateModifier(ast.GateModifierName.pow, to_ast(program, self.expression))
+
+
+class ctrl(OQpyGateModifier):
+    """ctrl gate modifier."""
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        return ast.QuantumGateModifier(ast.GateModifierName.ctrl)
+
+
+class negctrl(OQpyGateModifier):
+    """ctrl gate modifier."""
+
+    def to_ast(self, program: Program) -> ast.Expression:
+        """Converts the OQpy object into an ast node."""
+        return ast.QuantumGateModifier(ast.GateModifierName.negctrl)
 
 
 @contextlib.contextmanager

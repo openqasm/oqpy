@@ -2263,6 +2263,7 @@ def test_gate_modifiers():
     reg = [oqpy.PhysicalQubits[i] for i in range(1, 3)]
 
     oqpy.ctrl() @ prog.gate(reg, "t")
+    oqpy.negctrl() @ prog.gate(reg, "x")
     oqpy.pow(1 / 2) @ prog.gate(oqpy.PhysicalQubits[2], "t")
     oqpy.inv() @ prog.gate(oqpy.PhysicalQubits[3], "rz")
     oqpy.ctrl() @ oqpy.pow(1 / 2) @ oqpy.inv() @ prog.gate(reg, "x")
@@ -2281,6 +2282,7 @@ def test_gate_modifiers():
         int[32] i = 5;
         frame f1;
         ctrl @ t $1, $2;
+        negctrl @ x $1, $2;
         pow(0.5) @ t $2;
         inv @ rz $3;
         ctrl @ pow(0.5) @ inv @ x $1, $2;
