@@ -18,13 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import (
-    TYPE_CHECKING,
-    Iterator,
-    Optional,
-    Sequence,
-    Union,
-)
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 
 from openpulse import ast
 from openpulse.printer import dumps
