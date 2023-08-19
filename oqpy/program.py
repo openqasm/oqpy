@@ -483,18 +483,64 @@ class Program:
         self,
         qubits: AstConvertible | Iterable[AstConvertible],
         name: str,
+        controls: AstConvertible | Iterable[AstConvertible] | None,
+        neg_controls: AstConvertible | Iterable[AstConvertible] | None,
+        inv: bool = False,
+        pow: AstConvertible = 1,
         *args: Any,
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
+        used_qubits = []
+
+        modifiers = []
+        if neg_controls is not None:
+            if isinstance(neg_controls, quantum_types.Qubit):
+                controls = [controls]
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.negctrl,
+                    argument=to_ast(self, len(neg_controls)) if len(neg_controls) > 1 else None,
+                )
+            )
+            used_qubits.extend(neg_controls)
+        assert isinstance(neg_controls, Iterable)
+        if controls is not None:
+            if isinstance(controls, quantum_types.Qubit):
+                controls = [controls]
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.ctrl,
+                    argument=to_ast(self, len(controls)) if len(controls) > 1 else None,
+                )
+            )
+            used_qubits.extend(controls)
+        assert isinstance(controls, Iterable)
+
+        if inv:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.inv,
+                )
+            )
+
+        if pow != 1:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.pow, argument=to_ast(self, pow)
+                )
+            )
+
         if isinstance(qubits, quantum_types.Qubit):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
+        used_qubits.extend(qubits)
+
         self._add_statement(
             ast.QuantumGate(
-                [],
+                modifiers,
                 ast.Identifier(name),
                 map_to_ast(self, args),
-                map_to_ast(self, qubits),
+                map_to_ast(self, used_qubits),
             )
         )
         return self
