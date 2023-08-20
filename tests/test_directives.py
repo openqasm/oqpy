@@ -2317,6 +2317,13 @@ def test_gate_modifiers_second_method():
         neg_controls=[qreg[0], qreg[1], qreg[0]],
     )
 
+    with pytest.raises(ValueError):
+        prog.gate(qreg[2], "t", controls=qreg[2])
+    with pytest.raises(ValueError):
+        prog.gate(qreg[2], "x", neg_controls=qreg[2])
+    with pytest.raises(ValueError):
+        prog.gate(qreg[1], "x", controls=qreg[2], neg_controls=qreg[2])
+
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;

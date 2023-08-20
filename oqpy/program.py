@@ -516,7 +516,11 @@ class Program:
                     argument=to_ast(self, len(neg_controls)) if len(neg_controls) > 1 else None,
                 )
             )
-            used_qubits.extend(sorted(neg_controls))
+            for qubit in sorted(neg_controls):
+                if qubit in used_qubits:
+                    raise ValueError(f"Qubit {qubit} has already been defined as a control qubit.")
+                else:
+                    used_qubits.append(qubit)
 
         if inv:
             modifiers.append(
@@ -535,7 +539,13 @@ class Program:
         if isinstance(qubits, quantum_types.Qubit):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
-        used_qubits.extend(qubits)
+        for qubit in qubits:
+            if qubit in used_qubits:
+                raise ValueError(
+                    f"Qubit {qubit} has already been defined as a control qubit or a negative control qubit."
+                )
+            else:
+                used_qubits.append(qubit)
 
         self._add_statement(
             ast.QuantumGate(
