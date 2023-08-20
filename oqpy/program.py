@@ -34,6 +34,7 @@ from openqasm3.visitor import QASMVisitor
 from oqpy import classical_types, quantum_types
 from oqpy.base import (
     AstConvertible,
+    OQPyExpression,
     Var,
     expr_matches,
     map_to_ast,
@@ -491,11 +492,22 @@ class Program:
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
         used_qubits: list[AstConvertible] = []
-
         modifiers = []
+
+        controls = controls if controls is not None else []
+        controls = {controls} if isinstance(controls, quantum_types.Qubit) else set(controls)
+        if controls:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.ctrl,
+                    argument=to_ast(self, len(controls)) if len(controls) > 1 else None,
+                )
+            )
+            used_qubits.extend(sorted(controls))
+
         neg_controls = neg_controls if neg_controls is not None else []
         neg_controls = (
-            [neg_controls] if isinstance(neg_controls, quantum_types.Qubit) else list(neg_controls)
+            {neg_controls} if isinstance(neg_controls, quantum_types.Qubit) else set(neg_controls)
         )
         if neg_controls:
             modifiers.append(
@@ -504,18 +516,7 @@ class Program:
                     argument=to_ast(self, len(neg_controls)) if len(neg_controls) > 1 else None,
                 )
             )
-            used_qubits.extend(neg_controls)
-
-        controls = controls if controls is not None else []
-        controls = [controls] if isinstance(controls, quantum_types.Qubit) else list(controls)
-        if controls:
-            modifiers.append(
-                ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.ctrl,
-                    argument=to_ast(self, len(controls)) if len(controls) > 1 else None,
-                )
-            )
-            used_qubits.extend(controls)
+            used_qubits.extend(sorted(neg_controls))
 
         if inv:
             modifiers.append(
@@ -524,7 +525,7 @@ class Program:
                 )
             )
 
-        if pow != 1:
+        if isinstance(pow, OQPyExpression) or (isinstance(pow, float) and pow != 1.0):
             modifiers.append(
                 ast.QuantumGateModifier(
                     modifier=ast.GateModifierName.pow, argument=to_ast(self, pow)

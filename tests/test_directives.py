@@ -2285,6 +2285,58 @@ def test_gate_modifiers():
         assert prog.to_qasm() == expected
 
 
+def test_gate_modifiers_second_method():
+    prog = oqpy.Program()
+    qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
+    six_qubit_reg = [qreg[i] for i in [1, 4, 7, 2, 3, 5]]
+
+    prog.gate(qreg[2], "t", controls=qreg[1])
+    prog.gate(qreg[2], "x", neg_controls=qreg[1])
+    prog.gate(qreg[3], "rz", inv=True)
+    prog.gate(qreg[4], "rz", inv=False)
+    prog.gate(qreg[5], "rz", inv=True)
+    prog.gate(qreg[2], "t", pow=0.5)
+
+    prog.gate(qreg[2], "t", pow=0.6 * 1 / 2)
+
+    prog.gate(qreg[0], "x", inv=True, pow=oqpy.IntVar(5, "i") / 2 * 2)
+
+    prog.gate(
+        six_qubit_reg[-1],
+        "x",
+        controls=six_qubit_reg[0:2],
+        neg_controls=six_qubit_reg[2:5],
+        inv=True,
+        pow=1 / 2,
+    )
+
+    prog.gate(
+        qreg[6],
+        "rz1",
+        controls=[qreg[2], qreg[4], qreg[5]],
+        neg_controls=[qreg[0], qreg[1], qreg[0]],
+    )
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] i = 5;
+        ctrl @ t $1, $2;
+        negctrl @ x $1, $2;
+        inv @ rz $3;
+        rz $4;
+        inv @ rz $5;
+        pow(0.5) @ t $2;
+        pow(0.3) @ t $2;
+        inv @ pow(i / 2 * 2) @ x $0;
+        ctrl(2) @ negctrl(3) @ inv @ pow(0.5) @ x $1, $4, $2, $3, $7, $5;
+        ctrl(3) @ negctrl(2) @ rz1 $2, $4, $5, $0, $1, $6;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
 def test_invalid_gates():
     # missing qubits argument
     prog = oqpy.Program()
