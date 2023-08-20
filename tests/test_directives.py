@@ -2235,18 +2235,11 @@ def test_gate_modifiers():
     ) @ prog.gate(qreg[6], "rz2")
 
     ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[1]])
-    ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[2]])  # FIXME: should have only 1 ctrl
-
-    with pytest.raises(RuntimeError):
-        # FIXME: This still adds the shift frequency instructions despite raising the error
-        frame = FrameVar(name="f1")
-        oqpy.ctrl(qreg[0]) @ prog.shift_frequency(frame, 1e6)
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         int[32] i = 5;
-        frame f1;
         ctrl @ t $1, $2;
         negctrl @ x $1, $2;
         inv @ rz $3;
@@ -2259,13 +2252,37 @@ def test_gate_modifiers():
         ctrl(3) @ negctrl(2) @ rz1 $2, $4, $5, $0, $1, $6;
         ctrl(3) @ negctrl(2) @ rz2 $2, $4, $5, $0, $1, $6;
         ctrl @ ctrl @ x $2, $1, $0;
-        ctrl @ ctrl @ x $2, $2, $0;
-        shift_frequency(f1, 1000000.0);
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+    ## Failure 1
+    expected_failure_prog = oqpy.Program(version=None)
+    ctrl(qreg[2]) @ expected_failure_prog.gate(qreg[0], "x", controls=[qreg[2]])
+    expected = textwrap.dedent(
+        """
+        ctrl @ x $2, $0;
+        """
+    ).strip()
+    with pytest.raises(AssertionError):
+        assert prog.to_qasm() == expected
+
+    ## Failure 2
+    expected_failure_prog = oqpy.Program(version=None)
+    frame = FrameVar(name="f1")
+    with pytest.raises(RuntimeError):
+        oqpy.ctrl(qreg[0]) @ prog.shift_frequency(frame, 1e6)
+
+    # FIXME: This still adds the shift frequency instructions despite raising the error
+    expected = textwrap.dedent(
+        """
+        frame f1;
         """
     ).strip()
 
-    assert prog.to_qasm() == expected
-    _check_respects_type_hints(prog)
+    with pytest.raises(AssertionError):
+        assert prog.to_qasm() == expected
 
 
 def test_invalid_gates():
