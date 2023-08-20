@@ -2202,22 +2202,45 @@ def test_nested_subroutines():
 
 def test_gate_modifiers():
     prog = oqpy.Program()
-    two_qubit_reg = [oqpy.PhysicalQubits[i] for i in range(1, 3)]
-    six_qubit_reg = [oqpy.PhysicalQubits[i] for i in [1, 4, 7, 2, 3, 5]]
+    qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
+    six_qubit_reg = [qreg[i] for i in [1, 4, 7, 2, 3, 5]]
 
-    oqpy.ctrl() @ prog.gate(two_qubit_reg, "t")
-    oqpy.negctrl() @ prog.gate(two_qubit_reg, "x")
-    oqpy.pow(1 / 2) @ prog.gate(oqpy.PhysicalQubits[2], "t")
-    oqpy.inv() @ prog.gate(oqpy.PhysicalQubits[3], "rz")
-    oqpy.ctrl(2) @ oqpy.pow(1 / 2) @ oqpy.negctrl(3) @ oqpy.inv() @ prog.gate(six_qubit_reg, "x")
+    oqpy.ctrl(qreg[1]) @ prog.gate(qreg[2], "t")
+    oqpy.negctrl(qreg[1]) @ prog.gate(qreg[2], "x")
+    oqpy.inv() @ prog.gate(qreg[3], "rz")
+    oqpy.inv() @ oqpy.inv() @ prog.gate(qreg[4], "rz")
+    oqpy.inv() @ oqpy.inv() @ oqpy.inv() @ prog.gate(qreg[5], "rz")
+    oqpy.pow(0.5) @ prog.gate(qreg[2], "t")
 
-    mod = oqpy.inv() @ oqpy.pow(oqpy.IntVar(5, "i") / 2)
-    mod @ prog.gate(oqpy.PhysicalQubits[0], "x")
+    oqpy.pow(0.6) @ oqpy.pow(1 / 2) @ prog.gate(qreg[2], "t")
+    mod = oqpy.inv() @ oqpy.pow(oqpy.IntVar(5, "i") / 2) @ oqpy.pow(2)
+    assert isinstance(mod, OQPyGateModifier)
+    mod @ prog.gate(qreg[0], "x")
+
+    oqpy.ctrl(six_qubit_reg[0:2]) @ oqpy.pow(1 / 2) @ oqpy.negctrl(
+        six_qubit_reg[2:5]
+    ) @ oqpy.inv() @ prog.gate(six_qubit_reg[-1], "x")
+
+    ctrl([qreg[2], qreg[4]]) @ negctrl(qreg[0]) @ negctrl(qreg[1]) @ ctrl(qreg[5]) @ negctrl(
+        qreg[0]
+    ) @ prog.gate(qreg[6], "rz1")
+    OQPyGateModifier(
+        [
+            ctrl([qreg[2], qreg[4]]),
+            negctrl(qreg[0]),
+            negctrl(qreg[1]),
+            ctrl(qreg[5]),
+            negctrl(qreg[0]),
+        ]
+    ) @ prog.gate(qreg[6], "rz2")
+
+    ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[1]])
+    ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[2]])  # FIXME: should have only 1 ctrl
 
     with pytest.raises(RuntimeError):
         # FIXME: This still adds the shift frequency instructions despite raising the error
         frame = FrameVar(name="f1")
-        oqpy.ctrl() @ prog.shift_frequency(frame, 1e6)
+        oqpy.ctrl(qreg[0]) @ prog.shift_frequency(frame, 1e6)
 
     expected = textwrap.dedent(
         """
@@ -2226,10 +2249,17 @@ def test_gate_modifiers():
         frame f1;
         ctrl @ t $1, $2;
         negctrl @ x $1, $2;
-        pow(0.5) @ t $2;
         inv @ rz $3;
-        ctrl(2) @ pow(0.5) @ negctrl(3) @ inv @ x $1, $4, $7, $2, $3, $5;
-        inv @ pow(i / 2) @ x $0;
+        rz $4;
+        inv @ rz $5;
+        pow(0.5) @ t $2;
+        pow(0.3) @ t $2;
+        inv @ pow(i / 2 * 2) @ x $0;
+        ctrl(2) @ negctrl(3) @ inv @ pow(0.5) @ x $1, $4, $2, $3, $7, $5;
+        ctrl(3) @ negctrl(2) @ rz1 $2, $4, $5, $0, $1, $6;
+        ctrl(3) @ negctrl(2) @ rz2 $2, $4, $5, $0, $1, $6;
+        ctrl @ ctrl @ x $2, $1, $0;
+        ctrl @ ctrl @ x $2, $2, $0;
         shift_frequency(f1, 1000000.0);
         """
     ).strip()
@@ -2272,7 +2302,9 @@ def test_gate_declarations():
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi / 4)
     with oqpy.gate(prog, [q, r], "cnot"):
-        ctrl() @ prog.gate([q, r], "x")
+        ctrl(q) @ prog.gate(r, "x")
+    with oqpy.gate(prog, [q, r], "ncphaseshift", [oqpy.AngleVar(name="theta")]) as theta:
+        prog.gate(r, "phase", theta, neg_controls=[q])
 
     prog.gate(oqpy.PhysicalQubits[1], "t")
     prog.gate(oqpy.PhysicalQubits[2], "t")
@@ -2291,6 +2323,9 @@ def test_gate_declarations():
         }
         gate cnot q, r {
             ctrl @ x q, r;
+        }
+        gate ncphaseshift(theta) q, r {
+            negctrl @ phase(theta) q, r;
         }
         gate rz(theta) q {
             u(theta, 0, 0) q;

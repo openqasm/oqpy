@@ -483,19 +483,21 @@ class Program:
         self,
         qubits: AstConvertible | Iterable[AstConvertible],
         name: str,
-        controls: AstConvertible | Iterable[AstConvertible] | None,
-        neg_controls: AstConvertible | Iterable[AstConvertible] | None,
-        inv: bool = False,
-        pow: AstConvertible = 1,
         *args: Any,
+        controls: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
+        neg_controls: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
+        inv: bool = False,
+        pow: AstConvertible = 1,  # pylint: disable=redefined-builtin
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
-        used_qubits = []
+        used_qubits: list[AstConvertible] = []
 
         modifiers = []
-        if neg_controls is not None:
-            if isinstance(neg_controls, quantum_types.Qubit):
-                controls = [controls]
+        neg_controls = neg_controls if neg_controls is not None else []
+        neg_controls = (
+            [neg_controls] if isinstance(neg_controls, quantum_types.Qubit) else list(neg_controls)
+        )
+        if neg_controls:
             modifiers.append(
                 ast.QuantumGateModifier(
                     modifier=ast.GateModifierName.negctrl,
@@ -503,10 +505,10 @@ class Program:
                 )
             )
             used_qubits.extend(neg_controls)
-        assert isinstance(neg_controls, Iterable)
-        if controls is not None:
-            if isinstance(controls, quantum_types.Qubit):
-                controls = [controls]
+
+        controls = controls if controls is not None else []
+        controls = [controls] if isinstance(controls, quantum_types.Qubit) else list(controls)
+        if controls:
             modifiers.append(
                 ast.QuantumGateModifier(
                     modifier=ast.GateModifierName.ctrl,
@@ -514,7 +516,6 @@ class Program:
                 )
             )
             used_qubits.extend(controls)
-        assert isinstance(controls, Iterable)
 
         if inv:
             modifiers.append(
