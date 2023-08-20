@@ -2236,6 +2236,9 @@ def test_gate_modifiers():
 
     ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[1]])
 
+    with pytest.raises(ValueError):
+        oqpy.ctrl(qreg[2]) @ oqpy.negctrl(qreg[2])
+
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;

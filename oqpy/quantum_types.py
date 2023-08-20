@@ -115,6 +115,12 @@ class OQPyGateModifier(HasToAst):
             self.neg_control_qubits if hasattr(self, "neg_control_qubits") else set()
         )
         for modifier in self.modifiers:
+            if overlapping_set := self.control_qubits.intersection(
+                modifier.neg_control_qubits
+            ).union(self.neg_control_qubits.intersection(modifier.control_qubits)):
+                raise ValueError(
+                    f"Qubits {[q.name for q in overlapping_set]} can be control and negative control qubit at the same time."
+                )
             self.control_qubits.update(modifier.control_qubits)
             self.neg_control_qubits.update(modifier.neg_control_qubits)
 
