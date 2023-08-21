@@ -1,3 +1,8 @@
+POETRY_VERSION = 
+ifdef poetry_version
+	POETRY_VERSION = --version $(poetry_version)
+endif
+
 .PHONY: check-all
 check-all: check-format check-mypy check-pylint check-tests check-pydocstyle docs
 
@@ -46,4 +51,4 @@ check-citation:
 .PHONY: install-poetry
 install-poetry:
 	command -v curl >/dev/null 2>&1 || { echo >&2 "please install curl and retry."; exit 1; }
-	curl -sSL https://install.python-poetry.org | python - $(poetry_version)
+	curl -sSL https://install.python-poetry.org | python - $(POETRY_VERSION)
