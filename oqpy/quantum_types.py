@@ -18,21 +18,12 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 
 from openpulse import ast
 from openpulse.printer import dumps
 
-import oqpy
-from oqpy.base import (
-    AstConvertible,
-    HasToAst,
-    OQPyExpression,
-    Var,
-    make_annotations,
-    map_to_ast,
-    to_ast,
-)
+from oqpy.base import AstConvertible, Var, make_annotations, to_ast
 from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
@@ -45,11 +36,6 @@ __all__ = [
     "gate",
     "PhysicalQubits",
     "Cal",
-    "OQPyGateModifier",
-    "inv",
-    "pow",
-    "ctrl",
-    "negctrl",
 ]
 
 
@@ -101,153 +87,6 @@ class PhysicalQubits:
 # Todo (#51): support QubitArray
 class QubitArray:
     """Represents an array of qubits."""
-
-
-class OQPyGateModifier(HasToAst):
-    """A generic gate modifier."""
-
-    def __init__(self, modifiers: list[OQPyGateModifier] | None = None) -> None:
-        self.modifiers = modifiers if modifiers else [self]
-        self.control_qubits: set[Qubit] = (
-            self.control_qubits if hasattr(self, "control_qubits") else set()
-        )
-        self.neg_control_qubits: set[Qubit] = (
-            self.neg_control_qubits if hasattr(self, "neg_control_qubits") else set()
-        )
-        for modifier in self.modifiers:
-            neg_ctrl_intersection_set = self.control_qubits.intersection(
-                modifier.neg_control_qubits
-            )
-            ctrl_neg_intersection_set = self.neg_control_qubits.intersection(
-                modifier.control_qubits
-            )
-            overlapping_set = neg_ctrl_intersection_set.union(ctrl_neg_intersection_set)
-            if overlapping_set:
-                raise ValueError(
-                    f"Qubits {[q.name for q in overlapping_set]} can be control and negative"
-                    " control qubit at the same time."
-                )
-            self.control_qubits.update(modifier.control_qubits)
-            self.neg_control_qubits.update(modifier.neg_control_qubits)
-
-    def __repr__(self) -> str:
-        return " @ ".join([str(modifier) for modifier in self.modifiers])
-
-    def __matmul__(self, rhs: Program | OQPyGateModifier) -> Program | OQPyGateModifier:
-        if isinstance(rhs, OQPyGateModifier):
-            return OQPyGateModifier(self.modifiers + [rhs])
-        elif (
-            isinstance(rhs, oqpy.Program)
-            and len(rhs._state.body) >= 0
-            and isinstance(rhs._state.body[-1], ast.QuantumGate)
-        ):
-            modifiers_ast = self.to_ast(rhs)
-            modifiers_ast = (
-                [modifiers_ast]
-                if isinstance(modifiers_ast, ast.QuantumGateModifier)
-                else modifiers_ast
-            )
-            rhs._state.body[-1].modifiers = modifiers_ast + rhs._state.body[-1].modifiers
-            rhs._state.body[-1].qubits = (
-                map_to_ast(rhs, sorted(self.control_qubits))
-                + map_to_ast(rhs, sorted(self.neg_control_qubits))
-                + rhs._state.body[-1].qubits
-            )
-            return rhs
-        else:
-            raise RuntimeError(
-                "Gate modifiers cannot be applied to anything else than a gate. Ignoring the modifier."
-            )
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        simplified_modifiers: list[OQPyGateModifier] = []
-        odd_number_inv = False
-        power: AstConvertible = 1.0
-        for mod in self.modifiers:
-            if isinstance(mod, inv):
-                odd_number_inv ^= True
-            elif isinstance(mod, pow):
-                power = (
-                    power * mod.expression  # type: ignore[operator]
-                    if not isinstance(power, float) or power != 1.0
-                    else mod.expression
-                )
-
-        if len(self.control_qubits):
-            simplified_modifiers.append(ctrl(self.control_qubits))
-        if len(self.neg_control_qubits):
-            simplified_modifiers.append(negctrl(self.neg_control_qubits))
-        if odd_number_inv:
-            simplified_modifiers.append(inv())
-        # FIXME: Should we test OQPyExpression or AstConvertible
-        if isinstance(power, OQPyExpression) or (isinstance(power, float) and power != 1.0):
-            simplified_modifiers.append(pow(power))
-        return map_to_ast(program, simplified_modifiers)
-
-
-class inv(OQPyGateModifier):
-    """inv gate modifier."""
-
-    def __repr__(self) -> str:
-        return "inv"
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(ast.GateModifierName.inv)
-
-
-class pow(OQPyGateModifier):  # pylint: disable=redefined-builtin
-    """pow gate modifier."""
-
-    def __init__(self, expression: AstConvertible) -> None:
-        self.expression = expression
-        super().__init__()
-
-    def __repr__(self) -> str:
-        return f"pow({self.expression})"
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(ast.GateModifierName.pow, to_ast(program, self.expression))
-
-
-class ctrl(OQPyGateModifier):
-    """ctrl gate modifier."""
-
-    def __init__(self, qubits: Qubit | Iterable[Qubit]) -> None:
-        self.control_qubits = {qubits} if isinstance(qubits, Qubit) else set(qubits)
-        super().__init__()
-
-    def __repr__(self) -> str:
-        return f"ctrl({', '.join([q.name for q in self.control_qubits])})"
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(
-            ast.GateModifierName.ctrl,
-            to_ast(program, len(self.control_qubits)) if len(self.control_qubits) > 1 else None,
-        )
-
-
-class negctrl(OQPyGateModifier):
-    """negctrl gate modifier."""
-
-    def __init__(self, qubits: Qubit | Iterable[Qubit]) -> None:
-        self.neg_control_qubits = {qubits} if isinstance(qubits, Qubit) else set(qubits)
-        super().__init__()
-
-    def __repr__(self) -> str:
-        return f"negctrl({', '.join([q.name for q in self.neg_control_qubits])})"
-
-    def to_ast(self, program: Program) -> ast.Expression:
-        """Converts the OQpy object into an ast node."""
-        return ast.QuantumGateModifier(
-            ast.GateModifierName.negctrl,
-            to_ast(program, len(self.neg_control_qubits))
-            if len(self.neg_control_qubits) > 1
-            else None,
-        )
 
 
 @contextlib.contextmanager

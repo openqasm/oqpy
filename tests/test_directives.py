@@ -2200,94 +2200,6 @@ def test_nested_subroutines():
     _check_respects_type_hints(prog)
 
 
-def test_gate_modifiers():
-    prog = oqpy.Program()
-    qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
-    six_qubit_reg = [qreg[i] for i in [1, 4, 7, 2, 3, 5]]
-
-    oqpy.ctrl(qreg[1]) @ prog.gate(qreg[2], "t")
-    oqpy.negctrl(qreg[1]) @ prog.gate(qreg[2], "x")
-    oqpy.inv() @ prog.gate(qreg[3], "rz")
-    oqpy.inv() @ oqpy.inv() @ prog.gate(qreg[4], "rz")
-    oqpy.inv() @ oqpy.inv() @ oqpy.inv() @ prog.gate(qreg[5], "rz")
-    oqpy.pow(0.5) @ prog.gate(qreg[2], "t")
-
-    oqpy.pow(0.6) @ oqpy.pow(1 / 2) @ prog.gate(qreg[2], "t")
-    mod = oqpy.inv() @ oqpy.pow(oqpy.IntVar(5, "i") / 2) @ oqpy.pow(2)
-    assert isinstance(mod, OQPyGateModifier)
-    mod @ prog.gate(qreg[0], "x")
-
-    oqpy.ctrl(six_qubit_reg[0:2]) @ oqpy.pow(1 / 2) @ oqpy.negctrl(
-        six_qubit_reg[2:5]
-    ) @ oqpy.inv() @ prog.gate(six_qubit_reg[-1], "x")
-
-    ctrl([qreg[2], qreg[4]]) @ negctrl(qreg[0]) @ negctrl(qreg[1]) @ ctrl(qreg[5]) @ negctrl(
-        qreg[0]
-    ) @ prog.gate(qreg[6], "rz1")
-    OQPyGateModifier(
-        [
-            ctrl([qreg[2], qreg[4]]),
-            negctrl(qreg[0]),
-            negctrl(qreg[1]),
-            ctrl(qreg[5]),
-            negctrl(qreg[0]),
-        ]
-    ) @ prog.gate(qreg[6], "rz2")
-
-    ctrl(qreg[2]) @ prog.gate(qreg[0], "x", controls=[qreg[1]])
-
-    with pytest.raises(ValueError):
-        oqpy.ctrl(qreg[2]) @ oqpy.negctrl(qreg[2])
-
-    expected = textwrap.dedent(
-        """
-        OPENQASM 3.0;
-        int[32] i = 5;
-        ctrl @ t $1, $2;
-        negctrl @ x $1, $2;
-        inv @ rz $3;
-        rz $4;
-        inv @ rz $5;
-        pow(0.5) @ t $2;
-        pow(0.3) @ t $2;
-        inv @ pow(i / 2 * 2) @ x $0;
-        ctrl(2) @ negctrl(3) @ inv @ pow(0.5) @ x $1, $4, $2, $3, $7, $5;
-        ctrl(3) @ negctrl(2) @ rz1 $2, $4, $5, $0, $1, $6;
-        ctrl(3) @ negctrl(2) @ rz2 $2, $4, $5, $0, $1, $6;
-        ctrl @ ctrl @ x $2, $1, $0;
-        """
-    ).strip()
-    assert prog.to_qasm() == expected
-    _check_respects_type_hints(prog)
-
-    ## Failure 1
-    expected_failure_prog = oqpy.Program(version=None)
-    ctrl(qreg[2]) @ expected_failure_prog.gate(qreg[0], "x", controls=[qreg[2]])
-    expected = textwrap.dedent(
-        """
-        ctrl @ x $2, $0;
-        """
-    ).strip()
-    with pytest.raises(AssertionError):
-        assert prog.to_qasm() == expected
-
-    ## Failure 2
-    expected_failure_prog = oqpy.Program(version=None)
-    frame = FrameVar(name="f1")
-    with pytest.raises(RuntimeError):
-        oqpy.ctrl(qreg[0]) @ prog.shift_frequency(frame, 1e6)
-
-    # FIXME: This still adds the shift frequency instructions despite raising the error
-    expected = textwrap.dedent(
-        """
-        frame f1;
-        """
-    ).strip()
-
-    with pytest.raises(AssertionError):
-        assert prog.to_qasm() == expected
-
-
 def test_gate_modifiers_second_method():
     prog = oqpy.Program()
     qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
@@ -2381,7 +2293,7 @@ def test_gate_declarations():
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi / 4)
     with oqpy.gate(prog, [q, r], "cnot"):
-        ctrl(q) @ prog.gate(r, "x")
+        prog.gate(r, "x", controls=q)
     with oqpy.gate(prog, [q, r], "ncphaseshift", [oqpy.AngleVar(name="theta")]) as theta:
         prog.gate(r, "phase", theta, neg_controls=[q])
 
