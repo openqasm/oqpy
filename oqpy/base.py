@@ -22,16 +22,22 @@ they are converted to AST nodes.
 from __future__ import annotations
 
 import math
-import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Optional,
+    Protocol,
+    Sequence,
+    Union,
+    runtime_checkable,
+)
 
 import numpy as np
 from openpulse import ast
 
 from oqpy import classical_types
-
-from typing import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from oqpy import Program
