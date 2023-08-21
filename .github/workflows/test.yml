@@ -93,7 +93,7 @@ jobs:
 
       - name: Install poetry
         run: |
-          make install-poetry
+          make install-poetry poetry_version="--version 1.5.1"
           poetry --version
           poetry config virtualenvs.in-project true
 
