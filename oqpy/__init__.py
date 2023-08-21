@@ -19,6 +19,6 @@ from oqpy.classical_types import *
 from oqpy.control_flow import *
 from oqpy.program import *
 from oqpy.pulse import *
-from oqpy.quantum_types import *  # pylint: disable=redefined-builtin
+from oqpy.quantum_types import *
 from oqpy.subroutines import *
 from oqpy.timing import *

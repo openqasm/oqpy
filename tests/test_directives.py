@@ -2208,8 +2208,8 @@ def test_gate_modifiers():
     prog.gate(qreg[2], "t", controls=qreg[1])
     prog.gate(qreg[2], "x", neg_controls=qreg[1])
     prog.gate(qreg[3], "rz", inv=True)
-    prog.gate(qreg[2], "t", pow=0.5)
-    prog.gate(qreg[0], "x", inv=True, pow=oqpy.IntVar(5, "i") / 2)
+    prog.gate(qreg[2], "t", exp=0.5)
+    prog.gate(qreg[0], "x", inv=True, exp=oqpy.IntVar(5, "i") / 2)
 
     prog.gate(
         six_qubit_reg[-1],
@@ -2217,7 +2217,7 @@ def test_gate_modifiers():
         controls=six_qubit_reg[0:2],
         neg_controls=six_qubit_reg[2:5],
         inv=True,
-        pow=1 / 2,
+        exp=1 / 2,
     )
 
     prog.gate(

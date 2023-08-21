@@ -488,9 +488,25 @@ class Program:
         controls: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
         neg_controls: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
         inv: bool = False,
-        pow: AstConvertible = 1,  # pylint: disable=redefined-builtin
+        exp: AstConvertible = 1,
     ) -> Program:
-        """Apply a gate to a qubit or set of qubits."""
+        """Apply a gate with its modifiers to a qubit or set of qubits.
+
+        Args:
+            qubits (AstConvertible | Iterable[AstConvertible]): The qubit or list of qubits
+                to which the gate will be applied
+            name (str): The gate name
+            *args (Any): A list of parameters passed to the gate
+            controls (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+                of control qubits (default: None)
+            neg_controls: (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+                of negative control qubits (default: None)
+            inv (bool): Flag to use the inverse gate (default: False)
+            exp (AstConvertible): The exponent used with `pow` gate modifier
+
+        Returns:
+            Program: The OQpy program to which the gate is added
+        """
         used_qubits: list[AstConvertible] = []
         modifiers = []
 
@@ -529,10 +545,10 @@ class Program:
                 )
             )
 
-        if isinstance(pow, OQPyExpression) or (isinstance(pow, float) and pow != 1.0):
+        if isinstance(exp, OQPyExpression) or (isinstance(exp, float) and exp != 1.0):
             modifiers.append(
                 ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.pow, argument=to_ast(self, pow)
+                    modifier=ast.GateModifierName.pow, argument=to_ast(self, exp)
                 )
             )
 
