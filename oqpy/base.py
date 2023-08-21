@@ -31,10 +31,7 @@ from openpulse import ast
 
 from oqpy import classical_types
 
-if sys.version_info >= (3, 8):
-    from typing import Protocol, runtime_checkable
-else:
-    from typing_extensions import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from oqpy import Program
