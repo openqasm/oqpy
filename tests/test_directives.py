@@ -2205,8 +2205,8 @@ def test_gate_modifiers():
     qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
     six_qubit_reg = [qreg[i] for i in [1, 4, 7, 2, 3, 5]]
 
-    prog.gate(qreg[2], "t", controls=qreg[1])
-    prog.gate(qreg[2], "x", neg_controls=qreg[1])
+    prog.gate(qreg[2], "t", control=qreg[1])
+    prog.gate(qreg[2], "x", neg_control=qreg[1])
     prog.gate(qreg[3], "rz", inv=True)
     prog.gate(qreg[2], "t", exp=0.5)
     prog.gate(qreg[0], "x", inv=True, exp=oqpy.IntVar(5, "i") / 2)
@@ -2214,8 +2214,8 @@ def test_gate_modifiers():
     prog.gate(
         six_qubit_reg[-1],
         "x",
-        controls=six_qubit_reg[0:2],
-        neg_controls=six_qubit_reg[2:5],
+        control=six_qubit_reg[0:2],
+        neg_control=six_qubit_reg[2:5],
         inv=True,
         exp=1 / 2,
     )
@@ -2223,16 +2223,16 @@ def test_gate_modifiers():
     prog.gate(
         qreg[6],
         "rz1",
-        controls=[qreg[2], qreg[4], qreg[5]],
-        neg_controls=[qreg[0], qreg[1], qreg[0]],
+        control=[qreg[2], qreg[4], qreg[5]],
+        neg_control=[qreg[0], qreg[1], qreg[0]],
     )
 
     with pytest.raises(ValueError):
-        prog.gate(qreg[2], "t", controls=qreg[2])
+        prog.gate(qreg[2], "t", control=qreg[2])
     with pytest.raises(ValueError):
-        prog.gate(qreg[2], "x", neg_controls=qreg[2])
+        prog.gate(qreg[2], "x", neg_control=qreg[2])
     with pytest.raises(ValueError):
-        prog.gate(qreg[1], "x", controls=qreg[2], neg_controls=qreg[2])
+        prog.gate(qreg[1], "x", control=qreg[2], neg_control=qreg[2])
 
     expected = textwrap.dedent(
         """
@@ -2285,9 +2285,9 @@ def test_gate_declarations():
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi / 4)
     with oqpy.gate(prog, [q, r], "cnot"):
-        prog.gate(r, "x", controls=q)
+        prog.gate(r, "x", control=q)
     with oqpy.gate(prog, [q, r], "ncphaseshift", [oqpy.AngleVar(name="theta")]) as theta:
-        prog.gate(r, "phase", theta, neg_controls=[q])
+        prog.gate(r, "phase", theta, neg_control=[q])
 
     prog.gate(oqpy.PhysicalQubits[1], "t")
     prog.gate(oqpy.PhysicalQubits[2], "t")
