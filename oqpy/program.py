@@ -523,6 +523,14 @@ class Program:
         self._add_statement(ast.Pragma(command))
         return self
 
+    def include(self, path: str) -> Program:
+        """Add an include statement."""
+        if len(self.stack) != 1:
+            # cf. https://openqasm.com/language/comments.html#included-files
+            raise RuntimeError("Include statements must be global")
+        self._add_statement(ast.Include(path))
+        return self
+
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):
