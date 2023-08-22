@@ -2336,3 +2336,4 @@ def test_include():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
