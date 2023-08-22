@@ -2320,3 +2320,19 @@ def test_gate_declarations():
 
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_include():
+    prog = Program()
+    prog.include("foo.qasm")
+    prog.declare(IntVar(0, "i"))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        include "foo.qasm";
+        int[32] i = 0;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
