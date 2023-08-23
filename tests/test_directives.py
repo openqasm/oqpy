@@ -31,6 +31,7 @@ from openpulse.printer import dumps
 import oqpy
 from oqpy import *
 from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -160,7 +161,7 @@ def test_variable_declaration():
         """
     ).strip()
 
-    assert isinstance(arr[14], BitVar)
+    assert isinstance(arr[14], OQIndexExpression)
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
@@ -2221,7 +2222,12 @@ def test_invalid_gates():
 def test_gate_declarations():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
-    with oqpy.gate(prog, q, "u", [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")]) as (alpha, beta, gamma):
+    with oqpy.gate(
+        prog,
+        q,
+        "u",
+        [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")],
+    ) as (alpha, beta, gamma):
         prog.gate(q, "a", alpha)
         prog.gate(q, "b", beta)
         prog.gate(q, "c", gamma)

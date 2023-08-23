@@ -273,24 +273,8 @@ class BitVar(_SizedVar):
 
     type_cls = ast.BitType
 
-    def __getitem__(self, idx: Union[int, slice, Iterable[int]]) -> BitVar:
-        if self.size is None:
-            raise TypeError(f"'{self.type_cls}' object is not subscriptable")
-        if isinstance(idx, int):
-            if 0 <= idx < self.size:
-                return BitVar(
-                    init_expression=ast.IndexExpression(
-                        ast.Identifier(self.name), [ast.IntegerLiteral(idx)]
-                    ),
-                    name=f"{self.name}[{idx}]",
-                    needs_declaration=False,
-                )
-            else:
-                raise IndexError("list index out of range.")
-        elif isinstance(idx, OQPyExpression) and isinstance(idx.type, (ast.IntType, ast.UintType)):
-            return OQIndexExpression(collection=self, index=idx)
-        else:
-            raise IndexError("The list index must be an integer.")
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        return OQIndexExpression(collection=self, index=index)
 
 
 class ComplexVar(_ClassicalVar):
@@ -408,6 +392,19 @@ class OQIndexExpression(OQPyExpression):
 
         if isinstance(collection, ArrayVar):
             self.type = collection.base_type().type_cls()
+
+        if isinstance(collection, _SizedVar):
+            if collection.size is None:
+                raise TypeError(f"'{collection.type_cls}' object is not subscriptable")
+
+            if isinstance(self.index, int):
+                if not 0 <= self.index < collection.size:
+                    raise IndexError("list index out of range.")
+            elif isinstance(self.index, OQPyExpression):
+                if not isinstance(self.index.type, (ast.IntType, ast.UintType)):
+                    raise IndexError("The list index must be an integer.")
+            else:
+                raise IndexError("The list index must be an integer.")
 
     def to_ast(self, program: Program) -> ast.IndexExpression:
         """Converts this oqpy index expression into an ast node."""
