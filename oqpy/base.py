@@ -182,11 +182,11 @@ def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
     if isinstance(val, OQPyExpression):
         return val.type
     elif isinstance(val, int):
-        return ast.IntType()
+        return classical_types.int32
     elif isinstance(val, float):
-        return ast.FloatType()
+        return classical_types.float64
     elif isinstance(val, complex):
-        return ast.ComplexType(ast.FloatType())
+        return classical_types.complex128
     else:
         raise ValueError(f"Cannot multiply/divide oqpy expression with with {type(val)}")
 
@@ -250,7 +250,7 @@ def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.C
     """Find the result type for a quotient of two terms."""
     left_type = _get_type(left)
     right_type = _get_type(right)
-    float_type = ast.FloatType()
+    float_type = classical_types.float64
 
     types_map = {
         (ast.FloatType, ast.FloatType): left_type,
@@ -274,7 +274,7 @@ def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.C
         (ast.DurationType, ast.FloatType): left_type,
         (ast.DurationType, ast.IntType): left_type,
         (ast.DurationType, ast.UintType): left_type,
-        (ast.DurationType, ast.DurationType): ast.FloatType(),
+        (ast.DurationType, ast.DurationType): float_type,
         (ast.DurationType, ast.AngleType): TypeError("Cannot divide duration by angle"),
         (ast.DurationType, ast.ComplexType): TypeError("Cannot divide duration by complex"),
         (ast.AngleType, ast.FloatType): left_type,

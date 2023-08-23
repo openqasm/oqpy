@@ -862,6 +862,55 @@ def test_subroutine_order():
     _check_respects_type_hints(prog)
 
 
+def test_subroutine_with_return_expression():
+    prog = Program()
+
+    @subroutine
+    def product(prog: Program) -> FloatVar:
+        a = IntVar(2, "a")
+        prog.declare(a)
+        return a * 2.5
+
+    @subroutine
+    def quotient(prog: Program) -> FloatVar:
+        a = IntVar(2, "a")
+        prog.declare(a)
+        return a / 2.5
+
+    @subroutine
+    def pi_expr(prog: Program) -> FloatVar:
+        return pi / 2.5
+
+    z = FloatVar(0.0, "z")
+    prog.set(z, product(prog))
+    prog.set(z, quotient(prog))
+    prog.set(z, pi_expr(prog))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        def product() -> float[64] {
+            int[32] a = 2;
+            return a * 2.5;
+        }
+        def quotient() -> float[64] {
+            int[32] a = 2;
+            return a / 2.5;
+        }
+        def pi_expr() -> float[64] {
+            return pi / 2.5;
+        }
+        float[64] z = 0.0;
+        z = product();
+        z = quotient();
+        z = pi_expr();
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
 def test_box_and_timings():
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
 

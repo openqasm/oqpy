@@ -167,7 +167,7 @@ class Identifier(OQPyExpression):
         return ast.Identifier(name=self.name)
 
 
-pi = Identifier(name="pi", ast_type=ast.FloatType())
+pi = Identifier(name="pi", ast_type=float64)
 
 
 class _ClassicalVar(Var, OQPyExpression):
