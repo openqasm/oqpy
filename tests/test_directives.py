@@ -2262,6 +2262,22 @@ def test_gate_declarations():
     assert prog.to_qasm() == expected
 
 
+def test_include():
+    prog = Program()
+    prog.include("foo.qasm")
+    prog.declare(IntVar(0, "i"))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        include "foo.qasm";
+        int[32] i = 0;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+
 def test_qubit_array():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", size=2)

@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ "3.7", "3.8", "3.9", "3.10", "3.11" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out OQpy
@@ -79,7 +79,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ "3.7", "3.8", "3.9", "3.10", "3.11" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out OQpy
@@ -93,7 +93,7 @@ jobs:
 
       - name: Install poetry
         run: |
-          make install-poetry
+          make install-poetry poetry_version=1.5.1
           poetry --version
           poetry config virtualenvs.in-project true
 
