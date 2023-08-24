@@ -23,14 +23,14 @@ from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import AstConvertible, Var, make_annotations, to_ast
+from oqpy.base import AstConvertible, Var, make_annotations, to_ast, OQIndexExpression
 from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["Qubit", "QubitArray", "defcal", "gate", "PhysicalQubits", "Cal"]
+__all__ = ["Qubit", "defcal", "gate", "PhysicalQubits", "Cal"]
 
 
 class Qubit(Var):
@@ -39,11 +39,13 @@ class Qubit(Var):
     def __init__(
         self,
         name: str,
+        size: int = None,
         needs_declaration: bool = True,
         annotations: Sequence[str | tuple[str, str]] = (),
     ):
         super().__init__(name, needs_declaration=needs_declaration)
         self.name = name
+        self.size = size
         self.annotations = annotations
 
     def to_ast(self, prog: Program) -> ast.Expression:
@@ -53,9 +55,17 @@ class Qubit(Var):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
-        decl = ast.QubitDeclaration(ast.Identifier(self.name), size=None)
+        decl = ast.QubitDeclaration(
+            ast.Identifier(self.name),
+            size=ast.IntegerLiteral(self.size) if self.size else self.size,
+        )
         decl.annotations = make_annotations(self.annotations)
         return decl
+
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        if self.size is None:
+            raise TypeError(f"'{self.name}' is not subscriptable")
+        return OQIndexExpression(collection=self, index=index, type=ast.Identifier)
 
 
 class PhysicalQubits:
@@ -66,11 +76,6 @@ class PhysicalQubits:
 
     def __class_getitem__(cls, item: int) -> Qubit:
         return Qubit(f"${item}", needs_declaration=False)
-
-
-# Todo (#51): support QubitArray
-class QubitArray:
-    """Represents an array of qubits."""
 
 
 @contextlib.contextmanager

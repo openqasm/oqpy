@@ -394,6 +394,21 @@ class OQPyBinaryExpression(OQPyExpression):
         return ast.BinaryExpression(self.op, to_ast(program, self.lhs), to_ast(program, self.rhs))
 
 
+class OQIndexExpression(OQPyExpression):
+    """An oqpy expression corresponding to an index expression."""
+
+    def __init__(self, collection: AstConvertible, index: AstConvertible, type: ast.ClassicalType):
+        self.collection = collection
+        self.index = index
+        self.type = type
+
+    def to_ast(self, program: Program) -> ast.IndexExpression:
+        """Converts this oqpy index expression into an ast node."""
+        return ast.IndexExpression(
+            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        )
+
+
 class Var(ABC):
     """Abstract base class for both classical and quantum variables."""
 

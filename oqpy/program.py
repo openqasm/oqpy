@@ -34,6 +34,7 @@ from openqasm3.visitor import QASMVisitor
 from oqpy import classical_types, quantum_types
 from oqpy.base import (
     AstConvertible,
+    OQIndexExpression,
     Var,
     expr_matches,
     map_to_ast,
@@ -483,7 +484,10 @@ class Program:
         self, qubits: AstConvertible | Iterable[AstConvertible], name: str, *args: Any
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
-        if isinstance(qubits, quantum_types.Qubit):
+        if isinstance(qubits, quantum_types.Qubit) or (
+            isinstance(qubits, OQIndexExpression)
+            and isinstance(qubits.collection, quantum_types.Qubit)
+        ):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
         self._add_statement(
@@ -546,7 +550,7 @@ class Program:
 
     def set(
         self,
-        var: classical_types._ClassicalVar | classical_types.OQIndexExpression,
+        var: classical_types._ClassicalVar | OQIndexExpression,
         value: AstConvertible,
     ) -> Program:
         """Set a variable value."""

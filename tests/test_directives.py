@@ -30,8 +30,7 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
-from oqpy.classical_types import OQIndexExpression
+from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or, OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -2261,3 +2260,26 @@ def test_gate_declarations():
     ).strip()
 
     assert prog.to_qasm() == expected
+
+
+def test_qubit_array():
+    prog = oqpy.Program()
+    q = oqpy.Qubit("q", size=2)
+    prog.gate(q[0], "h")
+    prog.gate([q[0], q[1]], "cnot")
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        qubit[2] q;
+        h q[0];
+        cnot q[0], q[1];
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+    with pytest.raises(TypeError):
+        prog = oqpy.Program()
+        q = oqpy.Qubit("q")
+        prog.gate(q[0], "h")
