@@ -483,7 +483,7 @@ class Program:
         self, qubits: AstConvertible | Iterable[AstConvertible], name: str, *args: Any
     ) -> Program:
         """Apply a gate to a qubit or set of qubits."""
-        if isinstance(qubits, quantum_types.Qubit):
+        if isinstance(qubits, (quantum_types.Qubit, quantum_types.IndexedQubitArray)):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
         self._add_statement(

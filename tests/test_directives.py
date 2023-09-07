@@ -31,6 +31,7 @@ from openpulse.printer import dumps
 import oqpy
 from oqpy import *
 from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
@@ -126,6 +127,9 @@ def test_variable_declaration():
     prog = Program(version=None)
     prog.declare(vars)
     prog.set(arr[1], 0)
+    index = IntVar(2, "index")
+    prog.set(arr[index], 1)
+    prog.set(arr[index + 1], 0)
 
     with pytest.raises(IndexError):
         prog.set(arr[40], 2)
@@ -142,6 +146,7 @@ def test_variable_declaration():
 
     expected = textwrap.dedent(
         """
+        int[32] index = 2;
         bool b = true;
         int[32] i = -4;
         uint[32] u = 5;
@@ -151,10 +156,12 @@ def test_variable_declaration():
         bit[20] arr;
         bit c;
         arr[1] = 0;
+        arr[index] = 1;
+        arr[index + 1] = 0;
         """
     ).strip()
 
-    assert isinstance(arr[14], BitVar)
+    assert isinstance(arr[14], OQIndexExpression)
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
 
@@ -2215,7 +2222,12 @@ def test_invalid_gates():
 def test_gate_declarations():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
-    with oqpy.gate(prog, q, "u", [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")]) as (alpha, beta, gamma):
+    with oqpy.gate(
+        prog,
+        q,
+        "u",
+        [oqpy.AngleVar(name="alpha"), oqpy.AngleVar(name="beta"), oqpy.AngleVar(name="gamma")],
+    ) as (alpha, beta, gamma):
         prog.gate(q, "a", alpha)
         prog.gate(q, "b", beta)
         prog.gate(q, "c", gamma)
@@ -2266,3 +2278,25 @@ def test_include():
 
     assert prog.to_qasm() == expected
 
+
+def test_qubit_array():
+    prog = oqpy.Program()
+    q = oqpy.Qubit("q", size=2)
+    prog.gate(q[0], "h")
+    prog.gate([q[0], q[1]], "cnot")
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        qubit[2] q;
+        h q[0];
+        cnot q[0], q[1];
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+    with pytest.raises(TypeError):
+        prog = oqpy.Program()
+        q = oqpy.Qubit("q")
+        prog.gate(q[0], "h")
