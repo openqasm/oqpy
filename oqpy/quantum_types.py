@@ -39,7 +39,7 @@ class Qubit(Var):
     def __init__(
         self,
         name: str,
-        size: int = None,
+        size: Optional[int] = None,
         needs_declaration: bool = True,
         annotations: Sequence[str | tuple[str, str]] = (),
     ):
