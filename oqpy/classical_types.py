@@ -405,7 +405,7 @@ class ArrayVar(_ClassicalVar):
 class OQIndexExpression(OQPyExpression):
     """An oqpy expression corresponding to an index expression."""
 
-    def __init__(self, collection: AstConvertible, index: AstConvertible, type: ast.ClassicalType):
+    def __init__(self, collection: AstConvertible, index: AstConvertible, type_: ast.ClassicalType):
         self.collection = collection
         self.index = index
         self.type = type
