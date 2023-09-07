@@ -408,7 +408,7 @@ class OQIndexExpression(OQPyExpression):
     def __init__(self, collection: AstConvertible, index: AstConvertible, type_: ast.ClassicalType):
         self.collection = collection
         self.index = index
-        self.type = type
+        self.type = type_
 
     def to_ast(self, program: Program) -> ast.IndexExpression:
         """Converts this oqpy index expression into an ast node."""
