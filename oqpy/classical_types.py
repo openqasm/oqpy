@@ -293,7 +293,7 @@ class BitVar(_SizedVar):
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
         self._validate_getitem_index(index)
-        return OQIndexExpression(collection=self, index=index, type=self.type_cls())
+        return OQIndexExpression(collection=self, index=index, type_=self.type_cls())
 
 
 class ComplexVar(_ClassicalVar):
@@ -399,7 +399,7 @@ class ArrayVar(_ClassicalVar):
         )
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        return OQIndexExpression(collection=self, index=index, type=self.base_type().type_cls())
+        return OQIndexExpression(collection=self, index=index, type_=self.base_type().type_cls())
 
 
 class OQIndexExpression(OQPyExpression):
