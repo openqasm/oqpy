@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
 from openpulse import ast
 from openpulse.printer import dumps
 
-from oqpy.base import AstConvertible, Var, make_annotations, to_ast, OQIndexExpression
+from oqpy.base import AstConvertible, Var, make_annotations, to_ast
 from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
@@ -62,10 +62,10 @@ class Qubit(Var):
         decl.annotations = make_annotations(self.annotations)
         return decl
 
-    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+    def __getitem__(self, index: AstConvertible) -> IndexedQubitArray:
         if self.size is None:
             raise TypeError(f"'{self.name}' is not subscriptable")
-        return OQIndexExpression(collection=self, index=index, type=ast.Identifier)
+        return IndexedQubitArray(collection=self, index=index)
 
 
 class PhysicalQubits:
@@ -76,6 +76,20 @@ class PhysicalQubits:
 
     def __class_getitem__(cls, item: int) -> Qubit:
         return Qubit(f"${item}", needs_declaration=False)
+
+
+class IndexedQubitArray:
+    """Represents an indexed qubit array."""
+
+    def __init__(self, collection: Qubit, index: AstConvertible):
+        self.collection = collection
+        self.index = index
+
+    def to_ast(self, program: Program) -> ast.IndexExpression:
+        """Converts this indexed qubit array into an ast node."""
+        return ast.IndexExpression(
+            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        )
 
 
 @contextlib.contextmanager
