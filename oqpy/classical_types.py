@@ -37,7 +37,6 @@ from openpulse import ast
 from oqpy.base import (
     AstConvertible,
     OQPyExpression,
-    OQIndexExpression,
     Var,
     make_annotations,
     map_to_ast,
@@ -236,6 +235,25 @@ class _SizedVar(_ClassicalVar):
             self.size = size
         super().__init__(*args, **kwargs, size=ast.IntegerLiteral(self.size) if self.size else None)
 
+    def _validate_getitem_index(self, index: AstConvertible) -> None:
+        """Validate the index and variable for `__getitem__`.
+
+        Args:
+            var (_SizedVar): Variable to apply `__getitem__`.
+            index (AstConvertible): Index for `__getitem__`.
+        """
+        if self.size is None:
+            raise TypeError(f"'{self.name}' is not subscriptable")
+
+        if isinstance(index, int):
+            if not 0 <= index < self.size:
+                raise IndexError("list index out of range.")
+        elif isinstance(index, OQPyExpression):
+            if not isinstance(index.type, (ast.IntType, ast.UintType)):
+                raise IndexError("The list index must be an integer.")
+        else:
+            raise IndexError("The list index must be an integer.")
+
 
 _SizedVarT = TypeVar("_SizedVarT", bound=_SizedVar)
 
@@ -274,28 +292,8 @@ class BitVar(_SizedVar):
     type_cls = ast.BitType
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        _validate_sizedvar_getitem(self, index)
+        self._validate_getitem_index(index)
         return OQIndexExpression(collection=self, index=index, type=self.type_cls())
-
-
-def _validate_sizedvar_getitem(var: _SizedVar, index: AstConvertible) -> None:
-    """Validate the index and variable for `__getitem__`.
-
-    Args:
-        var (_SizedVar): Variable to apply `__getitem__`.
-        index (AstConvertible): Index for `__getitem__`.
-    """
-    if var.size is None:
-        raise TypeError(f"'{var.name}' is not subscriptable")
-
-    if isinstance(index, int):
-        if not 0 <= index < var.size:
-            raise IndexError("list index out of range.")
-    elif isinstance(index, OQPyExpression):
-        if not isinstance(index.type, (ast.IntType, ast.UintType)):
-            raise IndexError("The list index must be an integer.")
-    else:
-        raise IndexError("The list index must be an integer.")
 
 
 class ComplexVar(_ClassicalVar):
@@ -402,6 +400,21 @@ class ArrayVar(_ClassicalVar):
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
         return OQIndexExpression(collection=self, index=index, type=self.base_type().type_cls())
+
+
+class OQIndexExpression(OQPyExpression):
+    """An oqpy expression corresponding to an index expression."""
+
+    def __init__(self, collection: AstConvertible, index: AstConvertible, type: ast.ClassicalType):
+        self.collection = collection
+        self.index = index
+        self.type = type
+
+    def to_ast(self, program: Program) -> ast.IndexExpression:
+        """Converts this oqpy index expression into an ast node."""
+        return ast.IndexExpression(
+            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        )
 
 
 class OQFunctionCall(OQPyExpression):

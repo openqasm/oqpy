@@ -30,7 +30,8 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or, OQIndexExpression
+from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
 
