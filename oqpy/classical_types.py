@@ -62,7 +62,6 @@ __all__ = [
     "ComplexVar",
     "DurationVar",
     "OQFunctionCall",
-    "OQIndexExpression",
     "StretchVar",
     "_ClassicalVar",
     "duration",
@@ -236,6 +235,25 @@ class _SizedVar(_ClassicalVar):
             self.size = size
         super().__init__(*args, **kwargs, size=ast.IntegerLiteral(self.size) if self.size else None)
 
+    def _validate_getitem_index(self, index: AstConvertible) -> None:
+        """Validate the index and variable for `__getitem__`.
+
+        Args:
+            var (_SizedVar): Variable to apply `__getitem__`.
+            index (AstConvertible): Index for `__getitem__`.
+        """
+        if self.size is None:
+            raise TypeError(f"'{self.name}' is not subscriptable")
+
+        if isinstance(index, int):
+            if not 0 <= index < self.size:
+                raise IndexError("list index out of range.")
+        elif isinstance(index, OQPyExpression):
+            if not isinstance(index.type, (ast.IntType, ast.UintType)):
+                raise IndexError("The list index must be an integer.")
+        else:
+            raise IndexError("The list index must be an integer.")
+
 
 _SizedVarT = TypeVar("_SizedVarT", bound=_SizedVar)
 
@@ -273,22 +291,9 @@ class BitVar(_SizedVar):
 
     type_cls = ast.BitType
 
-    def __getitem__(self, idx: Union[int, slice, Iterable[int]]) -> BitVar:
-        if self.size is None:
-            raise TypeError(f"'{self.type_cls}' object is not subscriptable")
-        if isinstance(idx, int):
-            if 0 <= idx < self.size:
-                return BitVar(
-                    init_expression=ast.IndexExpression(
-                        ast.Identifier(self.name), [ast.IntegerLiteral(idx)]
-                    ),
-                    name=f"{self.name}[{idx}]",
-                    needs_declaration=False,
-                )
-            else:
-                raise IndexError("list index out of range.")
-        else:
-            raise IndexError("The list index must be an integer.")
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        self._validate_getitem_index(index)
+        return OQIndexExpression(collection=self, index=index, type_=self.type_cls())
 
 
 class ComplexVar(_ClassicalVar):
@@ -394,18 +399,16 @@ class ArrayVar(_ClassicalVar):
         )
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        return OQIndexExpression(collection=self, index=index)
+        return OQIndexExpression(collection=self, index=index, type_=self.base_type().type_cls())
 
 
 class OQIndexExpression(OQPyExpression):
     """An oqpy expression corresponding to an index expression."""
 
-    def __init__(self, collection: AstConvertible, index: AstConvertible):
+    def __init__(self, collection: AstConvertible, index: AstConvertible, type_: ast.ClassicalType):
         self.collection = collection
         self.index = index
-
-        if isinstance(collection, ArrayVar):
-            self.type = collection.base_type().type_cls()
+        self.type = type_
 
     def to_ast(self, program: Program) -> ast.IndexExpression:
         """Converts this oqpy index expression into an ast node."""

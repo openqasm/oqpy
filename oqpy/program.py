@@ -552,7 +552,7 @@ class Program:
                 )
             )
 
-        if isinstance(qubits, quantum_types.Qubit):
+        if isinstance(qubits, (quantum_types.Qubit, quantum_types.IndexedQubitArray)):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
         for qubit in qubits:
