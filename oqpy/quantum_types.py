@@ -57,7 +57,7 @@ class Qubit(Var):
         """Make an ast statement that declares the OQpy variable."""
         decl = ast.QubitDeclaration(
             ast.Identifier(self.name),
-            size=ast.IntegerLiteral(self.size) if self.size else self.size,
+            size=ast.IntegerLiteral(self.size) if self.size else None,
         )
         decl.annotations = make_annotations(self.annotations)
         return decl
@@ -85,10 +85,10 @@ class IndexedQubitArray:
         self.collection = collection
         self.index = index
 
-    def to_ast(self, program: Program) -> ast.IndexExpression:
+    def to_ast(self, program: Program) -> ast.IndexedIdentifier:
         """Converts this indexed qubit array into an ast node."""
-        return ast.IndexExpression(
-            collection=to_ast(program, self.collection), index=[to_ast(program, self.index)]
+        return ast.IndexedIdentifier(
+            name=to_ast(program, self.collection), indices=[[to_ast(program, self.index)]]
         )
 
 

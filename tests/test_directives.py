@@ -2282,21 +2282,28 @@ def test_include():
 def test_qubit_array():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", size=2)
+    i = IntVar(2, "i")
     prog.gate(q[0], "h")
     prog.gate([q[0], q[1]], "cnot")
+    prog.gate([q[oqpy.Range(0, i)]], "cnot")
+
+    with pytest.raises(TypeError):
+        prog.gate([q[0:2]], "cnot")
+
+    s = oqpy.Qubit("s")
+    with pytest.raises(TypeError):
+        prog.gate(s[0], "h")
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         qubit[2] q;
+        int[32] i = 2;
         h q[0];
         cnot q[0], q[1];
+        cnot q[0:i - 1];
         """
     ).strip()
 
     assert prog.to_qasm() == expected
-
-    with pytest.raises(TypeError):
-        prog = oqpy.Program()
-        q = oqpy.Qubit("q")
-        prog.gate(q[0], "h")
+    _check_respects_type_hints(prog)
