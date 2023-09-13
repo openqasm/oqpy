@@ -507,54 +507,68 @@ class Program:
         Returns:
             Program: The OQpy program to which the gate is added
         """
-        used_qubits: list[AstConvertible] = []
-        modifiers = []
 
-        control = control if control is not None else []
-        control = {control} if isinstance(control, quantum_types.Qubit) else set(control)
-        if control:
-            modifiers.append(
-                ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.ctrl,
-                    argument=to_ast(self, len(control)) if len(control) > 1 else None,
-                )
-            )
-            used_qubits.extend(sorted(control))
+        def _create_modifiers_ast(
+            control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
+            neg_control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
+            inv: bool,
+            exp: AstConvertible,
+        ) -> tuple[list[ast.QuantumGateModifier], list[AstConvertible]]:
+            """Create the AST for the gate modifiers."""
+            used_qubits: list[AstConvertible] = []
+            modifiers: list[ast.QuantumGateModifier] = []
 
-        neg_control = neg_control if neg_control is not None else []
-        neg_control = (
-            {neg_control} if isinstance(neg_control, quantum_types.Qubit) else set(neg_control)
-        )
-        if neg_control:
-            modifiers.append(
-                ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.negctrl,
-                    argument=to_ast(self, len(neg_control)) if len(neg_control) > 1 else None,
+            control = control if control is not None else []
+            control = {control} if isinstance(control, quantum_types.Qubit) else set(control)
+            if control:
+                modifiers.append(
+                    ast.QuantumGateModifier(
+                        modifier=ast.GateModifierName.ctrl,
+                        argument=to_ast(self, len(control)) if len(control) > 1 else None,
+                    )
                 )
-            )
-            for qubit in sorted(neg_control):
-                if qubit in used_qubits:
-                    raise ValueError(f"Qubit {qubit} has already been defined as a control qubit.")
-                else:
-                    used_qubits.append(qubit)
+                used_qubits.extend(sorted(control))
 
-        if inv:
-            modifiers.append(
-                ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.inv,
-                )
+            neg_control = neg_control if neg_control is not None else []
+            neg_control = (
+                {neg_control} if isinstance(neg_control, quantum_types.Qubit) else set(neg_control)
             )
+            if neg_control:
+                modifiers.append(
+                    ast.QuantumGateModifier(
+                        modifier=ast.GateModifierName.negctrl,
+                        argument=to_ast(self, len(neg_control)) if len(neg_control) > 1 else None,
+                    )
+                )
+                for qubit in sorted(neg_control):
+                    if qubit in used_qubits:
+                        raise ValueError(
+                            f"Qubit {qubit} has already been defined as a control qubit."
+                        )
+                    else:
+                        used_qubits.append(qubit)
 
-        if isinstance(exp, OQPyExpression) or (isinstance(exp, float) and exp != 1.0):
-            modifiers.append(
-                ast.QuantumGateModifier(
-                    modifier=ast.GateModifierName.pow, argument=to_ast(self, exp)
+            if inv:
+                modifiers.append(
+                    ast.QuantumGateModifier(
+                        modifier=ast.GateModifierName.inv,
+                    )
                 )
-            )
+
+            if isinstance(exp, OQPyExpression) or (isinstance(exp, float) and exp != 1.0):
+                modifiers.append(
+                    ast.QuantumGateModifier(
+                        modifier=ast.GateModifierName.pow, argument=to_ast(self, exp)
+                    )
+                )
+            return modifiers, used_qubits
+
+        modifiers, used_qubits = _create_modifiers_ast(control, neg_control, inv, exp)
 
         if isinstance(qubits, (quantum_types.Qubit, quantum_types.IndexedQubitArray)):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
+
         for qubit in qubits:
             if qubit in used_qubits:
                 raise ValueError(
