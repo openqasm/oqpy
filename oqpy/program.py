@@ -423,11 +423,18 @@ class Program:
         self._add_statement(ast.QuantumBarrier(ast_qubits_or_frames))
         return self
 
-    def function_call(self, name: str, args: Iterable[AstConvertible]) -> None:
-        """Add a function call."""
-        self._add_statement(
-            ast.ExpressionStatement(ast.FunctionCall(ast.Identifier(name), map_to_ast(self, args)))
-        )
+    def function_call(
+        self,
+        name: str,
+        args: Iterable[AstConvertible],
+        assigns_to: AstConvertible = None,
+    ) -> None:
+        """Add a function call with an optional output assignment."""
+        function_call_node = ast.FunctionCall(ast.Identifier(name), map_to_ast(self, args))
+        if assigns_to is None:
+            self.do_expression(function_call_node)
+        else:
+            self._do_assignment(to_ast(self, assigns_to), "=", function_call_node)
 
     def play(self, frame: AstConvertible, waveform: AstConvertible) -> Program:
         """Play a waveform on a particular frame."""
