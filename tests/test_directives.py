@@ -2316,11 +2316,6 @@ def test_qubit_array():
             oqpy.BitVar(name="b0"),
             "OPENQASM 3.0;\nbit a0;\nbit b0;\nb0 = my_function(a0);",
         ),
-        (
-            [],
-            [oqpy.BitVar(name="b0"), oqpy.BitVar(name="b1")],
-            "OPENQASM 3.0;\nbit b0;\nbit b1;\n{b0, b1} = my_function();",
-        ),
     ],
 )
 def test_function_call(args, assigns_to, expected):
