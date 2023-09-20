@@ -2307,3 +2307,9 @@ def test_qubit_array():
 
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+    prog_with_errors = oqpy.Program()
+    q0 = oqpy.Qubit("q0", size=0)
+    prog_with_errors.gate(q0, "h")
+    with pytest.raises(ValueError):
+        prog_with_errors.to_qasm()
