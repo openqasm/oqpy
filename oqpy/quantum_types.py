@@ -64,6 +64,8 @@ class Qubit(Var):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
+        if self.size == 0:
+            raise ValueError("The size of the qubit register cannot be zero.")
         decl = ast.QubitDeclaration(
             ast.Identifier(self.name),
             size=ast.IntegerLiteral(self.size) if self.size else None,
