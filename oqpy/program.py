@@ -107,6 +107,10 @@ class Program:
         self.declared_subroutines: set[str] = set()
         self.declared_gates: set[str] = set()
         self.expr_cache: dict[int, ast.Expression] = {}
+        """A cache of ast made by CachedExpressionConvertible objects used in this program.
+
+        This is used by `to_ast` to avoid repetitively evaluating ast conversion methods.
+        """
 
         if version is None or (
             len(version.split(".")) in [1, 2]
