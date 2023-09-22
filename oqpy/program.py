@@ -106,6 +106,7 @@ class Program:
         self.simplify_constants = simplify_constants
         self.declared_subroutines: set[str] = set()
         self.declared_gates: set[str] = set()
+        self.expr_cache: dict[int, ast.Expression] = {}
 
         if version is None or (
             len(version.split(".")) in [1, 2]
