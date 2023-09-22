@@ -189,7 +189,11 @@ class Program:
         existing_var = self.declared_vars.get(name)
         if existing_var is None:
             existing_var = self.undeclared_vars.get(name)
-        if existing_var is not None and var is not existing_var and not expr_matches(var, existing_var):
+        if (
+            existing_var is not None
+            and var is not existing_var
+            and not expr_matches(var, existing_var)
+        ):
             raise RuntimeError(f"Program has conflicting variables with name {name}")
         if name not in self.declared_vars:
             self.undeclared_vars[name] = var
