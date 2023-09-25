@@ -48,6 +48,15 @@ class Qubit(Var):
         self.size = size
         self.annotations = annotations
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Qubit) and self.name == other.name
+
+    def __lt__(self, other: Qubit) -> bool:
+        return self.name < other.name
+
     def to_ast(self, prog: Program) -> ast.Expression:
         """Converts the OQpy variable into an ast node."""
         prog._add_var(self)
@@ -77,6 +86,7 @@ class PhysicalQubits:
     """
 
     def __class_getitem__(cls, item: int) -> Qubit:
+        assert isinstance(item, int)
         return Qubit(f"${item}", needs_declaration=False)
 
 

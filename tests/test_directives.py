@@ -496,6 +496,8 @@ def test_add_incomptible_type():
 def test_measure_reset_pragma():
     prog = Program()
     q = PhysicalQubits[0]
+    with pytest.raises(AssertionError):
+        reg = PhysicalQubits[0:1]
     c = BitVar(name="c")
     prog.reset(q)
     prog.pragma("CLASSIFIER linear")
@@ -2246,6 +2248,58 @@ def test_nested_subroutines():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_gate_modifiers():
+    prog = oqpy.Program()
+    qreg = [oqpy.PhysicalQubits[i] for i in range(0, 8)]
+    six_qubit_reg = [qreg[i] for i in [1, 4, 7, 2, 3, 5]]
+
+    prog.gate(qreg[2], "t", control=qreg[1])
+    prog.gate(qreg[2], "x", neg_control=qreg[1])
+    prog.gate(qreg[3], "rz", inv=True)
+    prog.gate(qreg[2], "t", exp=0.5)
+    prog.gate(qreg[0], "x", inv=True, exp=oqpy.IntVar(5, "i") / 2)
+
+    prog.gate(
+        six_qubit_reg[-1],
+        "x",
+        control=six_qubit_reg[0:2],
+        neg_control=six_qubit_reg[2:5],
+        inv=True,
+        exp=1 / 2,
+    )
+
+    prog.gate(
+        qreg[6],
+        "rz1",
+        control=[qreg[2], qreg[4], qreg[5]],
+        neg_control=[qreg[0], qreg[1], qreg[0]],
+    )
+
+    with pytest.raises(ValueError):
+        prog.gate(qreg[2], "t", control=qreg[2])
+    with pytest.raises(ValueError):
+        prog.gate(qreg[2], "x", neg_control=qreg[2])
+    with pytest.raises(ValueError):
+        prog.gate(qreg[1], "x", control=qreg[2], neg_control=qreg[2])
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] i = 5;
+        ctrl @ t $1, $2;
+        negctrl @ x $1, $2;
+        inv @ rz $3;
+        pow(0.5) @ t $2;
+        inv @ pow(i / 2) @ x $0;
+        ctrl(2) @ negctrl(3) @ inv @ pow(0.5) @ x $1, $4, $2, $3, $7, $5;
+        ctrl(3) @ negctrl(2) @ rz1 $2, $4, $5, $0, $1, $6;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_invalid_gates():
@@ -2266,6 +2320,7 @@ def test_invalid_gates():
 def test_gate_declarations():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", needs_declaration=False)
+    r = oqpy.Qubit("r", needs_declaration=False)
     with oqpy.gate(
         prog,
         q,
@@ -2280,6 +2335,10 @@ def test_gate_declarations():
         prog.gate(q, "u", theta, 0, 0)
     with oqpy.gate(prog, q, "t"):
         prog.gate(q, "rz", oqpy.pi / 4)
+    with oqpy.gate(prog, [q, r], "cnot"):
+        prog.gate(r, "x", control=q)
+    with oqpy.gate(prog, [q, r], "ncphaseshift", [oqpy.AngleVar(name="theta")]) as theta:
+        prog.gate(r, "phase", theta, neg_control=[q])
 
     prog.gate(oqpy.PhysicalQubits[1], "t")
     prog.gate(oqpy.PhysicalQubits[2], "t")
@@ -2296,6 +2355,12 @@ def test_gate_declarations():
         gate t q {
             rz(pi / 4) q;
         }
+        gate cnot q, r {
+            ctrl @ x q, r;
+        }
+        gate ncphaseshift(theta) q, r {
+            negctrl @ phase(theta) q, r;
+        }
         gate rz(theta) q {
             u(theta, 0, 0) q;
         }
@@ -2305,6 +2370,7 @@ def test_gate_declarations():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_include():
@@ -2321,6 +2387,7 @@ def test_include():
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_qubit_array():
