@@ -62,6 +62,7 @@ __all__ = [
     "ComplexVar",
     "DurationVar",
     "OQFunctionCall",
+    "OQIndexExpression",
     "StretchVar",
     "_ClassicalVar",
     "duration",

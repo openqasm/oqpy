@@ -31,6 +31,7 @@ from typing import (
     Protocol,
     Sequence,
     Union,
+    cast,
     runtime_checkable,
 )
 
@@ -339,6 +340,21 @@ class ExpressionConvertible(Protocol):
         ...
 
 
+@runtime_checkable
+class CachedExpressionConvertible(Protocol):
+    """This is the protocol an object can implement in order to be usable as an expression.
+
+    The difference between this and `ExpressionConvertible` is that
+    this requires that the result of `_to_cached_oqpy_expression` be
+    constant across the lifetime of the OQPy Program. OQPy makes an
+    effort to minimize the number of calls to the AST constructor, but
+    no guarantees are made about this.
+    """
+
+    def _to_cached_oqpy_expression(self) -> HasToAst:
+        ...
+
+
 class OQPyUnaryExpression(OQPyExpression):
     """An expression consisting of one expression preceded by an operator."""
 
@@ -435,14 +451,28 @@ class HasToAst(Protocol):
 
 
 AstConvertible = Union[
-    HasToAst, bool, int, float, complex, Iterable, ExpressionConvertible, ast.Expression
+    HasToAst,
+    bool,
+    int,
+    float,
+    complex,
+    Iterable,
+    ExpressionConvertible,
+    CachedExpressionConvertible,
+    ast.Expression,
 ]
 
 
 def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     """Convert an object to an AST node."""
     if hasattr(item, "_to_oqpy_expression"):
+        item = cast(ExpressionConvertible, item)
         return item._to_oqpy_expression().to_ast(program)
+    if hasattr(item, "_to_cached_oqpy_expression"):
+        if id(item) not in program.expr_cache:
+            item = cast(CachedExpressionConvertible, item)
+            program.expr_cache[id(item)] = item._to_cached_oqpy_expression().to_ast(program)
+        return program.expr_cache[id(item)]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:
             return to_ast(program, item.real)

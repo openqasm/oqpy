@@ -1520,6 +1520,50 @@ def test_expression_convertible():
     _check_respects_type_hints(prog)
 
 
+def test_cached_expression_convertible():
+    @dataclass
+    class A:
+        name: str
+        count: int = 0
+
+        def _to_cached_oqpy_expression(self):
+            self.count += 1
+            return DurationVar(1e-7, self.name)
+
+    @dataclass
+    class F:
+        name: str
+        count: int = 0
+
+        def _to_cached_oqpy_expression(self):
+            self.count += 1
+            return FrameVar(name=self.name)
+
+    frame = F(name="f1")
+    dur = A("dur")
+    prog = Program()
+    prog.set(dur, 2)
+    prog.delay(dur, frame)
+    prog.set(dur, 3)
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        duration dur = 100.0ns;
+        frame f1;
+        dur = 2;
+        delay[dur] f1;
+        dur = 3;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+    # This gets computed twice: once during program construction, and
+    # once in `convert_float_to_duration`
+    assert dur.count == 2
+    # This gets computed just once
+    assert frame.count == 1
+
+
 def test_waveform_extern_arg_passing():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -2380,3 +2424,26 @@ def test_qubit_array():
     prog_with_errors.gate(q0, "h")
     with pytest.raises(ValueError):
         prog_with_errors.to_qasm()
+
+
+@pytest.mark.parametrize(
+    "args,assigns_to,expected",
+    [
+        ([], None, "OPENQASM 3.0;\nmy_function();"),
+        (
+            [oqpy.BitVar(name="a0"), oqpy.BitVar(name="a1")],
+            None,
+            "OPENQASM 3.0;\nbit a0;\nbit a1;\nmy_function(a0, a1);",
+        ),
+        (
+            [oqpy.BitVar(name="a0")],
+            oqpy.BitVar(name="b0"),
+            "OPENQASM 3.0;\nbit a0;\nbit b0;\nb0 = my_function(a0);",
+        ),
+    ],
+)
+def test_function_call(args, assigns_to, expected):
+    prog = Program()
+    prog.function_call("my_function", args, assigns_to)
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
