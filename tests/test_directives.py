@@ -1518,6 +1518,50 @@ def test_expression_convertible():
     _check_respects_type_hints(prog)
 
 
+def test_cached_expression_convertible():
+    @dataclass
+    class A:
+        name: str
+        count: int = 0
+
+        def _to_cached_oqpy_expression(self):
+            self.count += 1
+            return DurationVar(1e-7, self.name)
+
+    @dataclass
+    class F:
+        name: str
+        count: int = 0
+
+        def _to_cached_oqpy_expression(self):
+            self.count += 1
+            return FrameVar(name=self.name)
+
+    frame = F(name="f1")
+    dur = A("dur")
+    prog = Program()
+    prog.set(dur, 2)
+    prog.delay(dur, frame)
+    prog.set(dur, 3)
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        duration dur = 100.0ns;
+        frame f1;
+        dur = 2;
+        delay[dur] f1;
+        dur = 3;
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+    # This gets computed twice: once during program construction, and
+    # once in `convert_float_to_duration`
+    assert dur.count == 2
+    # This gets computed just once
+    assert frame.count == 1
+
+
 def test_waveform_extern_arg_passing():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -2282,24 +2326,37 @@ def test_include():
 def test_qubit_array():
     prog = oqpy.Program()
     q = oqpy.Qubit("q", size=2)
+    i = IntVar(2, "i")
     prog.gate(q[0], "h")
     prog.gate([q[0], q[1]], "cnot")
+    prog.gate([q[oqpy.Range(0, i)]], "cnot")
+
+    with pytest.raises(TypeError):
+        prog.gate([q[0:2]], "cnot")
+
+    s = oqpy.Qubit("s")
+    with pytest.raises(TypeError):
+        prog.gate(s[0], "h")
 
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         qubit[2] q;
+        int[32] i = 2;
         h q[0];
         cnot q[0], q[1];
+        cnot q[0:i - 1];
         """
     ).strip()
 
     assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
-    with pytest.raises(TypeError):
-        prog = oqpy.Program()
-        q = oqpy.Qubit("q")
-        prog.gate(q[0], "h")
+    prog_with_errors = oqpy.Program()
+    q0 = oqpy.Qubit("q0", size=0)
+    prog_with_errors.gate(q0, "h")
+    with pytest.raises(ValueError):
+        prog_with_errors.to_qasm()
 
 
 @pytest.mark.parametrize(

@@ -23,7 +23,13 @@ from typing import TYPE_CHECKING, Iterator, cast
 
 from openpulse import ast
 
-from oqpy.base import ExpressionConvertible, HasToAst, OQPyExpression, optional_ast
+from oqpy.base import (
+    CachedExpressionConvertible,
+    ExpressionConvertible,
+    HasToAst,
+    OQPyExpression,
+    optional_ast,
+)
 from oqpy.classical_types import AstConvertible
 
 if TYPE_CHECKING:
@@ -68,6 +74,9 @@ def convert_float_to_duration(time: AstConvertible) -> HasToAst:
     if hasattr(time, "_to_oqpy_expression"):
         time = cast(ExpressionConvertible, time)
         return time._to_oqpy_expression()
+    if hasattr(time, "_to_cached_oqpy_expression"):
+        time = cast(CachedExpressionConvertible, time)
+        return time._to_cached_oqpy_expression()
     raise TypeError(
         f"Expected either float, int, HasToAst or ExpressionConverible: Got {type(time)}"
     )
