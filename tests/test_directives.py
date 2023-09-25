@@ -2357,3 +2357,26 @@ def test_qubit_array():
     prog_with_errors.gate(q0, "h")
     with pytest.raises(ValueError):
         prog_with_errors.to_qasm()
+
+
+@pytest.mark.parametrize(
+    "args,assigns_to,expected",
+    [
+        ([], None, "OPENQASM 3.0;\nmy_function();"),
+        (
+            [oqpy.BitVar(name="a0"), oqpy.BitVar(name="a1")],
+            None,
+            "OPENQASM 3.0;\nbit a0;\nbit a1;\nmy_function(a0, a1);",
+        ),
+        (
+            [oqpy.BitVar(name="a0")],
+            oqpy.BitVar(name="b0"),
+            "OPENQASM 3.0;\nbit a0;\nbit b0;\nb0 = my_function(a0);",
+        ),
+    ],
+)
+def test_function_call(args, assigns_to, expected):
+    prog = Program()
+    prog.function_call("my_function", args, assigns_to)
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
