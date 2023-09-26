@@ -141,6 +141,8 @@ def test_variable_declaration():
         BitVar[-1](name="d")
     with pytest.raises(IndexError):
         prog.set(arr[1.3], 0)
+    with pytest.raises(IndexError):
+        prog.set(arr[index * 2.0], 0)
     with pytest.raises(TypeError):
         prog.set(c[0], 1)
 
@@ -811,10 +813,18 @@ def test_subroutine_with_return():
     with pytest.raises(ValueError):
 
         @subroutine
-        def add(prog: Program, x: IntVar, y) -> IntVar:
+        def add1(prog: Program, x: IntVar, y) -> IntVar:
             return x + y
 
-        prog.set(y, add(prog, y, 3))
+        prog.set(y, add1(prog, y, 3))
+
+    with pytest.raises(ValueError):
+
+        @subroutine
+        def add2(prog: Program, x: IntVar, y: int) -> IntVar:
+            return x + y
+
+        prog.set(y, add2(prog, y, 3))
 
     expected = textwrap.dedent(
         """
@@ -1972,8 +1982,15 @@ def test_make_duration():
     obj = MyToAst()
     assert convert_float_to_duration(obj) is obj
 
+    with pytest.warns(DeprecationWarning):
+        make_duration(obj)
+
     with pytest.raises(TypeError):
         convert_float_to_duration("asdf")
+
+    b = BoolVar(True, "b")
+    with pytest.raises(TypeError):
+        convert_float_to_duration(b)
 
 
 def test_autoencal():
