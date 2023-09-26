@@ -337,7 +337,7 @@ class ExpressionConvertible(Protocol):
     """This is the protocol an object can implement in order to be usable as an expression."""
 
     def _to_oqpy_expression(self) -> HasToAst:
-        ...
+        ...  # pragma: no cover
 
 
 @runtime_checkable
@@ -352,7 +352,7 @@ class CachedExpressionConvertible(Protocol):
     """
 
     def _to_cached_oqpy_expression(self) -> HasToAst:
-        ...
+        ...  # pragma: no cover
 
 
 class OQPyUnaryExpression(OQPyExpression):
@@ -365,7 +365,7 @@ class OQPyUnaryExpression(OQPyExpression):
         if isinstance(exp, OQPyExpression):
             self.type = exp.type
         else:
-            raise TypeError("exp is an expression")
+            raise TypeError("exp is not an expression")
 
     def to_ast(self, program: Program) -> ast.UnaryExpression:
         """Converts the OQpy expression into an ast node."""
@@ -447,7 +447,7 @@ class HasToAst(Protocol):
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
-        ...
+        ...  # pragma: no cover
 
 
 AstConvertible = Union[

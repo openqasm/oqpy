@@ -387,8 +387,10 @@ def test_binary_expressions():
     b2 = BoolVar(True, "b2")
     b3 = BoolVar(False, "b3")
     d = DurationVar(5e-9, "d")
+    z = ComplexVar(1.2j, "z")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 - i) % 2)
+    prog.set(z, z * 1j)
     prog.set(j, 1 + oqpy.pi)
     prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
     prog.set(j, -oqpy.pi * oqpy.pi - i**j)
@@ -399,6 +401,7 @@ def test_binary_expressions():
     prog.set(k, 51966 | i)
     prog.set(k, i | j)
     prog.set(k, i ^ 51966)
+    prog.set(k, 51966 ^ i)
     prog.set(k, 51966 & i)
     prog.set(k, i ^ j)
     prog.set(k, i >> 1)
@@ -417,11 +420,27 @@ def test_binary_expressions():
     prog.set(d, d + convert_float_to_duration(10e-9))
     prog.set(f, d / convert_float_to_duration(1))
 
+    with pytest.raises(ValueError):
+        prog.set(z, "a" * i)
+    with pytest.raises(TypeError):
+        prog.set(z, b1 * 2)
+    with pytest.raises(TypeError):
+        prog.set(z, b1 / 2)
+    with pytest.raises(TypeError):
+        prog.set(z, logical_and(True, False))
+    with pytest.raises(TypeError):
+        OQPyExpression()._to_unary("-", 1)
+    with pytest.raises(TypeError):
+        prog.set(d, 5j / d)
+    with pytest.raises(TypeError):
+        prog.set(d, 5j * d)
+
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         int[32] i = 5;
         int[32] j = 2;
+        complex[float[64]] z = 1.2im;
         int[32] k = 0;
         bool b1 = false;
         bool b2 = true;
@@ -430,6 +449,7 @@ def test_binary_expressions():
         float[64] f = 0.0;
         i = 2 * (i + j);
         j = 2 % (2 - i) % 2;
+        z = z * 1.0im;
         j = 1 + pi;
         j = 1 / pi ** 2 / 2 + 2 ** pi;
         j = -pi * pi - i ** j;
@@ -440,6 +460,7 @@ def test_binary_expressions():
         k = 51966 | i;
         k = i | j;
         k = i ^ 51966;
+        k = 51966 ^ i;
         k = 51966 & i;
         k = i ^ j;
         k = i >> 1;
@@ -1901,8 +1922,10 @@ def test_var_and_expr_matches():
     p1 = PortVar("p1")
     p2 = PortVar("p2")
     f1 = FrameVar(p1, 5e9, name="f1")
+    q = Qubit("$0")
     assert f1._var_matches(f1)
     assert f1._var_matches(copy.deepcopy(f1))
+    assert q._var_matches(q)
 
     assert expr_matches(f1, f1)
     assert not expr_matches(f1, p1)
@@ -2159,15 +2182,19 @@ def test_ramsey_example_blog():
 
 def test_constant_conversion():
     w = oqpy.FloatVar(math.pi, name="w")
+    u = oqpy.FloatVar(math.pi / 4, name="u")
+    v = oqpy.FloatVar(-5 * math.pi / 2, name="v")
     x = oqpy.FloatVar(3 * math.pi / 4, name="x")
     y = oqpy.FloatVar(math.pi / 2, name="y")
     z = oqpy.FloatVar(7 * math.pi, name="z")
     prog = Program()
-    prog.declare([w, x, y, z])
+    prog.declare([w, u, v, x, y, z])
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         float[64] w = pi;
+        float[64] u = pi / 4;
+        float[64] v = -(5 * pi / 2);
         float[64] x = 3 * pi / 4;
         float[64] y = pi / 2;
         float[64] z = 7 * pi;
@@ -2177,11 +2204,13 @@ def test_constant_conversion():
     _check_respects_type_hints(prog)
 
     prog = Program(simplify_constants=False)
-    prog.declare([w, x, y, z])
+    prog.declare([w, u, v, x, y, z])
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         float[64] w = 3.141592653589793;
+        float[64] u = 0.7853981633974483;
+        float[64] v = -7.853981633974483;
         float[64] x = 2.356194490192345;
         float[64] y = 1.5707963267948966;
         float[64] z = 21.991148575128552;
