@@ -387,10 +387,9 @@ def test_binary_expressions():
     b2 = BoolVar(True, "b2")
     b3 = BoolVar(False, "b3")
     d = DurationVar(5e-9, "d")
-    z = ComplexVar(1.2j, "z")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 - i) % 2)
-    prog.set(z, z * 1j)
+    prog.set(j, j * 1j)
     prog.set(j, 1 + oqpy.pi)
     prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
     prog.set(j, -oqpy.pi * oqpy.pi - i**j)
@@ -421,13 +420,13 @@ def test_binary_expressions():
     prog.set(f, d / convert_float_to_duration(1))
 
     with pytest.raises(ValueError):
-        prog.set(z, "a" * i)
+        prog.set(f, "a" * i)
     with pytest.raises(TypeError):
-        prog.set(z, b1 * 2)
+        prog.set(f, b1 * 2)
     with pytest.raises(TypeError):
-        prog.set(z, b1 / 2)
+        prog.set(b1, b1 / 2)
     with pytest.raises(TypeError):
-        prog.set(z, logical_and(True, False))
+        prog.set(b1, logical_and(True, False))
     with pytest.raises(TypeError):
         OQPyExpression()._to_unary("-", 1)
     with pytest.raises(TypeError):
@@ -440,7 +439,6 @@ def test_binary_expressions():
         OPENQASM 3.0;
         int[32] i = 5;
         int[32] j = 2;
-        complex[float[64]] z = 1.2im;
         int[32] k = 0;
         bool b1 = false;
         bool b2 = true;
@@ -449,7 +447,7 @@ def test_binary_expressions():
         float[64] f = 0.0;
         i = 2 * (i + j);
         j = 2 % (2 - i) % 2;
-        z = z * 1.0im;
+        j = j * 1.0im;
         j = 1 + pi;
         j = 1 / pi ** 2 / 2 + 2 ** pi;
         j = -pi * pi - i ** j;
