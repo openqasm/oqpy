@@ -507,6 +507,12 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
         if program.simplify_constants:
             return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
+    if isinstance(item, slice):
+        return ast.RangeDefinition(
+            to_ast(program, item.start) if item.start is not None else None,
+            to_ast(program, item.stop - 1) if item.stop is not None else None,
+            to_ast(program, item.step) if item.step is not None else None,
+        )
     if isinstance(item, Iterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
     if isinstance(item, ast.Expression):
