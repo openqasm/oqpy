@@ -2478,8 +2478,12 @@ def test_qubit_array():
     prog.gate([q[0], q[1]], "cnot")
     prog.gate([q[oqpy.Range(0, i)]], "cnot")
 
-    with pytest.raises(TypeError):
-        prog.gate([q[0:2]], "cnot")
+    prog.gate(q[0:2:1], "cnot")
+    prog.gate(q[0:2], "cnot")
+    prog.gate(q[0:], "cnot")
+    prog.gate(q[:2], "cnot")
+    prog.gate(q[:], "cnot")
+    prog.gate(q[i : i : IntVar(1, "j")], "cnot")
 
     s = oqpy.Qubit("s")
     with pytest.raises(TypeError):
@@ -2490,9 +2494,16 @@ def test_qubit_array():
         OPENQASM 3.0;
         qubit[2] q;
         int[32] i = 2;
+        int[32] j = 1;
         h q[0];
         cnot q[0], q[1];
         cnot q[0:i - 1];
+        cnot q[0:1:1];
+        cnot q[0:1];
+        cnot q[0:];
+        cnot q[:1];
+        cnot q[:];
+        cnot q[i:j:i - 1];
         """
     ).strip()
 
