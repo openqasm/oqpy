@@ -328,6 +328,7 @@ def test_non_trivial_array_access():
 
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+    assert expr_matches(frame.init_expression.args["port"], port)
 
 
 def test_non_trivial_variable_declaration():
@@ -941,6 +942,8 @@ def test_box_and_timings():
     assert prog.to_qasm() == expected
     # Todo: box only currently technically allows QuantumStatements (i.e. gates)
     _check_respects_type_hints(prog, ["body"])
+    assert expr_matches(constant(100e-9, 0.5).args["length"], convert_float_to_duration(100e-9))
+    assert expr_matches(constant(100e-9, 0.5).args["iq"], 0.5)
 
 
 def test_play_capture():
@@ -1037,6 +1040,9 @@ def test_declare_extern():
     ).strip()
 
     assert program.to_qasm() == expected
+    assert "x" in arctan(f, f).args
+    assert expr_matches(arctan(f, i).args["x"], f)
+    assert expr_matches(arctan(f, i).args["y"], i)
 
 
 def test_defcals():

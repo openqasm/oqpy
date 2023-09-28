@@ -75,7 +75,9 @@ class FrameVar(_ClassicalVar):
             init_expression = None
         else:
             assert frequency is not None
-            init_expression = OQFunctionCall("newframe", [port, frequency, phase], ast.FrameType)
+            init_expression = OQFunctionCall(
+                "newframe", {"port": port, "frequency": frequency, "phase": phase}, ast.FrameType
+            )
         super().__init__(
             init_expression, name, needs_declaration=needs_declaration, annotations=annotations
         )
