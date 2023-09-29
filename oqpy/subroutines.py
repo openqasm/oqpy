@@ -100,16 +100,17 @@ def subroutine(
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
+        elif not issubclass(type_hints[argname], (_ClassicalVar, Qubit)):
+            raise ValueError(
+                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
+            )
+
         input_ = inputs[argname] = type_hints[argname](name=argname)
 
         if isinstance(input_, _ClassicalVar):
             arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
         elif isinstance(input_, Qubit):
             arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
-        else:
-            raise ValueError(
-                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
-            )
 
     inner_prog = oqpy.Program()
     for input_val in inputs.values():

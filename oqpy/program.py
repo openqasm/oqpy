@@ -128,6 +128,7 @@ class Program:
         self._state.finalize_if_clause()
         self._state.body.extend(other._state.body)
         self._state.if_clause = other._state.if_clause
+        self._state.annotations.extend(other._state.annotations)
         self._state.finalize_if_clause()
         self.defcals.update(other.defcals)
         for name, subroutine_stmt in other.subroutines.items():

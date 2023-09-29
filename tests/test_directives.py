@@ -131,6 +131,9 @@ def test_variable_declaration():
     prog.set(arr[index], 1)
     prog.set(arr[index + 1], 0)
 
+    y2 = FloatVar(2.5, "y")
+    with pytest.raises(RuntimeError):
+        prog.set(y2, 3.0)
     with pytest.raises(IndexError):
         prog.set(arr[40], 2)
     with pytest.raises(ValueError):
@@ -141,6 +144,8 @@ def test_variable_declaration():
         BitVar[-1](name="d")
     with pytest.raises(IndexError):
         prog.set(arr[1.3], 0)
+    with pytest.raises(IndexError):
+        prog.set(arr[index * 2.0], 0)
     with pytest.raises(TypeError):
         prog.set(c[0], 1)
 
@@ -384,6 +389,7 @@ def test_binary_expressions():
     d = DurationVar(5e-9, "d")
     prog.set(i, 2 * (i + j))
     prog.set(j, 2 % (2 - i) % 2)
+    prog.set(j, j * 1j)
     prog.set(j, 1 + oqpy.pi)
     prog.set(j, 1 / oqpy.pi**2 / 2 + 2**oqpy.pi)
     prog.set(j, -oqpy.pi * oqpy.pi - i**j)
@@ -394,6 +400,7 @@ def test_binary_expressions():
     prog.set(k, 51966 | i)
     prog.set(k, i | j)
     prog.set(k, i ^ 51966)
+    prog.set(k, 51966 ^ i)
     prog.set(k, 51966 & i)
     prog.set(k, i ^ j)
     prog.set(k, i >> 1)
@@ -412,6 +419,21 @@ def test_binary_expressions():
     prog.set(d, d + convert_float_to_duration(10e-9))
     prog.set(f, d / convert_float_to_duration(1))
 
+    with pytest.raises(ValueError):
+        prog.set(f, "a" * i)
+    with pytest.raises(TypeError):
+        prog.set(f, b1 * 2)
+    with pytest.raises(TypeError):
+        prog.set(b1, b1 / 2)
+    with pytest.raises(TypeError):
+        prog.set(b1, logical_and(True, False))
+    with pytest.raises(TypeError):
+        OQPyExpression()._to_unary("-", 1)
+    with pytest.raises(TypeError):
+        prog.set(d, 5j / d)
+    with pytest.raises(TypeError):
+        prog.set(d, 5j * d)
+
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
@@ -425,6 +447,7 @@ def test_binary_expressions():
         float[64] f = 0.0;
         i = 2 * (i + j);
         j = 2 % (2 - i) % 2;
+        j = j * 1.0im;
         j = 1 + pi;
         j = 1 / pi ** 2 / 2 + 2 ** pi;
         j = -pi * pi - i ** j;
@@ -435,6 +458,7 @@ def test_binary_expressions():
         k = 51966 | i;
         k = i | j;
         k = i ^ 51966;
+        k = 51966 ^ i;
         k = 51966 & i;
         k = i ^ j;
         k = i >> 1;
@@ -811,10 +835,18 @@ def test_subroutine_with_return():
     with pytest.raises(ValueError):
 
         @subroutine
-        def add(prog: Program, x: IntVar, y) -> IntVar:
+        def add1(prog: Program, x: IntVar, y) -> IntVar:
             return x + y
 
-        prog.set(y, add(prog, y, 3))
+        prog.set(y, add1(prog, y, 3))
+
+    with pytest.raises(ValueError):
+
+        @subroutine
+        def add2(prog: Program, x: IntVar, y: int) -> IntVar:
+            return x + y
+
+        prog.set(y, add2(prog, y, 3))
 
     expected = textwrap.dedent(
         """
@@ -1727,6 +1759,7 @@ def test_annotate():
     )
 
     some_port = PortVar("some_port", annotations=["makeport", ("some_keyword", "some_command")])
+    another_port = PortVar("another_port", annotations=["makeport"])
     q0_transmon_xy_frame = FrameVar(
         some_port, 3911851971.26885, name="q0_transmon_xy_frame", annotations=["makeframe"]
     )
@@ -1746,6 +1779,8 @@ def test_annotate():
 
     prog.annotate("first-invocation")
     prog.do_expression(f(prog, i))
+
+    prog.declare(another_port, encal=True, to_beginning=False)
 
     prog.annotate("annotation-before-if")
     with If(prog, i != 0):
@@ -1805,6 +1840,10 @@ def test_annotate():
         qubit q1;
         @first-invocation
         f(i);
+        cal {
+            @makeport
+            port another_port;
+        }
         @annotation-before-if
         if (i != 0) {
             @annotation-in-if
@@ -1841,6 +1880,15 @@ def test_annotate():
     assert prog.to_qasm(encal_declarations=True) == expected
     _check_respects_type_hints(prog)
 
+    prog.annotate("not-applied-invocation")
+    with pytest.warns(UserWarning):
+        prog.to_qasm(encal_declarations=True)
+
+    with pytest.warns(UserWarning):
+        with If(prog, True):
+            prog.gate(PhysicalQubits[0], "x")
+            prog.annotate("not-applied-invocation")
+
 
 def test_in_place_subroutine_declaration():
     @subroutine(annotations=["inline", ("optimize", "-O3")])
@@ -1872,8 +1920,10 @@ def test_var_and_expr_matches():
     p1 = PortVar("p1")
     p2 = PortVar("p2")
     f1 = FrameVar(p1, 5e9, name="f1")
+    q = Qubit("$0")
     assert f1._var_matches(f1)
     assert f1._var_matches(copy.deepcopy(f1))
+    assert q._var_matches(q)
 
     assert expr_matches(f1, f1)
     assert not expr_matches(f1, p1)
@@ -1972,8 +2022,15 @@ def test_make_duration():
     obj = MyToAst()
     assert convert_float_to_duration(obj) is obj
 
+    with pytest.warns(DeprecationWarning):
+        make_duration(obj)
+
     with pytest.raises(TypeError):
         convert_float_to_duration("asdf")
+
+    b = BoolVar(True, "b")
+    with pytest.raises(TypeError):
+        convert_float_to_duration(b)
 
 
 def test_autoencal():
@@ -1981,9 +2038,15 @@ def test_autoencal():
     frame = FrameVar(port, 1e9, name="framename")
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
+    interp = declare_extern("interp", [("waveform", waveform)], waveform)
+    random = declare_extern("random", [], int32)
     i = IntVar(0, "i")
+    wf = WaveformVar([0, 1, 1, 0], "wf")
 
-    prog.increment(i, 1)
+    with While(prog, i < 4):
+        prog.increment(i, random())
+        prog.set(wf, interp(wf))
+
     with Cal(prog):
         prog.play(frame, constant(1e-6, 0.5))
         kernel = WaveformVar(constant(1e-6, iq=1), "kernel")
@@ -1993,14 +2056,20 @@ def test_autoencal():
         """
         OPENQASM 3.0;
         defcalgrammar "openpulse";
+        extern random() -> int[32];
         cal {
+            extern interp(waveform) -> waveform;
             extern constant(duration, complex[float[64]]) -> waveform;
             port portname;
+            waveform wf = {0, 1, 1, 0};
             frame framename = newframe(portname, 1000000000.0, 0);
             waveform kernel = constant(1.0us, 1);
         }
         int[32] i = 0;
-        i += 1;
+        while (i < 4) {
+            i += random();
+            wf = interp(wf);
+        }
         cal {
             play(framename, constant(1.0us, 0.5));
             capture(framename, kernel);
@@ -2111,15 +2180,19 @@ def test_ramsey_example_blog():
 
 def test_constant_conversion():
     w = oqpy.FloatVar(math.pi, name="w")
+    u = oqpy.FloatVar(math.pi / 4, name="u")
+    v = oqpy.FloatVar(-5 * math.pi / 2, name="v")
     x = oqpy.FloatVar(3 * math.pi / 4, name="x")
     y = oqpy.FloatVar(math.pi / 2, name="y")
     z = oqpy.FloatVar(7 * math.pi, name="z")
     prog = Program()
-    prog.declare([w, x, y, z])
+    prog.declare([w, u, v, x, y, z])
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         float[64] w = pi;
+        float[64] u = pi / 4;
+        float[64] v = -(5 * pi / 2);
         float[64] x = 3 * pi / 4;
         float[64] y = pi / 2;
         float[64] z = 7 * pi;
@@ -2129,11 +2202,13 @@ def test_constant_conversion():
     _check_respects_type_hints(prog)
 
     prog = Program(simplify_constants=False)
-    prog.declare([w, x, y, z])
+    prog.declare([w, u, v, x, y, z])
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         float[64] w = 3.141592653589793;
+        float[64] u = 0.7853981633974483;
+        float[64] v = -7.853981633974483;
         float[64] x = 2.356194490192345;
         float[64] y = 1.5707963267948966;
         float[64] z = 21.991148575128552;
@@ -2376,7 +2451,8 @@ def test_gate_declarations():
 def test_include():
     prog = Program()
     prog.include("foo.qasm")
-    prog.declare(IntVar(0, "i"))
+    i = IntVar(0, "i")
+    prog.declare(i)
 
     expected = textwrap.dedent(
         """
@@ -2388,6 +2464,10 @@ def test_include():
 
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+    with oqpy.If(prog, i == 1):
+        with pytest.raises(RuntimeError):
+            prog.include("bar.qasm")
 
 
 def test_qubit_array():
