@@ -457,5 +457,5 @@ class OQFunctionCall(OQPyExpression):
             program.externs[self.identifier.name] = self.extern_decl
         if self.subroutine_decl is not None:
             program._add_subroutine(self.identifier.name, self.subroutine_decl)
-        args = list(self.args.values()) if isinstance(self.args, dict) else self.args
+        args = self.args.values() if isinstance(self.args, dict) else self.args
         return ast.FunctionCall(self.identifier, map_to_ast(program, args))
