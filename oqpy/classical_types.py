@@ -24,6 +24,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Iterable,
     Optional,
     Sequence,
     Type,
@@ -423,7 +424,7 @@ class OQFunctionCall(OQPyExpression):
     def __init__(
         self,
         identifier: Union[str, ast.Identifier],
-        args: dict[str, AstConvertible],
+        args: Iterable[AstConvertible],
         return_type: Optional[ast.ClassicalType],
         extern_decl: ast.ExternDeclaration | None = None,
         subroutine_decl: ast.SubroutineDefinition | None = None,
@@ -456,4 +457,5 @@ class OQFunctionCall(OQPyExpression):
             program.externs[self.identifier.name] = self.extern_decl
         if self.subroutine_decl is not None:
             program._add_subroutine(self.identifier.name, self.subroutine_decl)
-        return ast.FunctionCall(self.identifier, map_to_ast(program, list(self.args.values())))
+        args = list(self.args.values()) if isinstance(self.args, dict) else self.args
+        return ast.FunctionCall(self.identifier, map_to_ast(program, args))
