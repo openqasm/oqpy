@@ -153,7 +153,7 @@ def subroutine(
         program.externs.update(inner_prog.externs)
         return OQFunctionCall(
             identifier,
-            args,
+            {k: v for k, v in zip(argnames[1:], args)},
             return_type,
             subroutine_decl=stmt,
         )
@@ -218,7 +218,9 @@ def declare_extern(
         for i, a in enumerate(call_args):
             if type(arg_types[i]) == ast.DurationType:
                 new_args[i] = convert_float_to_duration(a)
-        return OQFunctionCall(name, new_args, return_type, extern_decl=extern_decl)
+        return OQFunctionCall(
+            name, {k: v for k, v in zip(arg_names, new_args)}, return_type, extern_decl=extern_decl
+        )
 
     return call_extern
 
