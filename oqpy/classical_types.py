@@ -424,7 +424,7 @@ class OQFunctionCall(OQPyExpression):
     def __init__(
         self,
         identifier: Union[str, ast.Identifier],
-        args: Iterable[AstConvertible],
+        args: Union[Iterable[AstConvertible], dict[Any, AstConvertible]],
         return_type: Optional[ast.ClassicalType],
         extern_decl: ast.ExternDeclaration | None = None,
         subroutine_decl: ast.SubroutineDefinition | None = None,
@@ -433,7 +433,8 @@ class OQFunctionCall(OQPyExpression):
 
         Args:
             identifier: The function name.
-            args: The function arguments.
+            args: The function arguments. If passed as a dict, the values are used when
+                creating the FunctionCall ast node.
             return_type: The type returned by the function call. If none, returns nothing.
             extern_decl: An optional extern declaration ast node. If present,
                 this extern declaration will be added to the top of the program
