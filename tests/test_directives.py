@@ -817,6 +817,13 @@ def test_subroutine_with_return():
     q = PhysicalQubits[0]
     prog.do_expression(delay50ns(prog, q))
 
+    @subroutine
+    def get(prog: Program, arr: ArrayVar[IntVar, 3], i: IntVar) -> IntVar:
+        return arr[i]
+
+    arr = ArrayVar[IntVar, 3]([0, 1, 2], name="arr")
+    prog.set(y, get(prog, arr, y))
+
     with pytest.raises(ValueError):
 
         @subroutine
@@ -858,9 +865,14 @@ def test_subroutine_with_return():
         def delay50ns(qubit q) {
             delay[50.0ns] q;
         }
+        def get(array[int[32], 3] arr, int[32] i) -> int {
+            return arr[i];
+        }
         int[32] y = 2;
+        array[int[32], 3] arr = {0, 1, 2};
         y = multiply(y, 3);
         delay50ns($0);
+        y = get(arr, y);
         """
     ).strip()
 
