@@ -101,6 +101,8 @@ def subroutine(
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
 
+        # ArrayVar[] returns a partial function instead of a type.
+        # The underlying function of that partial should be ArrayVar itself.
         type_hint = (
             type_hints[argname].func
             if isinstance(type_hints[argname], functools.partial)
