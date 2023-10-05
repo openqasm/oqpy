@@ -100,7 +100,16 @@ def subroutine(
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
-        elif not issubclass(type_hints[argname], (_ClassicalVar, Qubit)):
+
+        # ArrayVar[] returns a partial function instead of a type.
+        # The underlying function of that partial should be ArrayVar itself.
+        type_hint = (
+            type_hints[argname].func
+            if isinstance(type_hints[argname], functools.partial)
+            else type_hints[argname]
+        )
+
+        if not issubclass(type_hint, (_ClassicalVar, Qubit)):
             raise ValueError(
                 f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
             )
