@@ -35,6 +35,18 @@ authors:
     given-names: Mitch
     affiliation: "AWS Center for Quantum Computing"
     orcid: "https://orcid.org/0000-0001-8916-560X"
+  - family-names: Shaffer
+    given-names: Ryan
+    affiliation: "AWS Quantum Technologies"
+    orcid: "https://orcid.org/0000-0002-3196-4529"
+  - family-names: Davis
+    given-names: Erik
+    affiliation: "AWS Center for Quantum Computing"
+    orcid: "https://orcid.org/0000-0001-7696-2538"
+  - family-names: Chen
+    given-names: Yi-Ting
+    affiliation: "AWS Quantum Technologies"
+    orcid: "https://orcid.org/0000-0001-7340-5402"
   - family-names: Sivarajah
     given-names: Prasahnt
     affiliation: "AWS Center for Quantum Computing"
