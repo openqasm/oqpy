@@ -477,7 +477,9 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
         if item._oqpy_cache_key is None:
             item._oqpy_cache_key = uuid.uuid1()
         if item._oqpy_cache_key not in program.expr_cache:
-            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression().to_ast(program)
+            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression().to_ast(
+                program
+            )
         return program.expr_cache[item._oqpy_cache_key]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:

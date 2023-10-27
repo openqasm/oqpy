@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional, Hashable
+from typing import Any, Hashable, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.printer import dumps
