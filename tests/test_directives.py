@@ -1575,6 +1575,7 @@ def test_cached_expression_convertible():
     class A:
         name: str
         count: int = 0
+        _oqpy_cache_key = None
 
         def _to_cached_oqpy_expression(self):
             self.count += 1
@@ -1584,6 +1585,7 @@ def test_cached_expression_convertible():
     class F:
         name: str
         count: int = 0
+        _oqpy_cache_key = None
 
         def _to_cached_oqpy_expression(self):
             self.count += 1

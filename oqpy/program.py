@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Iterable, Iterator, Optional, Hashable
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -107,7 +107,7 @@ class Program:
         self.simplify_constants = simplify_constants
         self.declared_subroutines: set[str] = set()
         self.declared_gates: set[str] = set()
-        self.expr_cache: dict[int, ast.Expression] = {}
+        self.expr_cache: dict[Hashable, ast.Expression] = {}
         """A cache of ast made by CachedExpressionConvertible objects used in this program.
 
         This is used by `to_ast` to avoid repetitively evaluating ast conversion methods.
