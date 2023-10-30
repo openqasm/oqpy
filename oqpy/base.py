@@ -22,10 +22,12 @@ they are converted to AST nodes.
 from __future__ import annotations
 
 import math
+import uuid
 from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
+    Hashable,
     Iterable,
     Optional,
     Protocol,
@@ -351,6 +353,8 @@ class CachedExpressionConvertible(Protocol):
     no guarantees are made about this.
     """
 
+    _oqpy_cache_key: Hashable
+
     def _to_cached_oqpy_expression(self) -> HasToAst:
         ...  # pragma: no cover
 
@@ -469,10 +473,14 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
         item = cast(ExpressionConvertible, item)
         return item._to_oqpy_expression().to_ast(program)
     if hasattr(item, "_to_cached_oqpy_expression"):
-        if id(item) not in program.expr_cache:
-            item = cast(CachedExpressionConvertible, item)
-            program.expr_cache[id(item)] = item._to_cached_oqpy_expression().to_ast(program)
-        return program.expr_cache[id(item)]
+        item = cast(CachedExpressionConvertible, item)
+        if item._oqpy_cache_key is None:
+            item._oqpy_cache_key = uuid.uuid1()
+        if item._oqpy_cache_key not in program.expr_cache:
+            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression().to_ast(
+                program
+            )
+        return program.expr_cache[item._oqpy_cache_key]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:
             return to_ast(program, item.real)
