@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Hashable, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -34,6 +34,7 @@ from openqasm3.visitor import QASMVisitor
 from oqpy import classical_types, quantum_types
 from oqpy.base import (
     AstConvertible,
+    OQPyExpression,
     Var,
     expr_matches,
     map_to_ast,
@@ -106,6 +107,11 @@ class Program:
         self.simplify_constants = simplify_constants
         self.declared_subroutines: set[str] = set()
         self.declared_gates: set[str] = set()
+        self.expr_cache: dict[Hashable, ast.Expression] = {}
+        """A cache of ast made by CachedExpressionConvertible objects used in this program.
+
+        This is used by `to_ast` to avoid repetitively evaluating ast conversion methods.
+        """
 
         if version is None or (
             len(version.split(".")) in [1, 2]
@@ -122,6 +128,7 @@ class Program:
         self._state.finalize_if_clause()
         self._state.body.extend(other._state.body)
         self._state.if_clause = other._state.if_clause
+        self._state.annotations.extend(other._state.annotations)
         self._state.finalize_if_clause()
         self.defcals.update(other.defcals)
         for name, subroutine_stmt in other.subroutines.items():
@@ -188,7 +195,11 @@ class Program:
         existing_var = self.declared_vars.get(name)
         if existing_var is None:
             existing_var = self.undeclared_vars.get(name)
-        if existing_var is not None and not expr_matches(var, existing_var):
+        if (
+            existing_var is not None
+            and var is not existing_var
+            and not expr_matches(var, existing_var)
+        ):
             raise RuntimeError(f"Program has conflicting variables with name {name}")
         if name not in self.declared_vars:
             self.undeclared_vars[name] = var
@@ -423,11 +434,18 @@ class Program:
         self._add_statement(ast.QuantumBarrier(ast_qubits_or_frames))
         return self
 
-    def function_call(self, name: str, args: Iterable[AstConvertible]) -> None:
-        """Add a function call."""
-        self._add_statement(
-            ast.ExpressionStatement(ast.FunctionCall(ast.Identifier(name), map_to_ast(self, args)))
-        )
+    def function_call(
+        self,
+        name: str,
+        args: Iterable[AstConvertible],
+        assigns_to: AstConvertible = None,
+    ) -> None:
+        """Add a function call with an optional output assignment."""
+        function_call_node = ast.FunctionCall(ast.Identifier(name), map_to_ast(self, args))
+        if assigns_to is None:
+            self.do_expression(function_call_node)
+        else:
+            self._do_assignment(to_ast(self, assigns_to), "=", function_call_node)
 
     def play(self, frame: AstConvertible, waveform: AstConvertible) -> Program:
         """Play a waveform on a particular frame."""
@@ -479,19 +497,107 @@ class Program:
         self._add_statement(ast.ReturnStatement(to_ast(self, expression)))
         return self
 
+    def _create_modifiers_ast(
+        self,
+        control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
+        neg_control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
+        inv: bool,
+        exp: AstConvertible,
+    ) -> tuple[list[ast.QuantumGateModifier], list[AstConvertible]]:
+        """Create the AST for the gate modifiers."""
+        used_qubits: list[AstConvertible] = []
+        modifiers: list[ast.QuantumGateModifier] = []
+
+        control = control if control is not None else []
+        control = {control} if isinstance(control, quantum_types.Qubit) else set(control)
+        if control:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.ctrl,
+                    argument=to_ast(self, len(control)) if len(control) > 1 else None,
+                )
+            )
+            used_qubits.extend(sorted(control))
+
+        neg_control = neg_control if neg_control is not None else []
+        neg_control = (
+            {neg_control} if isinstance(neg_control, quantum_types.Qubit) else set(neg_control)
+        )
+        if neg_control:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.negctrl,
+                    argument=to_ast(self, len(neg_control)) if len(neg_control) > 1 else None,
+                )
+            )
+            for qubit in sorted(neg_control):
+                if qubit in used_qubits:
+                    raise ValueError(f"Qubit {qubit} has already been defined as a control qubit.")
+                else:
+                    used_qubits.append(qubit)
+
+        if inv:
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.inv,
+                )
+            )
+
+        if isinstance(exp, OQPyExpression) or (isinstance(exp, float) and exp != 1.0):
+            modifiers.append(
+                ast.QuantumGateModifier(
+                    modifier=ast.GateModifierName.pow, argument=to_ast(self, exp)
+                )
+            )
+        return modifiers, used_qubits
+
     def gate(
-        self, qubits: AstConvertible | Iterable[AstConvertible], name: str, *args: Any
+        self,
+        qubits: AstConvertible | Iterable[AstConvertible],
+        name: str,
+        *args: Any,
+        control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
+        neg_control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
+        inv: bool = False,
+        exp: AstConvertible = 1,
     ) -> Program:
-        """Apply a gate to a qubit or set of qubits."""
-        if isinstance(qubits, quantum_types.Qubit):
+        """Apply a gate with its modifiers to a qubit or set of qubits.
+
+        Args:
+            qubits (AstConvertible | Iterable[AstConvertible]): The qubit or list of qubits
+                to which the gate will be applied
+            name (str): The gate name
+            *args (Any): A list of parameters passed to the gate
+            control (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+                of control qubits (default: None)
+            neg_control: (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+                of negative control qubits (default: None)
+            inv (bool): Flag to use the inverse gate (default: False)
+            exp (AstConvertible): The exponent used with `pow` gate modifier
+
+        Returns:
+            Program: The OQpy program to which the gate is added
+        """
+        modifiers, used_qubits = self._create_modifiers_ast(control, neg_control, inv, exp)
+
+        if isinstance(qubits, (quantum_types.Qubit, quantum_types.IndexedQubitArray)):
             qubits = [qubits]
         assert isinstance(qubits, Iterable)
+
+        for qubit in qubits:
+            if qubit in used_qubits:
+                raise ValueError(
+                    f"Qubit {qubit} has already been defined as a control qubit or a negative control qubit."
+                )
+            else:
+                used_qubits.append(qubit)
+
         self._add_statement(
             ast.QuantumGate(
-                [],
+                modifiers,
                 ast.Identifier(name),
                 map_to_ast(self, args),
-                map_to_ast(self, qubits),
+                map_to_ast(self, used_qubits),
             )
         )
         return self

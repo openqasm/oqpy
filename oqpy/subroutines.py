@@ -100,16 +100,26 @@ def subroutine(
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
+
+        # ArrayVar[] returns a partial function instead of a type.
+        # The underlying function of that partial should be ArrayVar itself.
+        type_hint = (
+            type_hints[argname].func
+            if isinstance(type_hints[argname], functools.partial)
+            else type_hints[argname]
+        )
+
+        if not issubclass(type_hint, (_ClassicalVar, Qubit)):
+            raise ValueError(
+                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
+            )
+
         input_ = inputs[argname] = type_hints[argname](name=argname)
 
         if isinstance(input_, _ClassicalVar):
             arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
         elif isinstance(input_, Qubit):
             arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
-        else:
-            raise ValueError(
-                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
-            )
 
     inner_prog = oqpy.Program()
     for input_val in inputs.values():
@@ -152,7 +162,7 @@ def subroutine(
         program.externs.update(inner_prog.externs)
         return OQFunctionCall(
             identifier,
-            args,
+            {k: v for k, v in zip(argnames[1:], args)},
             return_type,
             subroutine_decl=stmt,
         )
@@ -217,7 +227,9 @@ def declare_extern(
         for i, a in enumerate(call_args):
             if type(arg_types[i]) == ast.DurationType:
                 new_args[i] = convert_float_to_duration(a)
-        return OQFunctionCall(name, new_args, return_type, extern_decl=extern_decl)
+        return OQFunctionCall(
+            name, {k: v for k, v in zip(arg_names, new_args)}, return_type, extern_decl=extern_decl
+        )
 
     return call_extern
 

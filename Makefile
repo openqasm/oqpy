@@ -37,7 +37,7 @@ open-docs:
 
 .PHONY: check-tests
 check-tests:
-	pytest --cov=oqpy -vv --color=yes tests
+	pytest --cov=oqpy -vv --color=yes tests --cov-fail-under=100
 
 .PHONY: check-citation
 check-citation:
