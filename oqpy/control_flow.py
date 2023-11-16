@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overloa
 
 from openpulse import ast
 
-from oqpy.base import OQPyExpression, to_ast
+from oqpy.base import OQPyExpression, OqpyIterable, to_ast
 from oqpy.classical_types import (
     AstConvertible,
     DurationVar,
@@ -124,7 +124,7 @@ def ForIn(
         # A range can only be iterated over integers.
         assert identifier_type is IntVar, "A range can only be looped over an integer."
         set_declaration = convert_range(program, iterator)
-    elif isinstance(iterator, Iterable):
+    elif isinstance(iterator, Iterable) and not isinstance(iterator, OqpyIterable):
         if identifier_type is DurationVar:
             iterator = (convert_float_to_duration(i) for i in iterator)
 
@@ -138,7 +138,7 @@ def ForIn(
     program._add_statement(stmt)
 
 
-class Range:
+class Range(OqpyIterable):
     """AstConvertible which creates an integer range.
 
     Unlike builtin python range, this allows the components to be AstConvertible,
