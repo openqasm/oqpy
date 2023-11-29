@@ -1028,12 +1028,11 @@ def test_declare_extern():
     print_array = declare_extern(
         "print_array",
         [
-            (
-                "arr",
-                ast.ExternArgument(
-                    type=ast.ArrayReferenceType(int32, ast.IntegerLiteral(1)),
-                    access=ast.AccessControl["readonly"],
-                ),
+            ("style", int32),
+            OqpyArgument(
+                name="arr",
+                dtype=arrayreference_(int32, 1),
+                access="readonly",
             ),
         ],
     )
@@ -1046,7 +1045,7 @@ def test_declare_extern():
     program.set(i, time())
     program.do_expression(set_global_voltage(i))
     program.do_expression(fire_bazooka())
-    program.do_expression(print_array([0, 1, 2]))
+    program.do_expression(print_array(1, [0, 1, 2]))
 
     expected = textwrap.dedent(
         """
@@ -1056,7 +1055,7 @@ def test_declare_extern():
         extern time() -> int[32];
         extern set_voltage(int[32]);
         extern fire_bazooka();
-        extern print_array(readonly array[int[32], #dim=1]);
+        extern print_array(int[32], readonly array[int[32], #dim=1]);
         float[64] f = 0.0;
         int[32] i = 5;
         f = sqrt(f);
@@ -1064,7 +1063,7 @@ def test_declare_extern():
         i = time();
         set_voltage(i);
         fire_bazooka();
-        print_array({0, 1, 2});
+        print_array(1, {0, 1, 2});
         """
     ).strip()
 
