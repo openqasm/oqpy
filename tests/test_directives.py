@@ -1024,6 +1024,20 @@ def test_declare_extern():
     # Test an extern with no input and no output
     fire_bazooka = declare_extern("fire_bazooka", [])
 
+    # Test an extern with readonly array
+    print_array = declare_extern(
+        "print_array",
+        [
+            (
+                "arr",
+                ast.ExternArgument(
+                    type=ast.ArrayReferenceType(int32, ast.IntegerLiteral(1)),
+                    access=ast.AccessControl["readonly"],
+                ),
+            ),
+        ],
+    )
+
     f = oqpy.FloatVar(name="f", init_expression=0.0)
     i = oqpy.IntVar(name="i", init_expression=5)
 
@@ -1032,6 +1046,7 @@ def test_declare_extern():
     program.set(i, time())
     program.do_expression(set_global_voltage(i))
     program.do_expression(fire_bazooka())
+    program.do_expression(print_array([0, 1, 2]))
 
     expected = textwrap.dedent(
         """
@@ -1041,6 +1056,7 @@ def test_declare_extern():
         extern time() -> int[32];
         extern set_voltage(int[32]);
         extern fire_bazooka();
+        extern print_array(readonly array[int[32], #dim=1]);
         float[64] f = 0.0;
         int[32] i = 5;
         f = sqrt(f);
@@ -1048,6 +1064,7 @@ def test_declare_extern():
         i = time();
         set_voltage(i);
         fire_bazooka();
+        print_array({0, 1, 2});
         """
     ).strip()
 

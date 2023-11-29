@@ -173,7 +173,7 @@ def subroutine(
 
 def declare_extern(
     name: str,
-    args: list[tuple[str, ast.ClassicalType]],
+    args: list[tuple[str, ast.ClassicalType | ast.ExternArgument]],
     return_type: Optional[ast.ClassicalType] = None,
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
@@ -194,7 +194,7 @@ def declare_extern(
     arg_types = list(zip(*(args)))[1] if args else []
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
-        [ast.ExternArgument(type=t) for t in arg_types],
+        [ast.ExternArgument(type=t) if isinstance(t, ast.ClassicalType) else t for t in arg_types],
         return_type,
     )
     extern_decl.annotations = make_annotations(annotations)
@@ -236,7 +236,7 @@ def declare_extern(
 
 def declare_waveform_generator(
     name: str,
-    argtypes: list[tuple[str, ast.ClassicalType]],
+    argtypes: list[tuple[str, ast.ClassicalType | ast.ExternArgument]],
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Create a function which generates waveforms using a specified name and argument signature."""
