@@ -31,7 +31,7 @@ from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import convert_float_to_duration
 
-__all__ = ["subroutine", "declare_extern", "declare_waveform_generator", "OqpyArgument"]
+__all__ = ["subroutine", "declare_extern", "declare_waveform_generator", "OQPyArgument"]
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
@@ -39,7 +39,7 @@ FnType = TypeVar("FnType", bound=Callable[..., Any])
 
 
 @dataclass
-class OqpyArgument:
+class OQPyArgument:
     """An oqpy argument to extern declaration.."""
 
     name: str
@@ -187,7 +187,7 @@ def subroutine(
 
 def declare_extern(
     name: str,
-    args: list[tuple[str, ast.ClassicalType] | OqpyArgument],
+    args: list[tuple[str, ast.ClassicalType] | OQPyArgument],
     return_type: Optional[ast.ClassicalType] = None,
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
@@ -212,7 +212,7 @@ def declare_extern(
         if isinstance(arg, tuple):
             arg_name, arg_type = arg
             access = None
-        elif isinstance(arg, OqpyArgument):
+        elif isinstance(arg, OQPyArgument):
             arg_name, arg_type, access = arg.unzip()
         else:
             raise Exception(f"Argument {arg} should have a proper type")
@@ -267,7 +267,7 @@ def declare_extern(
 
 def declare_waveform_generator(
     name: str,
-    argtypes: list[tuple[str, ast.ClassicalType] | OqpyArgument],
+    argtypes: list[tuple[str, ast.ClassicalType] | OQPyArgument],
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Create a function which generates waveforms using a specified name and argument signature."""

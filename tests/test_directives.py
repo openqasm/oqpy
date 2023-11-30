@@ -1029,7 +1029,7 @@ def test_declare_extern():
         "print_array",
         [
             ("style", int32),
-            OqpyArgument(
+            OQPyArgument(
                 name="arr",
                 dtype=arrayreference_(int32, 1),
                 access="readonly",
