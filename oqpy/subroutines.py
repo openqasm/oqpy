@@ -40,11 +40,14 @@ FnType = TypeVar("FnType", bound=Callable[..., Any])
 
 @dataclass
 class OqpyArgument:
+    """An oqpy argument to extern declaration.."""
+
     name: str
     dtype: ast.ClassicalType
     access: Literal["readonly", "mutable"]
 
     def unzip(self) -> tuple[str, ast.ClassicalType, ast.AccessControl]:
+        """Returns the three values, name, dtype and access as a tuple."""
         return self.name, self.dtype, ast.AccessControl[self.access]
 
 
