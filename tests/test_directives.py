@@ -1073,6 +1073,11 @@ def test_declare_extern():
     assert expr_matches(arctan(f, i).args["y"], i)
 
 
+def test_invalid_extern_declaration():
+    # Test with invalid argument
+    with pytest.raises(Exception, match="Argument.*"):
+        _ = declare_extern("invalid", [int32])
+
 def test_defcals():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
