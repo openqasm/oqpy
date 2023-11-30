@@ -44,11 +44,11 @@ class OQPyArgument:
 
     name: str
     dtype: ast.ClassicalType
-    access: Literal["readonly", "mutable"]
+    access: Literal["readonly", "mutable"] | None = None
 
-    def unzip(self) -> tuple[str, ast.ClassicalType, ast.AccessControl]:
+    def unzip(self) -> tuple[str, ast.ClassicalType, ast.AccessControl | None]:
         """Returns the three values, name, dtype and access as a tuple."""
-        return self.name, self.dtype, ast.AccessControl[self.access]
+        return self.name, self.dtype, ast.AccessControl[self.access] if self.access else None
 
 
 def enable_decorator_arguments(f: FnType) -> Callable[..., FnType]:
