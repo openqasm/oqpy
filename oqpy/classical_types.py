@@ -86,6 +86,7 @@ __all__ = [
     "complex128",
     "angle_",
     "angle32",
+    "arrayreference_",
 ]
 
 # The following methods and constants are useful for creating signatures
@@ -127,6 +128,26 @@ def complex_(size: int) -> ast.ComplexType:
 def bit_(size: int | None = None) -> ast.BitType:
     """Create a sized bit type."""
     return ast.BitType(ast.IntegerLiteral(size) if size is not None else None)
+
+
+def arrayreference_(
+    dtype: Union[
+        ast.IntType,
+        ast.UintType,
+        ast.FloatType,
+        ast.AngleType,
+        ast.DurationType,
+        ast.BitType,
+        ast.BoolType,
+        ast.ComplexType,
+    ],
+    dims: int | list[int],
+) -> ast.ArrayReferenceType:
+    """Create an array reference type."""
+    dim = (
+        ast.IntegerLiteral(dims) if isinstance(dims, int) else [ast.IntegerLiteral(d) for d in dims]
+    )
+    return ast.ArrayReferenceType(base_type=dtype, dimensions=dim)
 
 
 duration = ast.DurationType()
