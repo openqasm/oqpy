@@ -2579,3 +2579,11 @@ def test_function_call(args, assigns_to, expected):
     prog.function_call("my_function", args, assigns_to)
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_delay_with_negative_duration():
+    prog = Program()
+    port = oqpy.PortVar(name="my_port")
+    frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
+    with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
+        prog.delay(-4e-9, frame)
