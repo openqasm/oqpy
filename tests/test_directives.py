@@ -2587,3 +2587,12 @@ def test_delay_with_negative_duration():
     frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
     with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
         prog.delay(-4e-9, frame)
+
+
+def test_box_with_negative_duration():
+    prog = Program()
+    with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
+        with Box(prog, -4e-9):
+            pass
+
+

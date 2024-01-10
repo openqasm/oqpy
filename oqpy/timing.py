@@ -43,7 +43,7 @@ __all__ = ["Box", "convert_float_to_duration", "convert_float_to_duration", "mak
 def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[None]:
     """Creates a section of the program with a specified duration."""
     if duration is not None:
-        duration = convert_float_to_duration(duration)
+        duration = convert_float_to_duration(duration, require_nonnegative=True)
     program._push()
     yield
     state = program._pop()
