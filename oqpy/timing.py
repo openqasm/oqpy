@@ -43,7 +43,7 @@ __all__ = ["Box", "convert_float_to_duration", "convert_float_to_duration", "mak
 def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[None]:
     """Creates a section of the program with a specified duration."""
     if duration is not None:
-        duration = convert_float_to_duration(duration)
+        duration = convert_float_to_duration(duration, require_nonnegative=True)
     program._push()
     yield
     state = program._pop()
@@ -60,9 +60,17 @@ def make_duration(time: AstConvertible) -> HasToAst:
     return convert_float_to_duration(time)
 
 
-def convert_float_to_duration(time: AstConvertible) -> HasToAst:
-    """Make value into an expression representing a duration."""
+def convert_float_to_duration(time: AstConvertible, require_nonnegative: bool = False) -> HasToAst:
+    """Make value into an expression representing a duration.
+
+    Args:
+      time: the time
+      require_nonnegative: if True, raise an exception if the time value is known to
+        be negative.
+    """
     if isinstance(time, (float, int)):
+        if require_nonnegative and time < 0:
+            raise ValueError(f"Expected a non-negative duration, but got {time}")
         return OQDurationLiteral(time)
     if hasattr(time, "_to_oqpy_expression"):
         time = cast(ExpressionConvertible, time)
