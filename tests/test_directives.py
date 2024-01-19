@@ -1572,19 +1572,29 @@ def test_expression_convertible():
 
         def _to_oqpy_expression(self):
             return DurationVar(1e-7, self.name)
+        
+    @dataclass
+    class B:
+        name: str
+
+        def _to_oqpy_expression(self):
+            return FloatVar(1e-7, self.name)
 
     frame = FrameVar(name="f1")
     prog = Program()
     prog.set(A("a1"), 2)
     prog.delay(A("a2"), frame)
+    prog.delay(B("b1"), frame)
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         duration a1 = 100.0ns;
         duration a2 = 100.0ns;
         frame f1;
+        float[64] b1 = 1e-07;
         a1 = 2;
         delay[a2] f1;
+        delay[b1 * 1s] f1;
         """
     ).strip()
     assert prog.to_qasm() == expected
@@ -2579,3 +2589,20 @@ def test_function_call(args, assigns_to, expected):
     prog.function_call("my_function", args, assigns_to)
     assert prog.to_qasm() == expected
     _check_respects_type_hints(prog)
+
+
+def test_delay_with_negative_duration():
+    prog = Program()
+    port = oqpy.PortVar(name="my_port")
+    frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
+    with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
+        prog.delay(-4e-9, frame)
+
+
+def test_box_with_negative_duration():
+    prog = Program()
+    with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
+        with Box(prog, -4e-9):
+            pass
+
+

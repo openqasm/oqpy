@@ -423,7 +423,7 @@ class Program:
         """Apply a delay to a set of qubits or frames."""
         if not isinstance(qubits_or_frames, Iterable):
             qubits_or_frames = [qubits_or_frames]
-        ast_duration = to_ast(self, convert_float_to_duration(time))
+        ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
         ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
         self._add_statement(ast.DelayInstruction(ast_duration, ast_qubits_or_frames))
         return self
