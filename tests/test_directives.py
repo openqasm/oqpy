@@ -1579,12 +1579,18 @@ def test_expression_convertible():
 
         def _to_oqpy_expression(self):
             return FloatVar(1e-7, self.name)
+    
+    @dataclass
+    class C:
+        def _to_oqpy_expression(self):
+            return 1e-7
 
     frame = FrameVar(name="f1")
     prog = Program()
     prog.set(A("a1"), 2)
     prog.delay(A("a2"), frame)
     prog.delay(B("b1"), frame)
+    prog.delay(C(), frame)
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
@@ -1595,6 +1601,7 @@ def test_expression_convertible():
         a1 = 2;
         delay[a2] f1;
         delay[b1 * 1s] f1;
+        delay[100.0ns] f1;
         """
     ).strip()
     assert prog.to_qasm() == expected
