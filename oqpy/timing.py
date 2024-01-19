@@ -72,6 +72,12 @@ def convert_float_to_duration(time: AstConvertible, require_nonnegative: bool = 
         if require_nonnegative and time < 0:
             raise ValueError(f"Expected a non-negative duration, but got {time}")
         return OQDurationLiteral(time)
+    if hasattr(time, "_to_oqpy_expression"):
+        time = cast(ExpressionConvertible, time)
+        time = time._to_oqpy_expression()
+    if hasattr(time, "_to_cached_oqpy_expression"):
+        time = cast(CachedExpressionConvertible, time)
+        time = time._to_cached_oqpy_expression()
     if isinstance(time, OQPyExpression):
         if isinstance(time.type, (ast.UintType, ast.IntType, ast.FloatType)):
             time = time * OQDurationLiteral(1)
@@ -79,12 +85,6 @@ def convert_float_to_duration(time: AstConvertible, require_nonnegative: bool = 
             raise TypeError(f"Cannot convert expression with type {time.type} to duration")
     if hasattr(time, "to_ast"):
         return time  # type: ignore[return-value]
-    if hasattr(time, "_to_oqpy_expression"):
-        time = cast(ExpressionConvertible, time)
-        return time._to_oqpy_expression()
-    if hasattr(time, "_to_cached_oqpy_expression"):
-        time = cast(CachedExpressionConvertible, time)
-        return time._to_cached_oqpy_expression()
     raise TypeError(
         f"Expected either float, int, HasToAst or ExpressionConverible: Got {type(time)}"
     )
