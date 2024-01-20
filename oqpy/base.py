@@ -181,6 +181,11 @@ class OQPyExpression:
         )
 
 
+class OqpyIterable:
+    def __iter__(self):
+        raise Exception("Cannot iterate until runtime.")
+
+
 def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
     if isinstance(val, OQPyExpression):
         return val.type
@@ -521,7 +526,7 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
             to_ast(program, item.stop - 1) if item.stop is not None else None,
             to_ast(program, item.step) if item.step is not None else None,
         )
-    if isinstance(item, Iterable):
+    if isinstance(item, Iterable) and not isinstance(item, OqpyIterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
     if isinstance(item, ast.Expression):
         return item
