@@ -116,13 +116,14 @@ def test_version_string():
 def test_variable_declaration():
     b = BoolVar(True, "b")
     i = IntVar(-4, "i")
+    j = IntVar[None](4, "j")
     u = UintVar(5, "u")
     x = DurationVar(100e-9, "blah")
     y = FloatVar[50](3.3, "y")
     ang = AngleVar(name="ang")
     arr = BitVar[20](name="arr")
     c = BitVar(name="c")
-    vars = [b, i, u, x, y, ang, arr, c]
+    vars = [b, i, j, u, x, y, ang, arr, c]
 
     prog = Program(version=None)
     prog.declare(vars)
@@ -154,6 +155,7 @@ def test_variable_declaration():
         int[32] index = 2;
         bool b = true;
         int[32] i = -4;
+        int j = 4;
         uint[32] u = 5;
         duration blah = 100.0ns;
         float[50] y = 3.3;
@@ -189,6 +191,7 @@ def test_complex_numbers_declaration():
         ComplexVar[float32](1.2 - 2.1j, name="z_with_type1"),
         ComplexVar[float_(16)](1.2 - 2.1j, name="z_with_type2"),
         ComplexVar(1.2 - 2.1j, base_type=float_(16), name="z_with_type3"),
+        ComplexVar(1.2 - 2.1j, base_type=float_(), name="z_with_type4"),
     ]
     with pytest.raises(AssertionError):
         ComplexVar(-2j, base_type=IntVar, name="z12")
