@@ -1,5 +1,10 @@
 # OQpy: Generating OpenQASM 3 + OpenPulse in Python
 
+[![Latest Version](https://img.shields.io/pypi/v/oqpy.svg)](https://pypi.python.org/pypi/oqpy)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/oqpy.svg)](https://pypi.python.org/pypi/oqpy)
+[![Build status](https://github.com/openqasm/oqpy/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/openqasm/oqpy/actions/workflows/test.yml)
+[![Documentation Status](https://img.shields.io/readthedocs/oqpy.svg?logo=read-the-docs)](https://oqpy.readthedocs.io/en/latest/?badge=latest)
+
 The goal of `oqpy` ("ock-pie") is to make it easy to generate OpenQASM 3 + OpenPulse in Python. The
 `oqpy` library builds off of the [`openqasm3`][openqasm3] and [`openpulse`][openpulse] packages,
 which serve as Python reference implementations of the _abstract syntax tree_ (AST) for the
