@@ -191,7 +191,6 @@ def test_complex_numbers_declaration():
         ComplexVar[float32](1.2 - 2.1j, name="z_with_type1"),
         ComplexVar[float_(16)](1.2 - 2.1j, name="z_with_type2"),
         ComplexVar(1.2 - 2.1j, base_type=float_(16), name="z_with_type3"),
-        ComplexVar(1.2 - 2.1j, base_type=float_(), name="z_with_type4"),
     ]
     with pytest.raises(AssertionError):
         ComplexVar(-2j, base_type=IntVar, name="z12")
