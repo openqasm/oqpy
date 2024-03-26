@@ -85,8 +85,7 @@ def ForIn(
     program: Program,
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
-) -> contextlib._GeneratorContextManager[IntVar]:
-    ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[IntVar]: ...  # pragma: no cover
 
 
 @overload
@@ -95,8 +94,7 @@ def ForIn(
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
     identifier_type: type[ClassicalVarT],
-) -> contextlib._GeneratorContextManager[ClassicalVarT]:
-    ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[ClassicalVarT]: ...  # pragma: no cover
 
 
 @contextlib.contextmanager
