@@ -470,17 +470,14 @@ AstConvertible = Union[
 def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     """Convert an object to an AST node."""
     if hasattr(item, "_to_oqpy_expression"):
-        item = cast(ExpressionConvertible, item)
-        return item._to_oqpy_expression().to_ast(program)
+        item = cast(ExpressionConvertible, item)._to_oqpy_expression()
     if hasattr(item, "_to_cached_oqpy_expression"):
         item = cast(CachedExpressionConvertible, item)
         if item._oqpy_cache_key is None:
             item._oqpy_cache_key = uuid.uuid1()
         if item._oqpy_cache_key not in program.expr_cache:
-            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression().to_ast(
-                program
-            )
-        return program.expr_cache[item._oqpy_cache_key]
+            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression()
+        item = program.expr_cache[item._oqpy_cache_key]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:
             return to_ast(program, item.real)

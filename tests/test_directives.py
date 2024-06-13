@@ -1586,10 +1586,13 @@ def test_expression_convertible():
     class C:
         def _to_oqpy_expression(self):
             return 1e-7
+        def __rmul__(self, other):
+            return other * self._to_oqpy_expression()
 
     frame = FrameVar(name="f1")
     prog = Program()
     prog.set(A("a1"), 2)
+    prog.set(FloatVar(name="c1"), 3 * C())
     prog.delay(A("a2"), frame)
     prog.delay(B("b1"), frame)
     prog.delay(C(), frame)
@@ -1597,10 +1600,12 @@ def test_expression_convertible():
         """
         OPENQASM 3.0;
         duration a1 = 100.0ns;
+        float[64] c1;
         duration a2 = 100.0ns;
         frame f1;
         float[64] b1 = 1e-07;
         a1 = 2;
+        c1 = 3e-07;
         delay[a2] f1;
         delay[b1 * 1s] f1;
         delay[100.0ns] f1;
