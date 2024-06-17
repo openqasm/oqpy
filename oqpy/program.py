@@ -428,7 +428,11 @@ class Program:
         if qubits_or_frames is None:
             ast_qubits_or_frames = []
         else:
-            qubits_or_frames = list(qubits_or_frames) if isinstance(qubits_or_frames, Iterable) else [qubits_or_frames]
+            qubits_or_frames = (
+                list(qubits_or_frames)
+                if isinstance(qubits_or_frames, Iterable)
+                else [qubits_or_frames]
+            )
             if len(qubits_or_frames) == 0:
                 return self
             ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
