@@ -30,7 +30,7 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.base import OQPyBinaryExpression, OQPyExpression, expr_matches, logical_and, logical_or
 from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
@@ -421,6 +421,7 @@ def test_binary_expressions():
     prog.set(d, 5e-9 - d)
     prog.set(d, d + convert_float_to_duration(10e-9))
     prog.set(f, d / convert_float_to_duration(1))
+    prog.set(k, OQPyBinaryExpression("+", 2, k))
 
     with pytest.raises(ValueError):
         prog.set(f, "a" * i)
@@ -436,6 +437,8 @@ def test_binary_expressions():
         prog.set(d, 5j / d)
     with pytest.raises(TypeError):
         prog.set(d, 5j * d)
+    with pytest.raises(ValueError):
+        OQPyBinaryExpression(".", d, d)
 
     expected = textwrap.dedent(
         """
@@ -479,6 +482,7 @@ def test_binary_expressions():
         d = 5.0ns - d;
         d = d + 10.0ns;
         f = d / 1s;
+        k = 2 + k;
         """
     ).strip()
 
@@ -1623,21 +1627,34 @@ def test_expression_convertible():
         def _to_oqpy_expression(self):
             return FloatVar(1e-7, self.name)
 
+    @dataclass
+    class C:
+        def _to_oqpy_expression(self):
+            return 1e-7
+
+        def __rmul__(self, other):
+            return other * self._to_oqpy_expression()
+
     frame = FrameVar(name="f1")
     prog = Program()
     prog.set(A("a1"), 2)
+    prog.set(FloatVar(name="c1"), 3 * C())
     prog.delay(A("a2"), frame)
     prog.delay(B("b1"), frame)
+    prog.delay(C(), frame)
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
         duration a1 = 100.0ns;
+        float[64] c1;
         duration a2 = 100.0ns;
         frame f1;
         float[64] b1 = 1e-07;
         a1 = 2;
+        c1 = 3e-07;
         delay[a2] f1;
         delay[b1 * 1s] f1;
+        delay[100.0ns] f1;
         """
     ).strip()
     assert prog.to_qasm() == expected
