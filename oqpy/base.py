@@ -338,7 +338,7 @@ def expr_matches(a: Any, b: Any) -> bool:
 class ExpressionConvertible(Protocol):
     """This is the protocol an object can implement in order to be usable as an expression."""
 
-    def _to_oqpy_expression(self) -> HasToAst:
+    def _to_oqpy_expression(self) -> AstConvertible:
         ...  # pragma: no cover
 
 
@@ -403,7 +403,7 @@ class OQPyBinaryExpression(OQPyExpression):
             elif isinstance(rhs, OQPyExpression):
                 ast_type = rhs.type
             else:
-                raise TypeError("Neither lhs nor rhs is an expression?")
+                raise TypeError("Cannot infer ast_type from lhs or rhs. Please provide it if possible.")
         self.type = ast_type
 
         # Adding floats to durations is not allowed. So we promote types as necessary.
