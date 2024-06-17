@@ -381,12 +381,17 @@ class OQPyBinaryExpression(OQPyExpression):
 
     def __init__(
         self,
-        op: ast.BinaryOperator,
+        op: ast.BinaryOperator | str,
         lhs: AstConvertible,
         rhs: AstConvertible,
         ast_type: ast.ClassicalType | None = None,
     ):
         super().__init__()
+        if isinstance(op, str):
+            try:
+                op = ast.BinaryOperator[op]
+            except KeyError as e:
+                raise ValueError(f"Invalid binary operator {op}") from e
         self.op = op
         self.lhs = lhs
         self.rhs = rhs

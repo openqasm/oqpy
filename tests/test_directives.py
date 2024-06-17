@@ -30,7 +30,7 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.base import OQPyBinaryExpression, OQPyExpression, expr_matches, logical_and, logical_or
 from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
@@ -421,6 +421,7 @@ def test_binary_expressions():
     prog.set(d, 5e-9 - d)
     prog.set(d, d + convert_float_to_duration(10e-9))
     prog.set(f, d / convert_float_to_duration(1))
+    prog.set(k, OQPyBinaryExpression("+", 2, k))
 
     with pytest.raises(ValueError):
         prog.set(f, "a" * i)
@@ -436,6 +437,8 @@ def test_binary_expressions():
         prog.set(d, 5j / d)
     with pytest.raises(TypeError):
         prog.set(d, 5j * d)
+    with pytest.raises(ValueError):
+        OQPyBinaryExpression(".", d, d)
 
     expected = textwrap.dedent(
         """
@@ -479,6 +482,7 @@ def test_binary_expressions():
         d = 5.0ns - d;
         d = d + 10.0ns;
         f = d / 1s;
+        k = 2 + k;
         """
     ).strip()
 
