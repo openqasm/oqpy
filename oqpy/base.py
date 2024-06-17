@@ -403,7 +403,9 @@ class OQPyBinaryExpression(OQPyExpression):
             elif isinstance(rhs, OQPyExpression):
                 ast_type = rhs.type
             else:
-                raise TypeError("Cannot infer ast_type from lhs or rhs. Please provide it if possible.")
+                raise TypeError(
+                    "Cannot infer ast_type from lhs or rhs. Please provide it if possible."
+                )
         self.type = ast_type
 
         # Adding floats to durations is not allowed. So we promote types as necessary.
