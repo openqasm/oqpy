@@ -1080,6 +1080,7 @@ def test_invalid_extern_declaration():
     with pytest.raises(Exception, match="Argument.*"):
         _ = declare_extern("invalid", [int32])
 
+
 def test_defcals():
     prog = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
@@ -1574,7 +1575,7 @@ def test_expression_convertible():
 
         def _to_oqpy_expression(self):
             return DurationVar(1e-7, self.name)
-        
+
     @dataclass
     class B:
         name: str
@@ -2606,5 +2607,3 @@ def test_box_with_negative_duration():
     with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
         with Box(prog, -4e-9):
             pass
-
-
