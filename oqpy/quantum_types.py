@@ -24,13 +24,13 @@ from openpulse import ast
 from openpulse.printer import dumps
 
 from oqpy.base import AstConvertible, Var, make_annotations, to_ast
-from oqpy.classical_types import _ClassicalVar
+from oqpy.classical_types import AngleVar, _ClassicalVar
 
 if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["Qubit", "QubitArray", "defcal", "PhysicalQubits", "Cal"]
+__all__ = ["Qubit", "defcal", "gate", "PhysicalQubits", "Cal"]
 
 
 class Qubit(Var):
@@ -39,12 +39,23 @@ class Qubit(Var):
     def __init__(
         self,
         name: str,
+        size: Optional[int] = None,
         needs_declaration: bool = True,
         annotations: Sequence[str | tuple[str, str]] = (),
     ):
         super().__init__(name, needs_declaration=needs_declaration)
         self.name = name
+        self.size = size
         self.annotations = annotations
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Qubit) and self.name == other.name
+
+    def __lt__(self, other: Qubit) -> bool:
+        return self.name < other.name
 
     def to_ast(self, prog: Program) -> ast.Expression:
         """Converts the OQpy variable into an ast node."""
@@ -53,9 +64,19 @@ class Qubit(Var):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
-        decl = ast.QubitDeclaration(ast.Identifier(self.name), size=None)
+        if self.size == 0:
+            raise ValueError("The size of the qubit register cannot be zero.")
+        decl = ast.QubitDeclaration(
+            ast.Identifier(self.name),
+            size=ast.IntegerLiteral(self.size) if self.size else None,
+        )
         decl.annotations = make_annotations(self.annotations)
         return decl
+
+    def __getitem__(self, index: AstConvertible) -> IndexedQubitArray:
+        if self.size is None:
+            raise TypeError(f"'{self.name}' is not subscriptable")
+        return IndexedQubitArray(collection=self, index=index)
 
 
 class PhysicalQubits:
@@ -65,12 +86,72 @@ class PhysicalQubits:
     """
 
     def __class_getitem__(cls, item: int) -> Qubit:
+        assert isinstance(item, int)
         return Qubit(f"${item}", needs_declaration=False)
 
 
-# Todo (#51): support QubitArray
-class QubitArray:
-    """Represents an array of qubits."""
+class IndexedQubitArray:
+    """Represents an indexed qubit array."""
+
+    def __init__(self, collection: Qubit, index: AstConvertible):
+        self.collection = collection
+        self.index = index
+
+    def to_ast(self, program: Program) -> ast.IndexedIdentifier:
+        """Converts this indexed qubit array into an ast node."""
+        return ast.IndexedIdentifier(
+            name=to_ast(program, self.collection), indices=[[to_ast(program, self.index)]]
+        )
+
+
+@contextlib.contextmanager
+def gate(
+    program: Program,
+    qubits: Union[Qubit, list[Qubit]],
+    name: str,
+    arguments: Optional[list[AstConvertible]] = None,
+    declare_here: bool = False,
+) -> Union[Iterator[None], Iterator[list[AngleVar]], Iterator[AngleVar]]:
+    """Context manager for creating a gate.
+
+    .. code-block:: python
+
+        with gate(program, q1, "HRzH", [AngleVar(name="theta")]) as theta:
+            program.gate(q1, "H")
+            program.gate(q1, "Rz", theta)
+            program.gate(q1, "H")
+    """
+    if isinstance(qubits, Qubit):
+        qubits = [qubits]
+
+    arguments_ast = []
+    variables = []
+    if arguments is not None:
+        for arg in arguments:
+            if not isinstance(arg, AngleVar):
+                raise ValueError(arg, "Gates only support args of type AngleVar.")
+            arguments_ast.append(ast.Identifier(name=arg.name))
+            arg._needs_declaration = False
+            variables.append(arg)
+
+    program._push()
+    if len(variables) > 1:
+        yield variables
+    elif len(variables) == 1:
+        yield variables[0]
+    else:
+        yield None
+    state = program._pop()
+
+    stmt = ast.QuantumGateDefinition(
+        name=ast.Identifier(name),
+        arguments=arguments_ast,
+        qubits=[ast.Identifier(q.name) for q in qubits],
+        body=state.body,
+    )
+    if declare_here:
+        program._add_statement(stmt)
+    program._add_gate(name, stmt, needs_declaration=not declare_here)
 
 
 @contextlib.contextmanager

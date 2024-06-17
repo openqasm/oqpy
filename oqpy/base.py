@@ -22,19 +22,25 @@ they are converted to AST nodes.
 from __future__ import annotations
 
 import math
-import sys
+import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Hashable,
+    Iterable,
+    Optional,
+    Protocol,
+    Sequence,
+    Union,
+    cast,
+    runtime_checkable,
+)
 
 import numpy as np
 from openpulse import ast
 
 from oqpy import classical_types
-
-if sys.version_info >= (3, 8):
-    from typing import Protocol, runtime_checkable
-else:
-    from typing_extensions import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from oqpy import Program
@@ -333,7 +339,24 @@ class ExpressionConvertible(Protocol):
     """This is the protocol an object can implement in order to be usable as an expression."""
 
     def _to_oqpy_expression(self) -> HasToAst:
-        ...
+        ...  # pragma: no cover
+
+
+@runtime_checkable
+class CachedExpressionConvertible(Protocol):
+    """This is the protocol an object can implement in order to be usable as an expression.
+
+    The difference between this and `ExpressionConvertible` is that
+    this requires that the result of `_to_cached_oqpy_expression` be
+    constant across the lifetime of the OQPy Program. OQPy makes an
+    effort to minimize the number of calls to the AST constructor, but
+    no guarantees are made about this.
+    """
+
+    _oqpy_cache_key: Hashable
+
+    def _to_cached_oqpy_expression(self) -> HasToAst:
+        ...  # pragma: no cover
 
 
 class OQPyUnaryExpression(OQPyExpression):
@@ -346,7 +369,7 @@ class OQPyUnaryExpression(OQPyExpression):
         if isinstance(exp, OQPyExpression):
             self.type = exp.type
         else:
-            raise TypeError("exp is an expression")
+            raise TypeError("exp is not an expression")
 
     def to_ast(self, program: Program) -> ast.UnaryExpression:
         """Converts the OQpy expression into an ast node."""
@@ -428,18 +451,36 @@ class HasToAst(Protocol):
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Converts the OQpy object into an ast node."""
-        ...
+        ...  # pragma: no cover
 
 
 AstConvertible = Union[
-    HasToAst, bool, int, float, complex, Iterable, ExpressionConvertible, ast.Expression
+    HasToAst,
+    bool,
+    int,
+    float,
+    complex,
+    Iterable,
+    ExpressionConvertible,
+    CachedExpressionConvertible,
+    ast.Expression,
 ]
 
 
 def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
     """Convert an object to an AST node."""
     if hasattr(item, "_to_oqpy_expression"):
+        item = cast(ExpressionConvertible, item)
         return item._to_oqpy_expression().to_ast(program)
+    if hasattr(item, "_to_cached_oqpy_expression"):
+        item = cast(CachedExpressionConvertible, item)
+        if item._oqpy_cache_key is None:
+            item._oqpy_cache_key = uuid.uuid1()
+        if item._oqpy_cache_key not in program.expr_cache:
+            program.expr_cache[item._oqpy_cache_key] = item._to_cached_oqpy_expression().to_ast(
+                program
+            )
+        return program.expr_cache[item._oqpy_cache_key]
     if isinstance(item, (complex, np.complexfloating)):
         if item.imag == 0:
             return to_ast(program, item.real)
@@ -474,6 +515,12 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
         if program.simplify_constants:
             return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
+    if isinstance(item, slice):
+        return ast.RangeDefinition(
+            to_ast(program, item.start) if item.start is not None else None,
+            to_ast(program, item.stop - 1) if item.stop is not None else None,
+            to_ast(program, item.step) if item.step is not None else None,
+        )
     if isinstance(item, Iterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
     if isinstance(item, ast.Expression):

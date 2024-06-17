@@ -20,6 +20,7 @@ from __future__ import annotations
 import functools
 import random
 import string
+import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -49,6 +50,11 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from oqpy.program import Program
+
+    if sys.version_info < (3, 10):
+        EllipsisType = type(Ellipsis)
+    else:
+        from types import EllipsisType
 
 __all__ = [
     "pi",
@@ -86,6 +92,7 @@ __all__ = [
     "complex128",
     "angle_",
     "angle32",
+    "arrayreference_",
 ]
 
 # The following methods and constants are useful for creating signatures
@@ -127,6 +134,26 @@ def complex_(size: int) -> ast.ComplexType:
 def bit_(size: int | None = None) -> ast.BitType:
     """Create a sized bit type."""
     return ast.BitType(ast.IntegerLiteral(size) if size is not None else None)
+
+
+def arrayreference_(
+    dtype: Union[
+        ast.IntType,
+        ast.UintType,
+        ast.FloatType,
+        ast.AngleType,
+        ast.DurationType,
+        ast.BitType,
+        ast.BoolType,
+        ast.ComplexType,
+    ],
+    dims: int | list[int],
+) -> ast.ArrayReferenceType:
+    """Create an array reference type."""
+    dim = (
+        ast.IntegerLiteral(dims) if isinstance(dims, int) else [ast.IntegerLiteral(d) for d in dims]
+    )
+    return ast.ArrayReferenceType(base_type=dtype, dimensions=dim)
 
 
 duration = ast.DurationType()
@@ -221,13 +248,15 @@ class _SizedVar(_ClassicalVar):
     default_size: int | None = None
     size: int | None
 
-    def __class_getitem__(cls: Type[_SizedVarT], item: int) -> Callable[..., _SizedVarT]:
+    def __class_getitem__(cls: Type[_SizedVarT], item: int | None) -> Callable[..., _SizedVarT]:
         # Allows IntVar[64]() notation
         return functools.partial(cls, size=item)
 
-    def __init__(self, *args: Any, size: int | None = None, **kwargs: Any):
-        if size is None:
+    def __init__(self, *args: Any, size: int | None | EllipsisType = ..., **kwargs: Any):
+        if size is ...:
             self.size = self.default_size
+        elif size is None:
+            self.size = size
         else:
             if not isinstance(size, int) or size <= 0:
                 raise ValueError(
@@ -235,6 +264,25 @@ class _SizedVar(_ClassicalVar):
                 )
             self.size = size
         super().__init__(*args, **kwargs, size=ast.IntegerLiteral(self.size) if self.size else None)
+
+    def _validate_getitem_index(self, index: AstConvertible) -> None:
+        """Validate the index and variable for `__getitem__`.
+
+        Args:
+            var (_SizedVar): Variable to apply `__getitem__`.
+            index (AstConvertible): Index for `__getitem__`.
+        """
+        if self.size is None:
+            raise TypeError(f"'{self.name}' is not subscriptable")
+
+        if isinstance(index, int):
+            if not 0 <= index < self.size:
+                raise IndexError("list index out of range.")
+        elif isinstance(index, OQPyExpression):
+            if not isinstance(index.type, (ast.IntType, ast.UintType)):
+                raise IndexError("The list index must be an integer.")
+        else:
+            raise IndexError("The list index must be an integer.")
 
 
 _SizedVarT = TypeVar("_SizedVarT", bound=_SizedVar)
@@ -273,22 +321,9 @@ class BitVar(_SizedVar):
 
     type_cls = ast.BitType
 
-    def __getitem__(self, idx: Union[int, slice, Iterable[int]]) -> BitVar:
-        if self.size is None:
-            raise TypeError(f"'{self.type_cls}' object is not subscriptable")
-        if isinstance(idx, int):
-            if 0 <= idx < self.size:
-                return BitVar(
-                    init_expression=ast.IndexExpression(
-                        ast.Identifier(self.name), [ast.IntegerLiteral(idx)]
-                    ),
-                    name=f"{self.name}[{idx}]",
-                    needs_declaration=False,
-                )
-            else:
-                raise IndexError("list index out of range.")
-        else:
-            raise IndexError("The list index must be an integer.")
+    def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
+        self._validate_getitem_index(index)
+        return OQIndexExpression(collection=self, index=index, type_=self.type_cls())
 
 
 class ComplexVar(_ClassicalVar):
@@ -394,18 +429,16 @@ class ArrayVar(_ClassicalVar):
         )
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        return OQIndexExpression(collection=self, index=index)
+        return OQIndexExpression(collection=self, index=index, type_=self.base_type().type_cls())
 
 
 class OQIndexExpression(OQPyExpression):
     """An oqpy expression corresponding to an index expression."""
 
-    def __init__(self, collection: AstConvertible, index: AstConvertible):
+    def __init__(self, collection: AstConvertible, index: AstConvertible, type_: ast.ClassicalType):
         self.collection = collection
         self.index = index
-
-        if isinstance(collection, ArrayVar):
-            self.type = collection.base_type().type_cls()
+        self.type = type_
 
     def to_ast(self, program: Program) -> ast.IndexExpression:
         """Converts this oqpy index expression into an ast node."""
@@ -420,7 +453,7 @@ class OQFunctionCall(OQPyExpression):
     def __init__(
         self,
         identifier: Union[str, ast.Identifier],
-        args: Iterable[AstConvertible],
+        args: Union[Iterable[AstConvertible], dict[Any, AstConvertible]],
         return_type: Optional[ast.ClassicalType],
         extern_decl: ast.ExternDeclaration | None = None,
         subroutine_decl: ast.SubroutineDefinition | None = None,
@@ -429,7 +462,8 @@ class OQFunctionCall(OQPyExpression):
 
         Args:
             identifier: The function name.
-            args: The function arguments.
+            args: The function arguments. If passed as a dict, the values are used when
+                creating the FunctionCall ast node.
             return_type: The type returned by the function call. If none, returns nothing.
             extern_decl: An optional extern declaration ast node. If present,
                 this extern declaration will be added to the top of the program
@@ -453,4 +487,5 @@ class OQFunctionCall(OQPyExpression):
             program.externs[self.identifier.name] = self.extern_decl
         if self.subroutine_decl is not None:
             program._add_subroutine(self.identifier.name, self.subroutine_decl)
-        return ast.FunctionCall(self.identifier, map_to_ast(program, self.args))
+        args = self.args.values() if isinstance(self.args, dict) else self.args
+        return ast.FunctionCall(self.identifier, map_to_ast(program, args))

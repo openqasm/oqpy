@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Any, Callable, Optional, Sequence, TypeVar, get_type_hints
+from dataclasses import dataclass
+from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, get_type_hints
 
 from mypy_extensions import VarArg
 from openpulse import ast
@@ -30,11 +31,24 @@ from oqpy.classical_types import OQFunctionCall, _ClassicalVar
 from oqpy.quantum_types import Qubit
 from oqpy.timing import convert_float_to_duration
 
-__all__ = ["subroutine", "declare_extern", "declare_waveform_generator"]
+__all__ = ["subroutine", "declare_extern", "declare_waveform_generator", "OQPyArgument"]
 
 SubroutineParams = [oqpy.Program, VarArg(AstConvertible)]
 
 FnType = TypeVar("FnType", bound=Callable[..., Any])
+
+
+@dataclass
+class OQPyArgument:
+    """An oqpy argument to extern declaration.."""
+
+    name: str
+    dtype: ast.ClassicalType
+    access: Literal["readonly", "mutable"] | None = None
+
+    def unzip(self) -> tuple[str, ast.ClassicalType, ast.AccessControl | None]:
+        """Returns the three values, name, dtype and access as a tuple."""
+        return self.name, self.dtype, ast.AccessControl[self.access] if self.access else None
 
 
 def enable_decorator_arguments(f: FnType) -> Callable[..., FnType]:
@@ -100,16 +114,26 @@ def subroutine(
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
+
+        # ArrayVar[] returns a partial function instead of a type.
+        # The underlying function of that partial should be ArrayVar itself.
+        type_hint = (
+            type_hints[argname].func
+            if isinstance(type_hints[argname], functools.partial)
+            else type_hints[argname]
+        )
+
+        if not issubclass(type_hint, (_ClassicalVar, Qubit)):
+            raise ValueError(
+                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
+            )
+
         input_ = inputs[argname] = type_hints[argname](name=argname)
 
         if isinstance(input_, _ClassicalVar):
             arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
         elif isinstance(input_, Qubit):
             arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
-        else:
-            raise ValueError(
-                f"Type hint for {argname} on subroutine {name} is not an oqpy variable type."
-            )
 
     inner_prog = oqpy.Program()
     for input_val in inputs.values():
@@ -152,7 +176,7 @@ def subroutine(
         program.externs.update(inner_prog.externs)
         return OQFunctionCall(
             identifier,
-            args,
+            {k: v for k, v in zip(argnames[1:], args)},
             return_type,
             subroutine_decl=stmt,
         )
@@ -163,7 +187,7 @@ def subroutine(
 
 def declare_extern(
     name: str,
-    args: list[tuple[str, ast.ClassicalType]],
+    args: list[tuple[str, ast.ClassicalType] | OQPyArgument],
     return_type: Optional[ast.ClassicalType] = None,
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
@@ -180,11 +204,28 @@ def declare_extern(
         program.set(var, sqrt(0.5))
 
     """
-    arg_names = list(zip(*(args)))[0] if args else []
-    arg_types = list(zip(*(args)))[1] if args else []
+    arg_names: list[str] = []
+    arg_types: list[ast.ClassicalType] = []
+    arg_access: list[ast.AccessControl | None] = []
+
+    for arg in args:
+        if isinstance(arg, tuple):
+            arg_name, arg_type = arg
+            access = None
+        elif isinstance(arg, OQPyArgument):
+            arg_name, arg_type, access = arg.unzip()
+        else:
+            raise Exception(f"Argument {arg} should have a proper type")
+        arg_names.append(arg_name)
+        arg_types.append(arg_type)
+        arg_access.append(access)
+
     extern_decl = ast.ExternDeclaration(
         ast.Identifier(name),
-        [ast.ExternArgument(type=t) for t in arg_types],
+        [
+            ast.ExternArgument(type=ctype, access=access)
+            for ctype, access in zip(arg_types, arg_access)
+        ],
         return_type,
     )
     extern_decl.annotations = make_annotations(annotations)
@@ -217,14 +258,16 @@ def declare_extern(
         for i, a in enumerate(call_args):
             if type(arg_types[i]) == ast.DurationType:
                 new_args[i] = convert_float_to_duration(a)
-        return OQFunctionCall(name, new_args, return_type, extern_decl=extern_decl)
+        return OQFunctionCall(
+            name, {k: v for k, v in zip(arg_names, new_args)}, return_type, extern_decl=extern_decl
+        )
 
     return call_extern
 
 
 def declare_waveform_generator(
     name: str,
-    argtypes: list[tuple[str, ast.ClassicalType]],
+    argtypes: list[tuple[str, ast.ClassicalType] | OQPyArgument],
     annotations: Sequence[str | tuple[str, str]] = (),
 ) -> Callable[..., OQFunctionCall]:
     """Create a function which generates waveforms using a specified name and argument signature."""
