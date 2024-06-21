@@ -30,7 +30,13 @@ from openpulse.printer import dumps
 
 import oqpy
 from oqpy import *
-from oqpy.base import OQPyBinaryExpression, OQPyExpression, expr_matches, logical_and, logical_or
+from oqpy.base import (
+    OQPyBinaryExpression,
+    OQPyExpression,
+    expr_matches,
+    logical_and,
+    logical_or,
+)
 from oqpy.classical_types import OQIndexExpression
 from oqpy.quantum_types import PhysicalQubits
 from oqpy.timing import OQDurationLiteral
@@ -310,7 +316,7 @@ def test_non_trivial_array_access():
     one = oqpy.IntVar(name="one", init_expression=1)
 
     with oqpy.ForIn(prog, range(4), "idx") as idx:
-        prog.delay(zero_to_one[idx + one] + one_second, frame)
+        prog.delay(frame, zero_to_one[idx + one] + one_second)
         prog.set(zero_to_one[idx], 5)
 
     expected = textwrap.dedent(
@@ -500,7 +506,7 @@ def test_add_incomptible_type():
     delay = oqpy.DurationVar(10e-9, name="d")
     f = oqpy.FloatVar(5e-9, "f")
 
-    prog.delay(delay + f, frame)
+    prog.delay(frame, delay + f)
 
     # Note the automatic conversion of float to duration. Do note that OpenQASM spec does not allows
     # `float * duration` but does allow for `const float * duration`. So this example is not
@@ -691,7 +697,7 @@ def test_for_in_var_types():
     delays = [1e-9, 2e-9, 5e-9, 10e-9, 1e-6]
 
     with oqpy.ForIn(program, delays, "d", DurationVar) as delay:
-        program.delay(delay, frame)
+        program.delay(frame, delay)
 
     expected = textwrap.dedent(
         """
@@ -818,7 +824,7 @@ def test_subroutine_with_return():
 
     @subroutine
     def delay50ns(prog: Program, q: Qubit) -> None:
-        prog.delay(50e-9, q)
+        prog.delay(q, 50e-9)
 
     q = PhysicalQubits[0]
     prog.do_expression(delay50ns(prog, q))
@@ -891,7 +897,7 @@ def test_subroutine_order():
 
     @subroutine
     def delay50ns(prog: Program, q: Qubit) -> None:
-        prog.delay(50e-9, q)
+        prog.delay(q, 50e-9)
 
     @subroutine
     def multiply(prog: Program, x: IntVar, y: IntVar) -> IntVar:
@@ -923,24 +929,37 @@ def test_subroutine_order():
 
 
 def test_barrier_delay_arguments():
+    @dataclass
+    class Q:
+        num: int
+
+        def _to_oqpy_expression(self):
+            return Qubit(f"q{self.num}")
+
     port = PortVar("portname")
     frame = FrameVar(port, 1e9, name="frame0")
     frame1 = FrameVar(port, 1.5e9, name="frame1")
     prog = Program()
     prog.barrier()
-    prog.delay(1e-7)
+    prog.delay_all(1e-7)
+    prog.delay(None, 1.5e-7)
     prog.barrier([])
-    prog.delay(2e-7, [])
+    prog.delay([], 2e-7)
     prog.barrier([frame, frame1])
-    prog.delay(3e-7, frame1)
-    prog.delay(4e-7, [frame, frame1])
+    prog.delay(frame1, 3e-7)
+    prog.delay([frame, frame1], 4e-7)
 
     def frame_generator(frames):
         for frame in frames:
             yield frame
 
     prog.barrier(frame_generator([frame, frame1]))
-    prog.delay(5e-7, frame_generator([frame, frame1]))
+    prog.delay(frame_generator([frame, frame1]), 5e-7)
+
+    prog.delay(Q(1), 6e-7)
+
+    with pytest.warns(DeprecationWarning, match="Arguments have been automatically swapped."):
+        prog.delay(7e-7, frame)
 
     expected = textwrap.dedent(
         """
@@ -948,13 +967,42 @@ def test_barrier_delay_arguments():
         port portname;
         frame frame0 = newframe(portname, 1000000000.0, 0);
         frame frame1 = newframe(portname, 1500000000.0, 0);
+        qubit q1;
         barrier;
         delay[100.0ns];
+        delay[150.0ns];
         barrier frame0, frame1;
         delay[300.0ns] frame1;
         delay[400.0ns] frame0, frame1;
         barrier frame0, frame1;
         delay[500.0ns] frame0, frame1;
+        delay[600.0ns] q1;
+        delay[700.0ns] frame0;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+@pytest.mark.xfail()
+def test_non_catching_deprecation():
+    @dataclass
+    class Q:
+        num: int
+
+        def _to_oqpy_expression(self):
+            return Qubit(f"q{self.num}")
+
+    prog = Program()
+    with pytest.warns(UserWarning, match="Arguments have been automatically swapped."):
+        prog.delay(8e-7, Q(1))
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        qubit q1;
+        delay[800.0ns] q1;
         """
     ).strip()
 
@@ -970,7 +1018,7 @@ def test_box_and_timings():
     prog = Program()
     with Box(prog, 500e-9):
         prog.play(frame, constant(100e-9, 0.5))
-        prog.delay(200e-7, frame)
+        prog.delay(frame, 200e-7)
         prog.play(frame, constant(100e-9, 0.5))
 
     with Box(prog):
@@ -1396,12 +1444,12 @@ def test_ramsey_example():
             prog.declare(tppi_angle)
             with ForIn(prog, range(81), "delay_increment") as delay_increment:
                 (
-                    prog.delay(100e-6)
+                    prog.delay_all(100e-6)
                     .set_phase(q_frame, 0)
                     .set_phase(rx_frame, 0)
                     .set_phase(tx_frame, 0)
                     .gate(q2, "x90")
-                    .delay(ramsey_delay)
+                    .delay_all(ramsey_delay)
                     .shift_phase(q_frame, tppi_angle)
                     .gate(q2, "x90")
                     .gate(q2, "readout")
@@ -1498,7 +1546,7 @@ def test_rabi_example():
     with ForIn(prog, range(1, 1001), "shot") as shot:
         prog.set_scale(q0_transmon_xy_frame, -0.2)
         with ForIn(prog, range(1, 102), "amplitude") as amplitude:
-            prog.delay(200e-6, frames)
+            prog.delay(frames, 200e-6)
             for frame in frames:
                 prog.set_phase(frame, 0)
             (
@@ -1550,7 +1598,7 @@ def test_program_add():
     prog1 = Program()
     constant = declare_waveform_generator("constant", [("length", duration), ("iq", complex128)])
 
-    prog1.delay(1e-6)
+    prog1.delay_all(1e-6)
 
     prog2 = Program()
     q1 = PhysicalQubits[1]
@@ -1639,9 +1687,9 @@ def test_expression_convertible():
     prog = Program()
     prog.set(A("a1"), 2)
     prog.set(FloatVar(name="c1"), 3 * C())
-    prog.delay(A("a2"), frame)
-    prog.delay(B("b1"), frame)
-    prog.delay(C(), frame)
+    prog.delay(frame, A("a2"))
+    prog.delay(frame, B("b1"))
+    prog.delay(frame, C())
     expected = textwrap.dedent(
         """
         OPENQASM 3.0;
@@ -1686,7 +1734,7 @@ def test_cached_expression_convertible():
     dur = A("dur")
     prog = Program()
     prog.set(dur, 2)
-    prog.delay(dur, frame)
+    prog.delay(frame, dur)
     prog.set(dur, 3)
     expected = textwrap.dedent(
         """
@@ -1899,7 +1947,7 @@ def test_annotate():
         prog.gate(q1, "x")
     with oqpy.Else(prog):
         prog.annotate(("annotation-in-else"))
-        prog.delay(convert_float_to_duration(1e-8), q1)
+        prog.delay(q1, convert_float_to_duration(1e-8))
     prog.annotate("annotation-after-if")
 
     prog.annotate("annotation-no-else-before-if")
@@ -2099,7 +2147,7 @@ def test_duration_literal_arithmetic():
     assert isinstance(repeated_delay, OQPyExpression)
     assert repeated_delay.type == ast.DurationType()
 
-    program.delay(repeated_delay, frame)
+    program.delay(frame, repeated_delay)
     program.shift_phase(frame, 2 * oqpy.pi * (delay_time / one_second))
 
     expected = textwrap.dedent(
@@ -2207,7 +2255,7 @@ def test_ramsey_example_blog():
             (
                 ramsey_prog.reset(qubit)  # prepare in ground state
                 .gate(qubit, "x90")  # pi/2 pulse
-                .delay(delay_time, qubit)  # variable delay
+                .delay(qubit, delay_time)  # variable delay
                 .gate(qubit, "x90")  # pi/2 pulse
                 .measure(qubit)  # final measurement
                 .increment(delay_time, 100e-9)
@@ -2235,7 +2283,7 @@ def test_ramsey_example_blog():
     )
 
     with oqpy.defcal(defcals_prog, qubit, "reset"):
-        defcals_prog.delay(1e-3)  # reset to ground state by waiting 1 millisecond
+        defcals_prog.delay_all(1e-3)  # reset to ground state by waiting 1 millisecond
 
     with oqpy.defcal(defcals_prog, qubit, "measure"):
         defcals_prog.play(tx_frame, constant_waveform(2.4e-6, 0.2))
@@ -2354,7 +2402,7 @@ def test_duration_coercion():
     frame = FrameVar(name="f1")
     prog = Program()
     v = oqpy.FloatVar(0.1, name="v")
-    prog.delay(v * 100e-9, frame)
+    prog.delay(frame, v * 100e-9)
     d = oqpy.DurationVar(100e-9, name="d")
     prog.shift_phase(frame, d * 1e4)
     expected = textwrap.dedent(
@@ -2656,7 +2704,7 @@ def test_delay_with_negative_duration():
     port = oqpy.PortVar(name="my_port")
     frame = oqpy.FrameVar(name="my_frame", port=port, frequency=1e9, phase=0)
     with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
-        prog.delay(-4e-9, frame)
+        prog.delay(frame, -4e-9)
 
 
 def test_box_with_negative_duration():

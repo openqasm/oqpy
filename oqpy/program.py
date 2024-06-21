@@ -419,11 +419,23 @@ class Program:
 
     def delay(
         self,
+        qubits_or_frames: AstConvertible | Iterable[AstConvertible] | None,
         time: AstConvertible,
-        qubits_or_frames: AstConvertible | Iterable[AstConvertible] | None = None,
     ) -> Program:
         """Apply a delay to a set of qubits or frames."""
-        ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
+        if isinstance(time, (quantum_types.Qubit, FrameVar, Iterable)):
+            # Deprecation branch
+            ast_duration = to_ast(
+                self, convert_float_to_duration(qubits_or_frames, require_nonnegative=True)
+            )
+            qubits_or_frames = time
+            warnings.warn(
+                "Arguments have been automatically swapped. qubits_or_frames is now the first argument. "
+                "Please update your code.",
+                DeprecationWarning,
+            )
+        else:
+            ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
 
         if qubits_or_frames is None:
             ast_qubits_or_frames = []
@@ -437,6 +449,16 @@ class Program:
                 return self
             ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
         self._add_statement(ast.DelayInstruction(ast_duration, ast_qubits_or_frames))
+        return self
+
+    def delay_all(
+        self,
+        time: AstConvertible,
+    ) -> Program:
+        """Apply a delay to all qubits or frames."""
+        ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
+
+        self._add_statement(ast.DelayInstruction(ast_duration, []))
         return self
 
     def barrier(self, qubits_or_frames: Iterable[AstConvertible] | None = None) -> Program:
