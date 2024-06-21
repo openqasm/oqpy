@@ -456,10 +456,7 @@ class Program:
         time: AstConvertible,
     ) -> Program:
         """Apply a delay to all qubits or frames."""
-        ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
-
-        self._add_statement(ast.DelayInstruction(ast_duration, []))
-        return self
+        return self.delay(None, time)
 
     def barrier(self, qubits_or_frames: Iterable[AstConvertible] | None = None) -> Program:
         """Apply a barrier to a set of qubits or frames."""

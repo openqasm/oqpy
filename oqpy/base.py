@@ -338,8 +338,7 @@ def expr_matches(a: Any, b: Any) -> bool:
 class ExpressionConvertible(Protocol):
     """This is the protocol an object can implement in order to be usable as an expression."""
 
-    def _to_oqpy_expression(self) -> AstConvertible:
-        ...  # pragma: no cover
+    def _to_oqpy_expression(self) -> AstConvertible: ...  # pragma: no cover
 
 
 @runtime_checkable
@@ -355,8 +354,7 @@ class CachedExpressionConvertible(Protocol):
 
     _oqpy_cache_key: Hashable
 
-    def _to_cached_oqpy_expression(self) -> HasToAst:
-        ...  # pragma: no cover
+    def _to_cached_oqpy_expression(self) -> HasToAst: ...  # pragma: no cover
 
 
 class OQPyUnaryExpression(OQPyExpression):
