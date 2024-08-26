@@ -318,6 +318,8 @@ def expr_matches(a: Any, b: Any) -> bool:
 
     This bypasses calling ``__eq__`` on expr objects.
     """
+    if a is b:
+        return True
     if type(a) is not type(b):
         return False
     if isinstance(a, (list, np.ndarray)):
@@ -328,7 +330,7 @@ def expr_matches(a: Any, b: Any) -> bool:
         if a.keys() != b.keys():
             return False
         return all(expr_matches(va, b[k]) for k, va in a.items())
-    if hasattr(a, "__dict__"):
+    if hasattr(a, "__dict__") and type(a).__module__.startswith("oqpy"):
         return expr_matches(a.__dict__, b.__dict__)
     else:
         return a == b

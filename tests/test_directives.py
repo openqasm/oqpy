@@ -2624,3 +2624,28 @@ def test_box_with_negative_duration():
     with pytest.raises(ValueError, match="Expected a non-negative duration, but got -4e-09"):
         with Box(prog, -4e-9):
             pass
+
+
+def test_expr_matches_handles_outside_data():
+    x1 = oqpy.FloatVar(3, name="x")
+    x2 = oqpy.FloatVar(3, name="x")
+    class MyEntity:
+        def __init__(self):
+            self.self_ref = self
+
+        def __eq__(self, other):
+            return True
+
+    x1._entity = MyEntity()
+    x2._entity = MyEntity()
+    assert oqpy.base.expr_matches(x1, x2)
+
+    class MyEntityNoEq:
+        def __init__(self):
+            self.self_ref = self
+        def __eq__(self, other):
+            raise RuntimeError("Eq not allowed")
+
+    x1._entity = MyEntityNoEq()
+    x2._entity = x1._entity
+    oqpy.base.expr_matches(x1, x2)
