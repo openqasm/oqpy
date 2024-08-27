@@ -2649,3 +2649,10 @@ def test_expr_matches_handles_outside_data():
     x1._entity = MyEntityNoEq()
     x2._entity = x1._entity
     oqpy.base.expr_matches(x1, x2)
+
+    class MyFloatVar(oqpy.FloatVar):
+        ...
+
+    x1 = MyFloatVar(3, name="x")
+    x2 = MyFloatVar(3, name="x")
+    assert oqpy.base.expr_matches(x1, x2)

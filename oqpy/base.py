@@ -330,7 +330,8 @@ def expr_matches(a: Any, b: Any) -> bool:
         if a.keys() != b.keys():
             return False
         return all(expr_matches(va, b[k]) for k, va in a.items())
-    if hasattr(a, "__dict__") and type(a).__module__.startswith("oqpy"):
+    if isinstance(a, OQPyExpression):
+        # Bypass `__eq__` which is overloaded on OQPyExpressions
         return expr_matches(a.__dict__, b.__dict__)
     else:
         return a == b
