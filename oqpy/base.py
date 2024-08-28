@@ -180,6 +180,12 @@ class OQPyExpression:
             "the equality of expressions using == instead of expr_matches."
         )
 
+    def _expr_matches(self, other: Any) -> bool:
+        """Called by expr_matches to compare expression instances."""
+        if not isinstance(other, type(self)):
+            return False
+        return expr_matches(self.__dict__, other.__dict__)
+
 
 def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
     if isinstance(val, OQPyExpression):
@@ -318,6 +324,8 @@ def expr_matches(a: Any, b: Any) -> bool:
 
     This bypasses calling ``__eq__`` on expr objects.
     """
+    if a is b:
+        return True
     if type(a) is not type(b):
         return False
     if isinstance(a, (list, np.ndarray)):
@@ -328,8 +336,9 @@ def expr_matches(a: Any, b: Any) -> bool:
         if a.keys() != b.keys():
             return False
         return all(expr_matches(va, b[k]) for k, va in a.items())
-    if hasattr(a, "__dict__"):
-        return expr_matches(a.__dict__, b.__dict__)
+    if isinstance(a, OQPyExpression):
+        # Bypass `__eq__` which is overloaded on OQPyExpressions
+        return a._expr_matches(b)
     else:
         return a == b
 
