@@ -180,7 +180,7 @@ class OQPyExpression:
             "the equality of expressions using == instead of expr_matches."
         )
 
-    def _expr_matches(self, other) -> bool:
+    def _expr_matches(self, other: Any) -> bool:
         """Called by expr_matches to compare expression instances."""
         if not isinstance(other, type(self)):
             return False
