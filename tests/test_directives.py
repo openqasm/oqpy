@@ -2655,6 +2655,7 @@ def test_expr_matches_handles_outside_data():
 
     x1 = MyFloatVar(3, name="x")
     x2 = MyFloatVar(3, name="x")
+    assert not x1._expr_matches(oqpy.FloatVar(3, name="x"))
     assert oqpy.base.expr_matches(x1, x2)
 
     class MyFloatVarWithIgnoredData(oqpy.FloatVar):
@@ -2667,7 +2668,6 @@ def test_expr_matches_handles_outside_data():
             d1.pop("ignored")
             d2.pop("ignored")
             return oqpy.base.expr_matches(d1, d2)
-
 
     x1 = MyFloatVarWithIgnoredData(3, name="x")
     x1.ignored = 1
