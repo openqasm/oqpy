@@ -1665,6 +1665,7 @@ def test_cached_expression_convertible():
     assert dur.count == 2
     # This gets computed just once
     assert frame.count == 1
+    assert all(isinstance(v, ast.QASMNode) for v in prog.expr_cache.values())
 
 
 def test_waveform_extern_arg_passing():
