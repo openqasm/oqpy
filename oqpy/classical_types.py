@@ -417,7 +417,7 @@ class ArrayVar(_ClassicalVar):
             array_base_type = base_type_instance.type_cls()
 
         # Automatically handle Duration array.
-        init = kwargs["init_expression"]
+        init = kwargs.get("init_expression")
         if (
             base_type is DurationVar
             and init is not None
@@ -427,9 +427,7 @@ class ArrayVar(_ClassicalVar):
                 and init == "input"
             )
         ):
-            kwargs["init_expression"] = (
-                convert_float_to_duration(i) for i in kwargs["init_expression"]
-            )
+            kwargs["init_expression"] = [convert_float_to_duration(i) for i in init]
 
         super().__init__(
             *args,
