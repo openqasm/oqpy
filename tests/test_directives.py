@@ -173,6 +173,70 @@ def test_variable_declaration():
     _check_respects_type_hints(prog)
 
 
+def test_input_variable_declaration():
+    b = BoolVar("input", "b")
+    i = IntVar("input", "i")
+    j = IntVar[None]("input", "j")
+    u = UintVar("input", "u")
+    x = DurationVar("input", "blah")
+    y = FloatVar[50]("input", "y")
+    z = FloatVar[50]("input", "z")
+    z.annotations = [("my_annotation", "1,2,3")]
+    ang = AngleVar("input", name="ang")
+    arr = BitVar[20]("input", name="arr")
+    c = BitVar("input", name="c")
+    vars = [b, i, j, u, x, y, z, ang, arr, c]
+
+    prog = Program(version=None)
+    prog.declare(vars)
+    prog.set(arr[1], 0)
+    index = IntVar("input", "index")
+    prog.set(arr[index], 1)
+    prog.set(arr[index + 1], 0)
+
+    y2 = FloatVar(2.5, "y")
+    with pytest.raises(RuntimeError):
+        prog.set(y2, 3.0)
+    with pytest.raises(IndexError):
+        prog.set(arr[40], 2)
+    with pytest.raises(ValueError):
+        BitVar[2.1](name="d")
+    with pytest.raises(ValueError):
+        BitVar[0](name="d")
+    with pytest.raises(ValueError):
+        BitVar[-1](name="d")
+    with pytest.raises(IndexError):
+        prog.set(arr[1.3], 0)
+    with pytest.raises(IndexError):
+        prog.set(arr[index * 2.0], 0)
+    with pytest.raises(TypeError):
+        prog.set(c[0], 1)
+
+    expected = textwrap.dedent(
+        """
+        input int[32] index;
+        input bool b;
+        input int[32] i;
+        input int j;
+        input uint[32] u;
+        input duration blah;
+        input float[50] y;
+        @my_annotation 1,2,3
+        input float[50] z;
+        input angle[32] ang;
+        input bit[20] arr;
+        input bit c;
+        arr[1] = 0;
+        arr[index] = 1;
+        arr[index + 1] = 0;
+        """
+    ).strip()
+
+    assert isinstance(arr[14], OQIndexExpression)
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
 def test_complex_numbers_declaration():
     vars = [
         ComplexVar(name="z"),
@@ -225,7 +289,10 @@ def test_complex_numbers_declaration():
 
 def test_array_declaration():
     b = ArrayVar(name="b", init_expression=[True, False], dimensions=[2], base_type=BoolVar)
+    b_in = ArrayVar(name="b_in", init_expression="input", dimensions=[2], base_type=BoolVar)
     i = ArrayVar(name="i", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar)
+    i_in = ArrayVar(name="i_in", init_expression="input", dimensions=[5], base_type=IntVar)
+    d_in = ArrayVar(name="d_in", init_expression="input", dimensions=[5], base_type=DurationVar)
     i55 = ArrayVar(
         name="i55", init_expression=[0, 1, 2, 3, 4], dimensions=[5], base_type=IntVar[55]
     )
@@ -242,6 +309,7 @@ def test_array_declaration():
         name="comp55", init_expression=[0, 1 + 1j], dimensions=[2], base_type=ComplexVar[float_(55)]
     )
     ang_partial = ArrayVar[AngleVar, 2](name="ang_part", init_expression=[oqpy.pi, oqpy.pi / 2])
+    arg_array = ArrayVar([1, 2, 3], name="arg_array", dimensions=[3])
     simple = ArrayVar[FloatVar](name="no_init", dimensions=[5])
     multidim = ArrayVar[FloatVar[32], 3, 2](
         name="multiDim", init_expression=[[1.1, 1.2], [2.1, 2.2], [3.1, 3.2]]
@@ -253,7 +321,7 @@ def test_array_declaration():
         base_type=DurationVar,
     )
 
-    vars = [b, i, i55, u, x, y, ang, comp, comp55, ang_partial, simple, multidim, npinit]
+    vars = [b, b_in, i, i_in, d_in, i55, u, x, y, ang, comp, comp55, ang_partial, arg_array, simple, multidim, npinit]
 
     prog = oqpy.Program(version=None)
     prog.declare(vars)
@@ -271,7 +339,10 @@ def test_array_declaration():
         int[32] val = 10;
         duration d = 0.0ns;
         array[bool, 2] b = {true, false};
+        input array[bool, 2] b_in;
         array[int[32], 5] i = {0, 1, 2, 3, 4};
+        input array[int[32], 5] i_in;
+        input array[duration, 5] d_in;
         array[int[55], 5] i55 = {0, 1, 2, 3, 4};
         array[uint[32], 5] u = {0, 1, 2, 3, 4};
         array[duration, 3] x = {0.0ns, 1.0ns, 2.0ns};
@@ -280,6 +351,7 @@ def test_array_declaration():
         array[complex[float[64]], 2] comp = {0, 1.0 + 1.0im};
         array[complex[float[55]], 2] comp55 = {0, 1.0 + 1.0im};
         array[angle[32], 2] ang_part = {pi, pi / 2};
+        array[int[32], 3] arg_array = {1, 2, 3};
         array[float[64], 5] no_init;
         array[float[32], 3, 2] multiDim = {{1.1, 1.2}, {2.1, 2.2}, {3.1, 3.2}};
         array[duration, 11] npinit = {0.0ns, 1.0ns, 2.0ns, 4.0ns};

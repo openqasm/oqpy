@@ -227,11 +227,12 @@ class _ClassicalVar(Var, OQPyExpression):
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
         if isinstance(self.init_expression, str) and self.init_expression in ("input", "output"):
-            return ast.IODeclaration(
+            stmt = ast.IODeclaration(
                 ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
             )
-        init_expression_ast = optional_ast(program, self.init_expression)
-        stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
+        else:
+            init_expression_ast = optional_ast(program, self.init_expression)
+            stmt = ast.ClassicalDeclaration(self.type, self.to_ast(program), init_expression_ast)
         stmt.annotations = make_annotations(self.annotations)
         return stmt
 
@@ -416,10 +417,17 @@ class ArrayVar(_ClassicalVar):
             array_base_type = base_type_instance.type_cls()
 
         # Automatically handle Duration array.
-        if base_type is DurationVar and kwargs["init_expression"] is not None:
-            kwargs["init_expression"] = (
-                convert_float_to_duration(i) for i in kwargs["init_expression"]
+        init = kwargs.get("init_expression")
+        if (
+            base_type is DurationVar
+            and init is not None
+            and not (
+                # type check to avoid element-wise numpy comparison for array init
+                isinstance(init, str)
+                and init == "input"
             )
+        ):
+            kwargs["init_expression"] = [convert_float_to_duration(i) for i in init]
 
         super().__init__(
             *args,
