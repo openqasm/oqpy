@@ -197,7 +197,7 @@ def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
     elif isinstance(val, complex):
         return ast.ComplexType(ast.FloatType())
     else:
-        raise ValueError(f"Cannot multiply/divide oqpy expression with with {type(val)}")
+        raise ValueError(f"Cannot multiply/divide oqpy expression with {type(val)}")
 
 
 def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
