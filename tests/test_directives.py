@@ -2362,6 +2362,28 @@ def test_constant_conversion():
     _check_respects_type_hints(prog)
 
 
+def test_special_float_values():
+    prog = Program()
+    pos_inf = oqpy.FloatVar(float('inf'), name="pos_inf")
+    neg_inf = oqpy.FloatVar(float('-inf'), name="neg_inf")
+    nan_var = oqpy.FloatVar(float('nan'), name="nan_var")
+    
+    prog.declare([pos_inf, neg_inf, nan_var])
+    
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        float[64] pos_inf = inf;
+        float[64] neg_inf = -inf;
+        float[64] nan_var = nan;
+        """
+    ).strip()
+    
+    qasm_output = prog.to_qasm()
+    assert qasm_output == expected
+    _check_respects_type_hints(prog)
+
+
 def test_oqpy_range():
     prog = Program()
     sum = oqpy.IntVar(0, "sum")
