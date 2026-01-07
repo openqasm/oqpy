@@ -1042,6 +1042,45 @@ def test_switch_case_requires_value():
                 pass
 
 
+def test_switch_nested():
+    """Test nested switch statements with empty cases and multiple values per case."""
+    prog = Program()
+
+    q = oqpy.PhysicalQubits[0]
+    i = IntVar(5, "i")
+    j = IntVar(30, "j")
+
+    with oqpy.Switch(prog, i) as outer_switch:
+        with oqpy.Case(outer_switch, 1, 2, 5, 12):
+            pass  # Empty case body
+        with oqpy.Case(outer_switch, 3):
+            with oqpy.Switch(prog, j) as inner_switch:
+                with oqpy.Case(inner_switch, 10, 15, 20):
+                    prog.gate(q, "h")
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] j = 30;
+        int[32] i = 5;
+        switch (i) {
+            case 1, 2, 5, 12 {
+            }
+            case 3 {
+                switch (j) {
+                    case 10, 15, 20 {
+                        h $0;
+                    }
+                }
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
 def test_create_frame():
     prog = Program()
     port = PortVar("storage")
