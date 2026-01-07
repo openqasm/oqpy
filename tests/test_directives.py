@@ -1042,6 +1042,18 @@ def test_switch_case_requires_value():
                 pass
 
 
+def test_switch_multiple_defaults_raises():
+    prog = Program()
+    selector = IntVar(0, "selector")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Default(switch):
+            pass
+        with pytest.raises(RuntimeError, match="Switch statement can only have one default case"):
+            with oqpy.Default(switch):
+                pass
+
+
 def test_switch_nested():
     """Test nested switch statements with empty cases and multiple values per case."""
     prog = Program()

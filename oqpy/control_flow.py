@@ -263,6 +263,8 @@ def Default(switch: Switch) -> Iterator[None]:
                 program.increment(result, 100)
 
     """
+    if switch.default is not None:
+        raise RuntimeError("Switch statement can only have one default case")
     switch.program._push()
     yield
     state = switch.program._pop()
