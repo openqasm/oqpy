@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from oqpy.program import Program
 
 
-__all__ = ["If", "Else", "ForIn", "While", "Range"]
+__all__ = ["If", "Else", "ForIn", "While", "Range", "Switch", "Case", "Default"]
 
 
 @contextlib.contextmanager
@@ -176,3 +176,94 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     yield
     state = program._pop()
     program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))
+
+
+class Switch(contextlib.AbstractContextManager):
+    """Context manager for switch statement control flow.
+
+    .. code-block:: python
+
+        selector = IntVar(0)
+        with Switch(program, selector) as switch:
+            with Case(switch, 0):
+                program.increment(result, 1)
+            with Case(switch, 1, 2):  # Multiple values in one case
+                program.increment(result, 2)
+            with Default(switch):
+                program.increment(result, 100)
+
+    """
+
+    def __init__(self, program: "Program", target: OQPyExpression):
+        self.program = program
+        self.target = target
+        self.cases: list[tuple[list[ast.Expression], list[ast.Statement]]] = []
+        self.default: list[ast.Statement] | None = None
+
+    def __enter__(self) -> "Switch":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        if exc_type is not None:
+            return False
+        # Build the case tuples as (list of expressions, CompoundStatement)
+        case_tuples = [
+            (values, ast.CompoundStatement(body)) for values, body in self.cases
+        ]
+        default_stmt = ast.CompoundStatement(self.default) if self.default else None
+        stmt = ast.SwitchStatement(
+            to_ast(self.program, self.target),
+            case_tuples,
+            default_stmt,
+        )
+        self.program._add_statement(stmt)
+        return False
+
+
+@contextlib.contextmanager
+def Case(switch: Switch, *values: AstConvertible) -> Iterator[None]:
+    """Context manager for a case within a switch statement.
+
+    Must be used inside a Switch context. Multiple values can be provided
+    for a single case block.
+
+    .. code-block:: python
+
+        with Switch(program, selector) as switch:
+            with Case(switch, 0):
+                # Handle case 0
+                program.increment(result, 1)
+            with Case(switch, 1, 2):
+                # Handle cases 1 and 2
+                program.increment(result, 2)
+
+    """
+    if not values:
+        raise ValueError("Case requires at least one value")
+    switch.program._push()
+    yield
+    state = switch.program._pop()
+    case_values = [to_ast(switch.program, v) for v in values]
+    switch.cases.append((case_values, state.body))
+
+
+@contextlib.contextmanager
+def Default(switch: Switch) -> Iterator[None]:
+    """Context manager for the default case within a switch statement.
+
+    Must be used inside a Switch context.
+
+    .. code-block:: python
+
+        with Switch(program, selector) as switch:
+            with Case(switch, 0):
+                program.increment(result, 1)
+            with Default(switch):
+                # Handle all other cases
+                program.increment(result, 100)
+
+    """
+    switch.program._push()
+    yield
+    state = switch.program._pop()
+    switch.default = state.body

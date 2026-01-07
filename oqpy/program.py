@@ -709,6 +709,13 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         node.else_block = self.process_statement_list(node.else_block)
         self.generic_visit(node, context)
 
+    def visit_SwitchStatement(self, node: ast.SwitchStatement, context: None = None) -> None:
+        for case_values, case_block in node.cases:
+            case_block.statements = self.process_statement_list(case_block.statements)
+        if node.default:
+            node.default.statements = self.process_statement_list(node.default.statements)
+        self.generic_visit(node, context)
+
     def visit_CalibrationStatement(
         self, node: ast.CalibrationStatement, context: None = None
     ) -> None:

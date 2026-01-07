@@ -847,6 +847,201 @@ def test_while():
     _check_respects_type_hints(prog)
 
 
+def test_switch_basic():
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, 0):
+            prog.set(result, 10)
+        with oqpy.Case(switch, 1):
+            prog.set(result, 20)
+        with oqpy.Default(switch):
+            prog.set(result, 100)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] selector = 0;
+        switch (selector) {
+            case 0 {
+                result = 10;
+            }
+            case 1 {
+                result = 20;
+            }
+            default {
+                result = 100;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_multiple_case_values():
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, 0, 1, 2):
+            prog.set(result, 10)
+        with oqpy.Case(switch, 3, 4):
+            prog.set(result, 20)
+        with oqpy.Default(switch):
+            prog.set(result, 100)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] selector = 0;
+        switch (selector) {
+            case 0, 1, 2 {
+                result = 10;
+            }
+            case 3, 4 {
+                result = 20;
+            }
+            default {
+                result = 100;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_without_default():
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, 0):
+            prog.set(result, 10)
+        with oqpy.Case(switch, 1):
+            prog.set(result, 20)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] selector = 0;
+        switch (selector) {
+            case 0 {
+                result = 10;
+            }
+            case 1 {
+                result = 20;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_nested_in_loop():
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with oqpy.ForIn(prog, range(3), "i") as i:
+        prog.set(selector, i)
+        with oqpy.Switch(prog, selector) as switch:
+            with oqpy.Case(switch, 0):
+                prog.increment(result, 1)
+            with oqpy.Case(switch, 1):
+                prog.increment(result, 2)
+            with oqpy.Default(switch):
+                prog.increment(result, 10)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] selector = 0;
+        int[32] result = 0;
+        for int i in [0:2] {
+            selector = i;
+            switch (selector) {
+                case 0 {
+                    result += 1;
+                }
+                case 1 {
+                    result += 2;
+                }
+                default {
+                    result += 10;
+                }
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_with_negative_cases():
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, -2):
+            prog.set(result, 1)
+        with oqpy.Case(switch, -1):
+            prog.set(result, 2)
+        with oqpy.Case(switch, 0):
+            prog.set(result, 3)
+        with oqpy.Default(switch):
+            prog.set(result, 100)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] selector = 0;
+        switch (selector) {
+            case -2 {
+                result = 1;
+            }
+            case -1 {
+                result = 2;
+            }
+            case 0 {
+                result = 3;
+            }
+            default {
+                result = 100;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_case_requires_value():
+    prog = Program()
+    selector = IntVar(0, "selector")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with pytest.raises(ValueError, match="Case requires at least one value"):
+            with oqpy.Case(switch):
+                pass
+
+
 def test_create_frame():
     prog = Program()
     port = PortVar("storage")
