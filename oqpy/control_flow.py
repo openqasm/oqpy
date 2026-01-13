@@ -21,6 +21,7 @@ import contextlib
 from typing import (
     TYPE_CHECKING,
     Any,
+    ContextManager,
     Iterable,
     Iterator,
     Literal,
@@ -94,8 +95,7 @@ def ForIn(
     program: Program,
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
-) -> contextlib._GeneratorContextManager[IntVar]:
-    ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[IntVar]: ...  # pragma: no cover
 
 
 @overload
@@ -104,8 +104,7 @@ def ForIn(
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
     identifier_type: type[ClassicalVarT],
-) -> contextlib._GeneratorContextManager[ClassicalVarT]:
-    ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[ClassicalVarT]: ...  # pragma: no cover
 
 
 @contextlib.contextmanager
@@ -189,7 +188,7 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))
 
 
-class Switch(contextlib.AbstractContextManager["Switch"]):
+class Switch(ContextManager["Switch"]):
     """Context manager for switch statement control flow.
 
     .. code-block:: python
