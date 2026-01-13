@@ -18,7 +18,16 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    TypeVar,
+    overload,
+)
 
 from openpulse import ast
 
@@ -85,7 +94,8 @@ def ForIn(
     program: Program,
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
-) -> contextlib._GeneratorContextManager[IntVar]: ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[IntVar]:
+    ...  # pragma: no cover
 
 
 @overload
@@ -94,7 +104,8 @@ def ForIn(
     iterator: Iterable[AstConvertible] | range | AstConvertible,
     identifier_name: Optional[str],
     identifier_type: type[ClassicalVarT],
-) -> contextlib._GeneratorContextManager[ClassicalVarT]: ...  # pragma: no cover
+) -> contextlib._GeneratorContextManager[ClassicalVarT]:
+    ...  # pragma: no cover
 
 
 @contextlib.contextmanager
@@ -178,7 +189,7 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))
 
 
-class Switch(contextlib.AbstractContextManager):
+class Switch(contextlib.AbstractContextManager["Switch"]):
     """Context manager for switch statement control flow.
 
     .. code-block:: python
@@ -203,13 +214,16 @@ class Switch(contextlib.AbstractContextManager):
     def __enter__(self) -> "Switch":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> Literal[False]:
         if exc_type is not None:
             return False
         # Build the case tuples as (list of expressions, CompoundStatement)
-        case_tuples = [
-            (values, ast.CompoundStatement(body)) for values, body in self.cases
-        ]
+        case_tuples = [(values, ast.CompoundStatement(body)) for values, body in self.cases]
         default_stmt = ast.CompoundStatement(self.default) if self.default else None
         stmt = ast.SwitchStatement(
             to_ast(self.program, self.target),
