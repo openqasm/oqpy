@@ -1093,6 +1093,64 @@ def test_switch_nested():
     _check_respects_type_hints(prog)
 
 
+def test_switch_exception_propagation():
+    """Test that exceptions raised inside Switch context propagate correctly."""
+    prog = Program()
+    selector = IntVar(0, "selector")
+
+    class TestException(Exception):
+        pass
+
+    with pytest.raises(TestException):
+        with oqpy.Switch(prog, selector) as switch:
+            with oqpy.Case(switch, 0):
+                raise TestException("test error")
+
+
+def test_switch_with_encal_declarations():
+    """Test switch statement with encal_declarations=True to cover MergeCalStatementsPass."""
+    prog = Program()
+    selector = IntVar(0, "selector")
+    port = PortVar("storage")
+    frame = FrameVar(port, 6e9, name="storage_frame")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, 0):
+            prog.set_phase(frame, 0.5)
+        with oqpy.Case(switch, 1):
+            prog.set_phase(frame, 1.0)
+        with oqpy.Default(switch):
+            prog.set_phase(frame, 0.0)
+
+    # This triggers MergeCalStatementsPass.visit_SwitchStatement
+    qasm = prog.to_qasm(encal_declarations=True)
+    assert "switch" in qasm
+    assert "case 0" in qasm
+    assert "case 1" in qasm
+    assert "default" in qasm
+
+
+def test_switch_without_default_encal_declarations():
+    """Test switch statement without default case with encal_declarations=True."""
+    prog = Program()
+    selector = IntVar(0, "selector")
+    port = PortVar("storage")
+    frame = FrameVar(port, 6e9, name="storage_frame")
+
+    with oqpy.Switch(prog, selector) as switch:
+        with oqpy.Case(switch, 0):
+            prog.set_phase(frame, 0.5)
+        with oqpy.Case(switch, 1):
+            prog.set_phase(frame, 1.0)
+
+    # This triggers MergeCalStatementsPass.visit_SwitchStatement without default
+    qasm = prog.to_qasm(encal_declarations=True)
+    assert "switch" in qasm
+    assert "case 0" in qasm
+    assert "case 1" in qasm
+    assert "default" not in qasm
+
+
 def test_create_frame():
     prog = Program()
     port = PortVar("storage")
