@@ -101,9 +101,7 @@ class IndexedQubitArray:
         """Converts this indexed qubit array into an ast node."""
         collection_ast = to_ast(program, self.collection)
         assert isinstance(collection_ast, ast.Identifier)
-        return ast.IndexedIdentifier(
-            name=collection_ast, indices=[[to_ast(program, self.index)]]
-        )
+        return ast.IndexedIdentifier(name=collection_ast, indices=[[to_ast(program, self.index)]])
 
 
 @contextlib.contextmanager

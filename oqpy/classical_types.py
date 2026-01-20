@@ -31,7 +31,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
 )
 
 from openpulse import ast

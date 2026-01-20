@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from typing import TYPE_CHECKING, Iterator, cast, List
+from typing import TYPE_CHECKING, Iterator, List, cast
 
 from openpulse import ast
 

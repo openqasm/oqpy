@@ -182,6 +182,4 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._add_statement(
-        ast.WhileLoop(to_ast(program, condition), state.statements_as_block())
-    )
+    program._add_statement(ast.WhileLoop(to_ast(program, condition), state.statements_as_block()))
