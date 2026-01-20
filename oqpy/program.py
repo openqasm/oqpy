@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Hashable, Iterable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -44,6 +44,9 @@ from oqpy.base import (
 from oqpy.pulse import FrameVar, PortVar, WaveformVar
 from oqpy.timing import convert_duration_to_float, convert_float_to_duration
 
+if TYPE_CHECKING:
+    from oqpy.control_flow import Switch
+
 __all__ = ["Program"]
 
 
@@ -59,6 +62,7 @@ class ProgramState:
         self.body: list[ast.Statement | ast.Pragma] = []
         self.if_clause: Optional[ast.BranchingStatement] = None
         self.annotations: list[ast.Annotation] = []
+        self.active_switch: Optional["Switch"] = None  # Set when inside a switch context
 
     def add_if_clause(self, condition: ast.Expression, if_clause: list[ast.Statement]) -> None:
         if_clause_annotations, self.annotations = self.annotations, []
@@ -82,6 +86,10 @@ class ProgramState:
         # it seems to conflict with the definition of ast.Program.
         # Issue raised in https://github.com/openqasm/openqasm/issues/468
         assert isinstance(stmt, (ast.Statement, ast.Pragma))
+        if self.active_switch is not None:
+            raise RuntimeError(
+                "Statements inside a Switch block must be within a Case or Default context"
+            )
         if isinstance(stmt, ast.Statement) and self.annotations:
             stmt.annotations = self.annotations + list(stmt.annotations)
             self.annotations = []
@@ -133,7 +141,9 @@ class Program:
         self.defcals.update(other.defcals)
         for name, subroutine_stmt in other.subroutines.items():
             self._add_subroutine(
-                name, subroutine_stmt, needs_declaration=name not in other.declared_subroutines
+                name,
+                subroutine_stmt,
+                needs_declaration=name not in other.declared_subroutines,
             )
         for name, gate_stmt in other.gates.items():
             self._add_gate(name, gate_stmt, needs_declaration=name not in other.declared_gates)
@@ -418,7 +428,9 @@ class Program:
         return self
 
     def delay(
-        self, time: AstConvertible, qubits_or_frames: AstConvertible | Iterable[AstConvertible] = ()
+        self,
+        time: AstConvertible,
+        qubits_or_frames: AstConvertible | Iterable[AstConvertible] = (),
     ) -> Program:
         """Apply a delay to a set of qubits or frames."""
         if not isinstance(qubits_or_frames, Iterable):
@@ -608,7 +620,9 @@ class Program:
         return self
 
     def measure(
-        self, qubit: quantum_types.Qubit, output_location: classical_types.BitVar | None = None
+        self,
+        qubit: quantum_types.Qubit,
+        output_location: classical_types.BitVar | None = None,
     ) -> Program:
         """Measure a particular qubit.
 
@@ -707,6 +721,13 @@ class MergeCalStatementsPass(QASMVisitor[None]):
     def visit_BranchingStatement(self, node: ast.BranchingStatement, context: None = None) -> None:
         node.if_block = self.process_statement_list(node.if_block)
         node.else_block = self.process_statement_list(node.else_block)
+        self.generic_visit(node, context)
+
+    def visit_SwitchStatement(self, node: ast.SwitchStatement, context: None = None) -> None:
+        for _, case_block in node.cases:
+            case_block.statements = self.process_statement_list(case_block.statements)
+        if node.default is not None:
+            node.default.statements = self.process_statement_list(node.default.statements)
         self.generic_visit(node, context)
 
     def visit_CalibrationStatement(

@@ -16,8 +16,8 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
-# 0.4 loosens the antlr4-python3-runtime constraints
-openpulse = ">=0.5.0"
+# 1.0 contains SwitchStatement and CompoundStatement AST nodes
+openpulse = ">=1.0.0"
 numpy = [
     {version = ">=1.17.3", python = ">=3.8,<3.9"},
     {version = ">=1.19.3", python = ">=3.9,<3.10"},
