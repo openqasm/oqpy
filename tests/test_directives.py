@@ -852,12 +852,12 @@ def test_switch_basic():
     selector = IntVar(0, "selector")
     result = IntVar(0, "result")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, 0):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, 0):
             prog.set(result, 10)
-        with oqpy.Case(switch, 1):
+        with oqpy.Case(prog, 1):
             prog.set(result, 20)
-        with oqpy.Default(switch):
+        with oqpy.Default(prog):
             prog.set(result, 100)
 
     expected = textwrap.dedent(
@@ -888,12 +888,12 @@ def test_switch_multiple_case_values():
     selector = IntVar(0, "selector")
     result = IntVar(0, "result")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, 0, 1, 2):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, 0, 1, 2):
             prog.set(result, 10)
-        with oqpy.Case(switch, 3, 4):
+        with oqpy.Case(prog, 3, 4):
             prog.set(result, 20)
-        with oqpy.Default(switch):
+        with oqpy.Default(prog):
             prog.set(result, 100)
 
     expected = textwrap.dedent(
@@ -924,10 +924,10 @@ def test_switch_without_default():
     selector = IntVar(0, "selector")
     result = IntVar(0, "result")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, 0):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, 0):
             prog.set(result, 10)
-        with oqpy.Case(switch, 1):
+        with oqpy.Case(prog, 1):
             prog.set(result, 20)
 
     expected = textwrap.dedent(
@@ -957,12 +957,12 @@ def test_switch_nested_in_loop():
 
     with oqpy.ForIn(prog, range(3), "i") as i:
         prog.set(selector, i)
-        with oqpy.Switch(prog, selector) as switch:
-            with oqpy.Case(switch, 0):
+        with oqpy.Switch(prog, selector):
+            with oqpy.Case(prog, 0):
                 prog.increment(result, 1)
-            with oqpy.Case(switch, 1):
+            with oqpy.Case(prog, 1):
                 prog.increment(result, 2)
-            with oqpy.Default(switch):
+            with oqpy.Default(prog):
                 prog.increment(result, 10)
 
     expected = textwrap.dedent(
@@ -996,14 +996,14 @@ def test_switch_with_negative_cases():
     selector = IntVar(0, "selector")
     result = IntVar(0, "result")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, -2):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, -2):
             prog.set(result, 1)
-        with oqpy.Case(switch, -1):
+        with oqpy.Case(prog, -1):
             prog.set(result, 2)
-        with oqpy.Case(switch, 0):
+        with oqpy.Case(prog, 0):
             prog.set(result, 3)
-        with oqpy.Default(switch):
+        with oqpy.Default(prog):
             prog.set(result, 100)
 
     expected = textwrap.dedent(
@@ -1036,21 +1036,52 @@ def test_switch_case_requires_value():
     prog = Program()
     selector = IntVar(0, "selector")
 
-    with oqpy.Switch(prog, selector) as switch:
+    with oqpy.Switch(prog, selector):
         with pytest.raises(ValueError, match="Case requires at least one value"):
-            with oqpy.Case(switch):
+            with oqpy.Case(prog):
                 pass
+
+
+def test_switch_case_outside_switch_raises():
+    """Test that Case used outside of Switch context raises an error."""
+    prog = Program()
+
+    with pytest.raises(RuntimeError, match="Case must be used inside a Switch context"):
+        with oqpy.Case(prog, 0):
+            pass
+
+
+def test_switch_default_outside_switch_raises():
+    """Test that Default used outside of Switch context raises an error."""
+    prog = Program()
+
+    with pytest.raises(RuntimeError, match="Default must be used inside a Switch context"):
+        with oqpy.Default(prog):
+            pass
+
+
+def test_switch_statement_outside_case_raises():
+    """Test that statements directly inside Switch (not in Case/Default) raise an error."""
+    prog = Program()
+    selector = IntVar(0, "selector")
+    result = IntVar(0, "result")
+
+    with pytest.raises(
+        RuntimeError, match="Statements inside a Switch block must be within a Case or Default"
+    ):
+        with oqpy.Switch(prog, selector):
+            prog.set(result, 10)  # This should raise - not inside a Case
 
 
 def test_switch_multiple_defaults_raises():
     prog = Program()
     selector = IntVar(0, "selector")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Default(switch):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Default(prog):
             pass
         with pytest.raises(RuntimeError, match="Switch statement can only have one default case"):
-            with oqpy.Default(switch):
+            with oqpy.Default(prog):
                 pass
 
 
@@ -1062,12 +1093,12 @@ def test_switch_nested():
     i = IntVar(5, "i")
     j = IntVar(30, "j")
 
-    with oqpy.Switch(prog, i) as outer_switch:
-        with oqpy.Case(outer_switch, 1, 2, 5, 12):
+    with oqpy.Switch(prog, i):
+        with oqpy.Case(prog, 1, 2, 5, 12):
             pass  # Empty case body
-        with oqpy.Case(outer_switch, 3):
-            with oqpy.Switch(prog, j) as inner_switch:
-                with oqpy.Case(inner_switch, 10, 15, 20):
+        with oqpy.Case(prog, 3):
+            with oqpy.Switch(prog, j):
+                with oqpy.Case(prog, 10, 15, 20):
                     prog.gate(q, "h")
 
     expected = textwrap.dedent(
@@ -1101,9 +1132,9 @@ def test_switch_exception_propagation():
     class TestException(Exception):
         pass
 
-    with pytest.raises(TestException):
-        with oqpy.Switch(prog, selector) as switch:
-            with oqpy.Case(switch, 0):
+    with pytest.raises(TestException, match="test error"):
+        with oqpy.Switch(prog, selector):
+            with oqpy.Case(prog, 0):
                 raise TestException("test error")
 
 
@@ -1114,20 +1145,38 @@ def test_switch_with_encal_declarations():
     port = PortVar("storage")
     frame = FrameVar(port, 6e9, name="storage_frame")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, 0):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, 0):
             prog.set_phase(frame, 0.5)
-        with oqpy.Case(switch, 1):
+        with oqpy.Case(prog, 1):
             prog.set_phase(frame, 1.0)
-        with oqpy.Default(switch):
+        with oqpy.Default(prog):
             prog.set_phase(frame, 0.0)
 
-    # This triggers MergeCalStatementsPass.visit_SwitchStatement
-    qasm = prog.to_qasm(encal_declarations=True)
-    assert "switch" in qasm
-    assert "case 0" in qasm
-    assert "case 1" in qasm
-    assert "default" in qasm
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        defcalgrammar "openpulse";
+        cal {
+            port storage;
+            frame storage_frame = newframe(storage, 6000000000.0, 0);
+        }
+        int[32] selector = 0;
+        switch (selector) {
+            case 0 {
+                set_phase(storage_frame, 0.5);
+            }
+            case 1 {
+                set_phase(storage_frame, 1.0);
+            }
+            default {
+                set_phase(storage_frame, 0.0);
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm(encal_declarations=True) == expected
 
 
 def test_switch_without_default_encal_declarations():
@@ -1137,18 +1186,204 @@ def test_switch_without_default_encal_declarations():
     port = PortVar("storage")
     frame = FrameVar(port, 6e9, name="storage_frame")
 
-    with oqpy.Switch(prog, selector) as switch:
-        with oqpy.Case(switch, 0):
+    with oqpy.Switch(prog, selector):
+        with oqpy.Case(prog, 0):
             prog.set_phase(frame, 0.5)
-        with oqpy.Case(switch, 1):
+        with oqpy.Case(prog, 1):
             prog.set_phase(frame, 1.0)
 
-    # This triggers MergeCalStatementsPass.visit_SwitchStatement without default
-    qasm = prog.to_qasm(encal_declarations=True)
-    assert "switch" in qasm
-    assert "case 0" in qasm
-    assert "case 1" in qasm
-    assert "default" not in qasm
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        defcalgrammar "openpulse";
+        cal {
+            port storage;
+            frame storage_frame = newframe(storage, 6000000000.0, 0);
+        }
+        int[32] selector = 0;
+        switch (selector) {
+            case 0 {
+                set_phase(storage_frame, 0.5);
+            }
+            case 1 {
+                set_phase(storage_frame, 1.0);
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm(encal_declarations=True) == expected
+
+
+def test_switch_nested_with_defaults():
+    """Test nested switch statements with default cases on both levels."""
+    prog = Program()
+    i = IntVar(0, "i")
+    j = IntVar(0, "j")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, i):
+        with oqpy.Case(prog, 0):
+            with oqpy.Switch(prog, j):
+                with oqpy.Case(prog, 1):
+                    prog.set(result, 10)
+                with oqpy.Default(prog):
+                    prog.set(result, 20)
+        with oqpy.Default(prog):
+            prog.set(result, 100)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] j = 0;
+        int[32] i = 0;
+        switch (i) {
+            case 0 {
+                switch (j) {
+                    case 1 {
+                        result = 10;
+                    }
+                    default {
+                        result = 20;
+                    }
+                }
+            }
+            default {
+                result = 100;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_with_expression_selector():
+    """Test switch statement with an expression as selector."""
+    prog = Program()
+    a = IntVar(3, "a")
+    b = IntVar(2, "b")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, a + b):
+        with oqpy.Case(prog, 5):
+            prog.set(result, 1)
+        with oqpy.Case(prog, 6):
+            prog.set(result, 2)
+        with oqpy.Default(prog):
+            prog.set(result, 99)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] a = 3;
+        int[32] b = 2;
+        switch (a + b) {
+            case 5 {
+                result = 1;
+            }
+            case 6 {
+                result = 2;
+            }
+            default {
+                result = 99;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_with_modulo_expression_selector():
+    """Test switch statement with modulo expression as selector.
+
+    Per OpenQASM3 spec: The controlling expression of a switch statement
+    shall be of integer type.
+    """
+    prog = Program()
+    i = IntVar(7, "i")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, i % 3):
+        with oqpy.Case(prog, 0):
+            prog.set(result, 10)
+        with oqpy.Case(prog, 1):
+            prog.set(result, 20)
+        with oqpy.Case(prog, 2):
+            prog.set(result, 30)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] i = 7;
+        switch (i % 3) {
+            case 0 {
+                result = 10;
+            }
+            case 1 {
+                result = 20;
+            }
+            case 2 {
+                result = 30;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_switch_with_bitwise_expression_selector():
+    """Test switch statement with bitwise AND expression as selector.
+
+    Per OpenQASM3 spec: The controlling expression of a switch statement
+    shall be of integer type.
+    """
+    prog = Program()
+    flags = IntVar(0b1010, "flags")
+    result = IntVar(0, "result")
+
+    with oqpy.Switch(prog, flags & 0b0011):
+        with oqpy.Case(prog, 0):
+            prog.set(result, 100)
+        with oqpy.Case(prog, 1):
+            prog.set(result, 101)
+        with oqpy.Case(prog, 2):
+            prog.set(result, 102)
+        with oqpy.Case(prog, 3):
+            prog.set(result, 103)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        int[32] result = 0;
+        int[32] flags = 10;
+        switch (flags & 3) {
+            case 0 {
+                result = 100;
+            }
+            case 1 {
+                result = 101;
+            }
+            case 2 {
+                result = 102;
+            }
+            case 3 {
+                result = 103;
+            }
+        }
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
 
 
 def test_create_frame():

@@ -188,18 +188,18 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))
 
 
-class Switch(ContextManager["Switch"]):
+class Switch(ContextManager[None]):
     """Context manager for switch statement control flow.
 
     .. code-block:: python
 
         selector = IntVar(0)
-        with Switch(program, selector) as switch:
-            with Case(switch, 0):
+        with Switch(program, selector):
+            with Case(program, 0):
                 program.increment(result, 1)
-            with Case(switch, 1, 2):  # Multiple values in one case
+            with Case(program, 1, 2):  # Multiple values in one case
                 program.increment(result, 2)
-            with Default(switch):
+            with Default(program):
                 program.increment(result, 100)
 
     """
@@ -210,8 +210,9 @@ class Switch(ContextManager["Switch"]):
         self.cases: list[tuple[list[ast.Expression], list[ast.Statement]]] = []
         self.default: list[ast.Statement] | None = None
 
-    def __enter__(self) -> "Switch":
-        return self
+    def __enter__(self) -> None:
+        self.program._push()
+        self.program._state.active_switch = self
 
     def __exit__(
         self,
@@ -219,7 +220,10 @@ class Switch(ContextManager["Switch"]):
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> Literal[False]:
+        # Pop the switch context state
+        self.program._pop()
         if exc_type is not None:
+            # Don't add statement if an exception occurred; propagate the exception
             return False
         # Build the case tuples as (list of expressions, CompoundStatement)
         case_tuples = [(values, ast.CompoundStatement(body)) for values, body in self.cases]
@@ -230,11 +234,12 @@ class Switch(ContextManager["Switch"]):
             default_stmt,
         )
         self.program._add_statement(stmt)
+        # Return False to indicate exceptions should not be suppressed
         return False
 
 
 @contextlib.contextmanager
-def Case(switch: Switch, *values: AstConvertible) -> Iterator[None]:
+def Case(program: "Program", *values: AstConvertible) -> Iterator[None]:
     """Context manager for a case within a switch statement.
 
     Must be used inside a Switch context. Multiple values can be provided
@@ -242,43 +247,49 @@ def Case(switch: Switch, *values: AstConvertible) -> Iterator[None]:
 
     .. code-block:: python
 
-        with Switch(program, selector) as switch:
-            with Case(switch, 0):
+        with Switch(program, selector):
+            with Case(program, 0):
                 # Handle case 0
                 program.increment(result, 1)
-            with Case(switch, 1, 2):
+            with Case(program, 1, 2):
                 # Handle cases 1 and 2
                 program.increment(result, 2)
 
     """
     if not values:
         raise ValueError("Case requires at least one value")
-    switch.program._push()
+    switch = program._state.active_switch
+    if switch is None:
+        raise RuntimeError("Case must be used inside a Switch context")
+    program._push()
     yield
-    state = switch.program._pop()
-    case_values = [to_ast(switch.program, v) for v in values]
+    state = program._pop()
+    case_values = [to_ast(program, v) for v in values]
     switch.cases.append((case_values, state.body))
 
 
 @contextlib.contextmanager
-def Default(switch: Switch) -> Iterator[None]:
+def Default(program: "Program") -> Iterator[None]:
     """Context manager for the default case within a switch statement.
 
     Must be used inside a Switch context.
 
     .. code-block:: python
 
-        with Switch(program, selector) as switch:
-            with Case(switch, 0):
+        with Switch(program, selector):
+            with Case(program, 0):
                 program.increment(result, 1)
-            with Default(switch):
+            with Default(program):
                 # Handle all other cases
                 program.increment(result, 100)
 
     """
+    switch = program._state.active_switch
+    if switch is None:
+        raise RuntimeError("Default must be used inside a Switch context")
     if switch.default is not None:
         raise RuntimeError("Switch statement can only have one default case")
-    switch.program._push()
+    program._push()
     yield
-    state = switch.program._pop()
+    state = program._pop()
     switch.default = state.body
