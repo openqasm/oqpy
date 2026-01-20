@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from typing import TYPE_CHECKING, Iterator, cast
+from typing import TYPE_CHECKING, Iterator, cast, List
 
 from openpulse import ast
 
@@ -47,7 +47,10 @@ def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[No
     program._push()
     yield
     state = program._pop()
-    program._add_statement(ast.Box(optional_ast(program, duration), state.body))
+    # Cast is safe: Box bodies only contain quantum statements (no classical or pragmas)
+    program._add_statement(
+        ast.Box(optional_ast(program, duration), cast(List[ast.QuantumStatement], state.body))
+    )
 
 
 def make_duration(time: AstConvertible) -> HasToAst:

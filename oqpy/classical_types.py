@@ -31,6 +31,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 from openpulse import ast
@@ -150,7 +151,7 @@ def arrayreference_(
     dims: int | list[int],
 ) -> ast.ArrayReferenceType:
     """Create an array reference type."""
-    dim = (
+    dim: ast.Expression | list[ast.Expression] = (
         ast.IntegerLiteral(dims) if isinstance(dims, int) else [ast.IntegerLiteral(d) for d in dims]
     )
     return ast.ArrayReferenceType(base_type=dtype, dimensions=dim)
@@ -226,6 +227,8 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
+        assert self.type is not None
+        stmt: ast.IODeclaration | ast.ClassicalDeclaration
         if isinstance(self.init_expression, str) and self.init_expression in ("input", "output"):
             stmt = ast.IODeclaration(
                 ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
@@ -408,9 +411,12 @@ class ArrayVar(_ClassicalVar):
         # Creating a dummy variable supports IntVar[64] etc.
         base_type_instance = base_type()
         if isinstance(base_type_instance, _SizedVar):
-            array_base_type = base_type_instance.type_cls(
-                size=ast.IntegerLiteral(base_type_instance.size)
+            size_arg = (
+                ast.IntegerLiteral(base_type_instance.size)
+                if base_type_instance.size is not None
+                else None
             )
+            array_base_type = base_type_instance.type_cls(size=size_arg)  # type: ignore[call-arg]
         elif isinstance(base_type_instance, ComplexVar):
             array_base_type = base_type_instance.type_cls(base_type=base_type_instance.base_type)
         else:
@@ -437,7 +443,9 @@ class ArrayVar(_ClassicalVar):
         )
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        return OQIndexExpression(collection=self, index=index, type_=self.base_type().type_cls())
+        base_instance = self.base_type()
+        assert base_instance.type is not None
+        return OQIndexExpression(collection=self, index=index, type_=base_instance.type)
 
 
 class OQIndexExpression(OQPyExpression):

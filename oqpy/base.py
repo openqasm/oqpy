@@ -252,6 +252,7 @@ def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.Cl
         raise TypeError(f"Could not identify types for product {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
+    assert result_type is not None
     return result_type
 
 
@@ -306,6 +307,7 @@ def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.C
         raise TypeError(f"Could not identify types for quotient {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
+    assert result_type is not None
     return result_type
 
 
@@ -529,10 +531,13 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
             return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
     if isinstance(item, slice):
-        return ast.RangeDefinition(
-            to_ast(program, item.start) if item.start is not None else None,
-            to_ast(program, item.stop - 1) if item.stop is not None else None,
-            to_ast(program, item.step) if item.step is not None else None,
+        return cast(
+            ast.Expression,
+            ast.RangeDefinition(
+                to_ast(program, item.start) if item.start is not None else None,
+                to_ast(program, item.stop - 1) if item.stop is not None else None,
+                to_ast(program, item.step) if item.step is not None else None,
+            ),
         )
     if isinstance(item, Iterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
@@ -570,15 +575,15 @@ def make_annotations(vals: Sequence[str | tuple[str, str]]) -> list[ast.Annotati
 def detect_and_convert_constants(val: float | np.floating[Any], program: Program) -> ast.Expression:
     """Construct a float ast expression which is either a literal or an expression using constants."""
     if val == 0:
-        return ast.FloatLiteral(val)
+        return ast.FloatLiteral(float(val))
     if val < 0.5 or val > 100:
-        return ast.FloatLiteral(val)
+        return ast.FloatLiteral(float(val))
     if math.isnan(val):
-        return ast.FloatLiteral(val)
+        return ast.FloatLiteral(float(val))
     x = val / (math.pi / 4.0)
     rx = round(x)
     if not math.isclose(x, rx, rel_tol=1e-12):
-        return ast.FloatLiteral(val)
+        return ast.FloatLiteral(float(val))
     term: OQPyExpression
     if rx == 4:
         term = classical_types.pi

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Hashable, Iterable, Iterator, Optional
+from typing import Any, Hashable, Iterable, Iterator, Optional, cast
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -53,6 +53,11 @@ class ProgramState:
     A new ProgramState is created every time a context (such as the control
     flow constructs If/Else/ForIn/While) is created. A program will retain a
     stack of ProgramState objects for all currently open contexts.
+
+    The body stores both Statements and Pragmas to preserve their relative
+    ordering. Per OpenQASM 3.0 spec, pragmas should be "processed as soon as
+    they are encountered". Pragmas should only be added at global scope (not
+    inside control flow blocks). See openqasm/openqasm#468.
     """
 
     def __init__(self) -> None:
@@ -78,15 +83,30 @@ class ProgramState:
             self.add_statement(if_clause)
 
     def add_statement(self, stmt: ast.Statement | ast.Pragma) -> None:
-        # This function accepts Statement and Pragma even though
-        # it seems to conflict with the definition of ast.Program.
-        # Issue raised in https://github.com/openqasm/openqasm/issues/468
-        assert isinstance(stmt, (ast.Statement, ast.Pragma))
-        if isinstance(stmt, ast.Statement) and self.annotations:
-            stmt.annotations = self.annotations + list(stmt.annotations)
-            self.annotations = []
-        self.finalize_if_clause()
-        self.body.append(stmt)
+        """Add a statement or pragma to this program state.
+
+        Both statements and pragmas are stored in body to preserve their
+        relative ordering. Pragmas should only be added at global scope.
+        """
+        if isinstance(stmt, ast.Pragma):
+            self.finalize_if_clause()
+            self.body.append(stmt)
+        else:
+            if self.annotations:
+                stmt.annotations = self.annotations + list(stmt.annotations)
+                self.annotations = []
+            self.finalize_if_clause()
+            self.body.append(stmt)
+
+    def statements_as_block(self) -> list[ast.Statement]:
+        """Return body as list[Statement] for use in nested blocks.
+
+        This cast is safe because pragmas are enforced as global-only via
+        Program.pragma(), which raises RuntimeError if called inside a
+        control flow context. Nested blocks (ForInLoop, WhileLoop, etc.)
+        therefore never contain Pragma nodes.
+        """
+        return cast(list[ast.Statement], self.body)
 
 
 class Program:
@@ -221,7 +241,7 @@ class Program:
                 encal=encal,
             )
 
-    def _add_statement(self, stmt: ast.Statement) -> None:
+    def _add_statement(self, stmt: ast.Statement | ast.Pragma) -> None:
         """Add a statment to the current context's program state."""
         self._state.add_statement(stmt)
 
@@ -260,14 +280,15 @@ class Program:
         """
         self.defcals[(tuple(qubit_names), name, tuple(arguments))] = stmt
 
-    def _make_externs_statements(self, auto_encal: bool = False) -> list[ast.ExternDeclaration]:
+    def _make_externs_statements(self, auto_encal: bool = False) -> list[ast.Statement]:
         """Return a list of extern statements for inclusion at beginning of program.
 
         if auto_encal is True, any externs using openpulse types will be wrapped in a Cal block.
         """
         if not auto_encal:
             return list(self.externs.values())
-        openqasm_externs, openpulse_externs = [], []
+        openqasm_externs: list[ast.Statement] = []
+        openpulse_externs: list[ast.Statement | ast.Pragma] = []
         openpulse_types = ast.PortType, ast.FrameType, ast.WaveformType
         for extern_statement in self.externs.values():
             for arg in extern_statement.arguments:
@@ -316,20 +337,26 @@ class Program:
             warnings.warn(
                 f"Annotation(s) {mutating_prog._state.annotations} not applied to any statement"
             )
-        statements = []
+        statements: list[ast.Statement | ast.Pragma] = []
         if include_externs:
             statements += mutating_prog._make_externs_statements(encal_declarations)
         statements += (
-            [
-                mutating_prog.subroutines[subroutine_name]
-                for subroutine_name in mutating_prog.subroutines
-                if subroutine_name not in mutating_prog.declared_subroutines
-            ]
-            + [
-                mutating_prog.gates[gate_name]
-                for gate_name in mutating_prog.gates
-                if gate_name not in mutating_prog.declared_gates
-            ]
+            cast(
+                list[ast.Statement | ast.Pragma],
+                [
+                    mutating_prog.subroutines[subroutine_name]
+                    for subroutine_name in mutating_prog.subroutines
+                    if subroutine_name not in mutating_prog.declared_subroutines
+                ],
+            )
+            + cast(
+                list[ast.Statement | ast.Pragma],
+                [
+                    mutating_prog.gates[gate_name]
+                    for gate_name in mutating_prog.gates
+                    if gate_name not in mutating_prog.declared_gates
+                ],
+            )
             + mutating_prog._state.body
         )
         if encal:
@@ -425,7 +452,12 @@ class Program:
             qubits_or_frames = [qubits_or_frames]
         ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
         ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
-        self._add_statement(ast.DelayInstruction(ast_duration, ast_qubits_or_frames))
+        self._add_statement(
+            ast.DelayInstruction(
+                ast_duration,
+                cast(list[ast.IndexedIdentifier | ast.Identifier], ast_qubits_or_frames),
+            )
+        )
         return self
 
     def barrier(self, qubits_or_frames: Iterable[AstConvertible]) -> Program:
@@ -438,7 +470,7 @@ class Program:
         self,
         name: str,
         args: Iterable[AstConvertible],
-        assigns_to: AstConvertible = None,
+        assigns_to: AstConvertible | None = None,
     ) -> None:
         """Add a function call with an optional output assignment."""
         function_call_node = ast.FunctionCall(ast.Identifier(name), map_to_ast(self, args))
@@ -597,14 +629,16 @@ class Program:
                 modifiers,
                 ast.Identifier(name),
                 map_to_ast(self, args),
-                map_to_ast(self, used_qubits),
+                cast(list[ast.IndexedIdentifier | ast.Identifier], map_to_ast(self, used_qubits)),
             )
         )
         return self
 
     def reset(self, qubit: quantum_types.Qubit) -> Program:
         """Reset a particular qubit."""
-        self._add_statement(ast.QuantumReset(qubits=qubit.to_ast(self)))
+        qubit_ast = qubit.to_ast(self)
+        assert isinstance(qubit_ast, (ast.IndexedIdentifier, ast.Identifier))
+        self._add_statement(ast.QuantumReset(qubits=qubit_ast))
         return self
 
     def measure(
@@ -614,10 +648,11 @@ class Program:
 
         If provided, store the result in the given output location.
         """
+        target_ast = optional_ast(self, output_location)
         self._add_statement(
             ast.QuantumMeasurementStatement(
                 measure=ast.QuantumMeasurement(ast.Identifier(qubit.name)),
-                target=optional_ast(self, output_location),
+                target=cast(ast.IndexedIdentifier | ast.Identifier | None, target_ast),
             )
         )
         return self
@@ -641,13 +676,13 @@ class Program:
         """Helper function for variable assignment operations."""
         if isinstance(var, classical_types.DurationVar):
             value = convert_float_to_duration(value)
-        var_ast = to_ast(self, var)
+        var_ast: ast.Identifier | ast.IndexedIdentifier | ast.Expression = to_ast(self, var)
         if isinstance(var_ast, ast.IndexExpression):
             assert isinstance(var_ast.collection, ast.Identifier)
             var_ast = ast.IndexedIdentifier(name=var_ast.collection, indices=[var_ast.index])
         self._add_statement(
             ast.ClassicalAssignment(
-                var_ast,
+                cast(ast.Identifier | ast.IndexedIdentifier, var_ast),
                 ast.AssignmentOperator[op],
                 to_ast(self, value),
             )
@@ -697,16 +732,16 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         self.generic_visit(node, context)
 
     def visit_ForInLoop(self, node: ast.ForInLoop, context: None = None) -> None:
-        node.block = self.process_statement_list(node.block)
+        node.block = cast(list[ast.Statement], self.process_statement_list(node.block))
         self.generic_visit(node, context)
 
     def visit_WhileLoop(self, node: ast.WhileLoop, context: None = None) -> None:
-        node.block = self.process_statement_list(node.block)
+        node.block = cast(list[ast.Statement], self.process_statement_list(node.block))
         self.generic_visit(node, context)
 
     def visit_BranchingStatement(self, node: ast.BranchingStatement, context: None = None) -> None:
-        node.if_block = self.process_statement_list(node.if_block)
-        node.else_block = self.process_statement_list(node.else_block)
+        node.if_block = cast(list[ast.Statement], self.process_statement_list(node.if_block))
+        node.else_block = cast(list[ast.Statement], self.process_statement_list(node.else_block))
         self.generic_visit(node, context)
 
     def visit_CalibrationStatement(
@@ -718,14 +753,14 @@ class MergeCalStatementsPass(QASMVisitor[None]):
     def visit_SubroutineDefinition(
         self, node: ast.SubroutineDefinition, context: None = None
     ) -> None:
-        node.body = self.process_statement_list(node.body)
+        node.body = cast(list[ast.Statement], self.process_statement_list(node.body))
         self.generic_visit(node, context)
 
     def process_statement_list(
-        self, statements: list[ast.Statement | ast.Pragma]
+        self, statements: list[ast.Statement | ast.Pragma] | list[ast.Statement]
     ) -> list[ast.Statement | ast.Pragma]:
-        new_list = []
-        cal_stmts = []
+        new_list: list[ast.Statement | ast.Pragma] = []
+        cal_stmts: list[ast.Statement | ast.Pragma] = []
         for stmt in statements:
             if isinstance(stmt, ast.CalibrationStatement):
                 cal_stmts.extend(stmt.body)

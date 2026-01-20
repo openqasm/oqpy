@@ -943,7 +943,7 @@ def test_subroutine_with_return():
         def delay50ns(qubit q) {
             delay[50.0ns] q;
         }
-        def get(array[int[32], 3] arr, int[32] i) -> int {
+        def get(array[int[32], 3] arr, int[32] i) -> int[32] {
             return arr[i];
         }
         int[32] y = 2;
