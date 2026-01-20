@@ -106,7 +106,7 @@ class ProgramState:
         control flow context. Nested blocks (ForInLoop, WhileLoop, etc.)
         therefore never contain Pragma nodes.
         """
-        return cast(list[ast.Statement], self.body)
+        return cast(List[ast.Statement], self.body)
 
 
 class Program:
@@ -735,16 +735,16 @@ class MergeCalStatementsPass(QASMVisitor[None]):
         self.generic_visit(node, context)
 
     def visit_ForInLoop(self, node: ast.ForInLoop, context: None = None) -> None:
-        node.block = cast(list[ast.Statement], self.process_statement_list(node.block))
+        node.block = cast(List[ast.Statement], self.process_statement_list(node.block))
         self.generic_visit(node, context)
 
     def visit_WhileLoop(self, node: ast.WhileLoop, context: None = None) -> None:
-        node.block = cast(list[ast.Statement], self.process_statement_list(node.block))
+        node.block = cast(List[ast.Statement], self.process_statement_list(node.block))
         self.generic_visit(node, context)
 
     def visit_BranchingStatement(self, node: ast.BranchingStatement, context: None = None) -> None:
-        node.if_block = cast(list[ast.Statement], self.process_statement_list(node.if_block))
-        node.else_block = cast(list[ast.Statement], self.process_statement_list(node.else_block))
+        node.if_block = cast(List[ast.Statement], self.process_statement_list(node.if_block))
+        node.else_block = cast(List[ast.Statement], self.process_statement_list(node.else_block))
         self.generic_visit(node, context)
 
     def visit_CalibrationStatement(
@@ -756,7 +756,7 @@ class MergeCalStatementsPass(QASMVisitor[None]):
     def visit_SubroutineDefinition(
         self, node: ast.SubroutineDefinition, context: None = None
     ) -> None:
-        node.body = cast(list[ast.Statement], self.process_statement_list(node.body))
+        node.body = cast(List[ast.Statement], self.process_statement_list(node.body))
         self.generic_visit(node, context)
 
     def process_statement_list(

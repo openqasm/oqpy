@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Iterator, List, Optional, Sequence, Union, cast
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -148,7 +148,7 @@ def gate(
         name=ast.Identifier(name),
         arguments=arguments_ast,
         qubits=[ast.Identifier(q.name) for q in qubits],
-        body=cast(list[ast.QuantumStatement], state.body),
+        body=cast(List[ast.QuantumStatement], state.body),
     )
     if declare_here:
         program._add_statement(stmt)
