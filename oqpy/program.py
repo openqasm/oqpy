@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Hashable, Iterable, Iterator, Optional, cast
+from typing import Any, Hashable, Iterable, Iterator, List, Optional, Union, cast
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -342,7 +342,7 @@ class Program:
             statements += mutating_prog._make_externs_statements(encal_declarations)
         statements += (
             cast(
-                list[ast.Statement | ast.Pragma],
+                List[Union[ast.Statement, ast.Pragma]],
                 [
                     mutating_prog.subroutines[subroutine_name]
                     for subroutine_name in mutating_prog.subroutines
@@ -350,7 +350,7 @@ class Program:
                 ],
             )
             + cast(
-                list[ast.Statement | ast.Pragma],
+                List[Union[ast.Statement, ast.Pragma]],
                 [
                     mutating_prog.gates[gate_name]
                     for gate_name in mutating_prog.gates
@@ -455,7 +455,7 @@ class Program:
         self._add_statement(
             ast.DelayInstruction(
                 ast_duration,
-                cast(list[ast.IndexedIdentifier | ast.Identifier], ast_qubits_or_frames),
+                cast(List[Union[ast.IndexedIdentifier, ast.Identifier]], ast_qubits_or_frames),
             )
         )
         return self
@@ -629,7 +629,10 @@ class Program:
                 modifiers,
                 ast.Identifier(name),
                 map_to_ast(self, args),
-                cast(list[ast.IndexedIdentifier | ast.Identifier], map_to_ast(self, used_qubits)),
+                cast(
+                    List[Union[ast.IndexedIdentifier, ast.Identifier]],
+                    map_to_ast(self, used_qubits),
+                ),
             )
         )
         return self
@@ -652,7 +655,7 @@ class Program:
         self._add_statement(
             ast.QuantumMeasurementStatement(
                 measure=ast.QuantumMeasurement(ast.Identifier(qubit.name)),
-                target=cast(ast.IndexedIdentifier | ast.Identifier | None, target_ast),
+                target=cast(Union[ast.IndexedIdentifier, ast.Identifier, None], target_ast),
             )
         )
         return self
@@ -682,7 +685,7 @@ class Program:
             var_ast = ast.IndexedIdentifier(name=var_ast.collection, indices=[var_ast.index])
         self._add_statement(
             ast.ClassicalAssignment(
-                cast(ast.Identifier | ast.IndexedIdentifier, var_ast),
+                cast(Union[ast.Identifier, ast.IndexedIdentifier], var_ast),
                 ast.AssignmentOperator[op],
                 to_ast(self, value),
             )

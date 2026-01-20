@@ -20,7 +20,6 @@ from __future__ import annotations
 import functools
 import random
 import string
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -51,10 +50,6 @@ if TYPE_CHECKING:
 
     from oqpy.program import Program
 
-    if sys.version_info < (3, 10):
-        EllipsisType = type(Ellipsis)
-    else:
-        from types import EllipsisType
 
 __all__ = [
     "pi",
@@ -255,7 +250,7 @@ class _SizedVar(_ClassicalVar):
         # Allows IntVar[64]() notation
         return functools.partial(cls, size=item)
 
-    def __init__(self, *args: Any, size: int | None | EllipsisType = ..., **kwargs: Any):
+    def __init__(self, *args: Any, size: Any = ..., **kwargs: Any):
         if size is ...:
             self.size = self.default_size
         elif size is None:
