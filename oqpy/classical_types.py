@@ -20,7 +20,6 @@ from __future__ import annotations
 import functools
 import random
 import string
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -51,10 +50,6 @@ if TYPE_CHECKING:
 
     from oqpy.program import Program
 
-    if sys.version_info < (3, 10):
-        EllipsisType = type(Ellipsis)
-    else:
-        from types import EllipsisType
 
 __all__ = [
     "pi",
@@ -150,7 +145,7 @@ def arrayreference_(
     dims: int | list[int],
 ) -> ast.ArrayReferenceType:
     """Create an array reference type."""
-    dim = (
+    dim: ast.Expression | list[ast.Expression] = (
         ast.IntegerLiteral(dims) if isinstance(dims, int) else [ast.IntegerLiteral(d) for d in dims]
     )
     return ast.ArrayReferenceType(base_type=dtype, dimensions=dim)
@@ -226,6 +221,8 @@ class _ClassicalVar(Var, OQPyExpression):
 
     def make_declaration_statement(self, program: Program) -> ast.Statement:
         """Make an ast statement that declares the OQpy variable."""
+        assert self.type is not None
+        stmt: ast.IODeclaration | ast.ClassicalDeclaration
         if isinstance(self.init_expression, str) and self.init_expression in ("input", "output"):
             stmt = ast.IODeclaration(
                 ast.IOKeyword[self.init_expression], self.type, self.to_ast(program)
@@ -253,7 +250,7 @@ class _SizedVar(_ClassicalVar):
         # Allows IntVar[64]() notation
         return functools.partial(cls, size=item)
 
-    def __init__(self, *args: Any, size: int | None | EllipsisType = ..., **kwargs: Any):
+    def __init__(self, *args: Any, size: Any = ..., **kwargs: Any):
         if size is ...:
             self.size = self.default_size
         elif size is None:
@@ -408,9 +405,12 @@ class ArrayVar(_ClassicalVar):
         # Creating a dummy variable supports IntVar[64] etc.
         base_type_instance = base_type()
         if isinstance(base_type_instance, _SizedVar):
-            array_base_type = base_type_instance.type_cls(
-                size=ast.IntegerLiteral(base_type_instance.size)
+            size_arg = (
+                ast.IntegerLiteral(base_type_instance.size)
+                if base_type_instance.size is not None
+                else None
             )
+            array_base_type = base_type_instance.type_cls(size=size_arg)  # type: ignore[call-arg]
         elif isinstance(base_type_instance, ComplexVar):
             array_base_type = base_type_instance.type_cls(base_type=base_type_instance.base_type)
         else:
@@ -437,7 +437,9 @@ class ArrayVar(_ClassicalVar):
         )
 
     def __getitem__(self, index: AstConvertible) -> OQIndexExpression:
-        return OQIndexExpression(collection=self, index=index, type_=self.base_type().type_cls())
+        base_instance = self.base_type()
+        assert base_instance.type is not None
+        return OQIndexExpression(collection=self, index=index, type_=base_instance.type)
 
 
 class OQIndexExpression(OQPyExpression):
