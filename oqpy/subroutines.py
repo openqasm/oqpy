@@ -161,7 +161,7 @@ def subroutine(
         identifier,
         arguments=arguments,
         return_type=return_type,
-        body=inner_prog._state.statements_as_block(),
+        body=inner_prog._state.body,
     )
     stmt.annotations = make_annotations(annotations)
 

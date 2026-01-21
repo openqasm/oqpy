@@ -55,7 +55,7 @@ def If(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._state.add_if_clause(to_ast(program, condition), state.statements_as_block())
+    program._state.add_if_clause(to_ast(program, condition), state.body)
 
 
 @contextlib.contextmanager
@@ -74,7 +74,7 @@ def Else(program: Program) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._state.add_else_clause(state.statements_as_block())
+    program._state.add_else_clause(state.body)
 
 
 # Overloads needed due mypy bug, see
@@ -135,7 +135,7 @@ def ForIn(
         identifier_type.type_cls(),
         var.to_ast(program),
         set_declaration,
-        state.statements_as_block(),
+        state.body,
     )
     program._add_statement(stmt)
 
@@ -154,6 +154,9 @@ class Range:
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Convert to an ast.RangeDefinition."""
+        # Technically, RangeDefinition is not an Expression
+        # but we can treat it like one, since an expression is allowable anywhere
+        # a RangeDefinition is allowed.
         return cast(
             ast.Expression,
             ast.RangeDefinition(
@@ -182,4 +185,4 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._add_statement(ast.WhileLoop(to_ast(program, condition), state.statements_as_block()))
+    program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))

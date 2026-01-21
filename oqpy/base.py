@@ -531,6 +531,9 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
             return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
     if isinstance(item, slice):
+        # Technically, RangeDefinition is not an Expression
+        # but we can treat it like one, since an expression is allowable anywhere
+        # a RangeDefinition is allowed.
         return cast(
             ast.Expression,
             ast.RangeDefinition(
@@ -558,6 +561,24 @@ def optional_ast(program: Program, item: AstConvertible | None) -> ast.Expressio
 def map_to_ast(program: Program, items: Iterable[AstConvertible]) -> list[ast.Expression]:
     """Convert a sequence of items into a sequence of ast nodes."""
     return [to_ast(program, item) for item in items]
+
+
+def map_to_identifiers(
+    program: Program, items: Iterable[AstConvertible]
+) -> list[ast.IndexedIdentifier | ast.Identifier]:
+    """Convert a sequence of items into identifier ast nodes.
+
+    Verifies at runtime that each item converts to an Identifier or IndexedIdentifier.
+    """
+    result: list[ast.IndexedIdentifier | ast.Identifier] = []
+    for item in items:
+        node = to_ast(program, item)
+        if not isinstance(node, (ast.Identifier, ast.IndexedIdentifier)):
+            raise TypeError(
+                f"Expected Identifier or IndexedIdentifier, got {type(node).__name__}"
+            )
+        result.append(node)
+    return result
 
 
 def make_annotations(vals: Sequence[str | tuple[str, str]]) -> list[ast.Annotation]:

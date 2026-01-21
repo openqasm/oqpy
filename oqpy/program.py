@@ -38,6 +38,7 @@ from oqpy.base import (
     Var,
     expr_matches,
     map_to_ast,
+    map_to_identifiers,
     optional_ast,
     to_ast,
 )
@@ -53,15 +54,12 @@ class ProgramState:
     A new ProgramState is created every time a context (such as the control
     flow constructs If/Else/ForIn/While) is created. A program will retain a
     stack of ProgramState objects for all currently open contexts.
-
-    The body stores both Statements and Pragmas to preserve their relative
-    ordering. Per OpenQASM 3.0 spec, pragmas should be "processed as soon as
-    they are encountered". Pragmas should only be added at global scope (not
-    inside control flow blocks). See openqasm/openqasm#468.
     """
 
     def __init__(self) -> None:
-        self.body: list[ast.Statement | ast.Pragma] = []
+        # Typed as list[ast.Statement] even though it may contain Pragmas.
+        # This matches the openqasm ast typing. See openqasm/openqasm#468.
+        self.body: list[ast.Statement] = []
         self.if_clause: Optional[ast.BranchingStatement] = None
         self.annotations: list[ast.Annotation] = []
 
@@ -83,30 +81,12 @@ class ProgramState:
             self.add_statement(if_clause)
 
     def add_statement(self, stmt: ast.Statement | ast.Pragma) -> None:
-        """Add a statement or pragma to this program state.
-
-        Both statements and pragmas are stored in body to preserve their
-        relative ordering. Pragmas should only be added at global scope.
-        """
-        if isinstance(stmt, ast.Pragma):
-            self.finalize_if_clause()
-            self.body.append(stmt)
-        else:
-            if self.annotations:
-                stmt.annotations = self.annotations + list(stmt.annotations)
-                self.annotations = []
-            self.finalize_if_clause()
-            self.body.append(stmt)
-
-    def statements_as_block(self) -> list[ast.Statement]:
-        """Return body as list[Statement] for use in nested blocks.
-
-        This cast is safe because pragmas are enforced as global-only via
-        Program.pragma(), which raises RuntimeError if called inside a
-        control flow context. Nested blocks (ForInLoop, WhileLoop, etc.)
-        therefore never contain Pragma nodes.
-        """
-        return cast(List[ast.Statement], self.body)
+        """Add a statement or pragma to this program state."""
+        if isinstance(stmt, ast.Statement) and self.annotations:
+            stmt.annotations = self.annotations + list(stmt.annotations)
+            self.annotations = []
+        self.finalize_if_clause()
+        self.body.append(stmt)  # type: ignore[arg-type]
 
 
 class Program:
@@ -337,33 +317,27 @@ class Program:
             warnings.warn(
                 f"Annotation(s) {mutating_prog._state.annotations} not applied to any statement"
             )
-        statements: list[ast.Statement | ast.Pragma] = []
+        statements: list[ast.Statement] = []
         if include_externs:
             statements += mutating_prog._make_externs_statements(encal_declarations)
         statements += (
-            cast(
-                List[Union[ast.Statement, ast.Pragma]],
-                [
-                    mutating_prog.subroutines[subroutine_name]
-                    for subroutine_name in mutating_prog.subroutines
-                    if subroutine_name not in mutating_prog.declared_subroutines
-                ],
-            )
-            + cast(
-                List[Union[ast.Statement, ast.Pragma]],
-                [
-                    mutating_prog.gates[gate_name]
-                    for gate_name in mutating_prog.gates
-                    if gate_name not in mutating_prog.declared_gates
-                ],
-            )
+            [
+                mutating_prog.subroutines[subroutine_name]
+                for subroutine_name in mutating_prog.subroutines
+                if subroutine_name not in mutating_prog.declared_subroutines
+            ]
+            + [
+                mutating_prog.gates[gate_name]
+                for gate_name in mutating_prog.gates
+                if gate_name not in mutating_prog.declared_gates
+            ]
             + mutating_prog._state.body
         )
         if encal:
-            statements = [ast.CalibrationStatement(statements)]
+            statements = [ast.CalibrationStatement(statements)]  # type: ignore[arg-type]
         if encal_declarations:
             statements = [ast.CalibrationGrammarDeclaration("openpulse")] + statements
-        prog = ast.Program(statements=statements, version=mutating_prog.version)
+        prog = ast.Program(statements=statements, version=mutating_prog.version)  # type: ignore[arg-type]
         if encal_declarations:
             MergeCalStatementsPass().visit(prog)
         return prog
@@ -451,13 +425,8 @@ class Program:
         if not isinstance(qubits_or_frames, Iterable):
             qubits_or_frames = [qubits_or_frames]
         ast_duration = to_ast(self, convert_float_to_duration(time, require_nonnegative=True))
-        ast_qubits_or_frames = map_to_ast(self, qubits_or_frames)
-        self._add_statement(
-            ast.DelayInstruction(
-                ast_duration,
-                cast(List[Union[ast.IndexedIdentifier, ast.Identifier]], ast_qubits_or_frames),
-            )
-        )
+        ast_qubits_or_frames = map_to_identifiers(self, qubits_or_frames)
+        self._add_statement(ast.DelayInstruction(ast_duration, ast_qubits_or_frames))
         return self
 
     def barrier(self, qubits_or_frames: Iterable[AstConvertible]) -> Program:

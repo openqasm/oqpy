@@ -202,7 +202,7 @@ def defcal(
         arguments_ast,
         [ast.Identifier(q.name) for q in qubits],
         return_type,
-        state.statements_as_block(),
+        state.body,
     )
     program._add_statement(stmt)
     program._add_defcal(
@@ -216,4 +216,4 @@ def Cal(program: Program) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._add_statement(ast.CalibrationStatement(state.body))
+    program._add_statement(ast.CalibrationStatement(state.body))  # type: ignore[arg-type]
