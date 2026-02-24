@@ -328,7 +328,7 @@ def expr_matches(a: Any, b: Any) -> bool:
         return True
     if type(a) is not type(b):
         return False
-    if isinstance(a, (list, np.ndarray)):
+    if isinstance(a, (list, tuple, np.ndarray)):
         if len(a) != len(b):
             return False
         return all(expr_matches(ai, bi) for ai, bi in zip(a, b))

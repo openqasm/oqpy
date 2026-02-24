@@ -2769,3 +2769,28 @@ def test_expr_matches_handles_outside_data():
     x2 = MyFloatVarWithIgnoredData(3, name="x")
     x2.ignored = 2
     assert oqpy.base.expr_matches(x1, x2)
+
+
+def test_expr_matches_with_numpy_array_attributes():
+    """Variables with numpy array data in extra attributes can be compared."""
+    x1 = oqpy.FloatVar(3, name="x")
+    x2 = oqpy.FloatVar(3, name="x")
+
+    # Numpy array directly as an attribute works (ndarray branch handles it).
+    x1.data = np.array([1.0, 2.0, 3.0])
+    x2.data = np.array([1.0, 2.0, 3.0])
+    assert expr_matches(x1, x2)
+
+    # Numpy array inside a tuple triggers tuple.__eq__ which delegates to
+    # numpy element-wise ==, producing an array instead of a bool.
+    x1.data = ("sweep", np.array([1.0, 2.0, 3.0]))
+    x2.data = ("sweep", np.array([1.0, 2.0, 3.0]))
+    assert expr_matches(x1, x2)
+
+    # Non-matching arrays should return False, not raise.
+    x2.data = ("sweep", np.array([4.0, 5.0, 6.0]))
+    assert not expr_matches(x1, x2)
+
+    # Non-matching tuple lengths should return False.
+    x2.data = ("sweep",)
+    assert not expr_matches(x1, x2)
