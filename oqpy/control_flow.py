@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overload
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, cast, overload
 
 from openpulse import ast
 
@@ -118,6 +118,7 @@ def ForIn(
     yield var
     state = program._pop()
 
+    set_declaration: ast.RangeDefinition | ast.DiscreteSet | ast.Expression
     if isinstance(iterator, range):
         # A range can only be iterated over integers.
         assert identifier_type is IntVar, "A range can only be looped over an integer."
@@ -131,7 +132,10 @@ def ForIn(
         set_declaration = to_ast(program, iterator)
 
     stmt = ast.ForInLoop(
-        identifier_type.type_cls(), var.to_ast(program), set_declaration, state.body
+        identifier_type.type_cls(),
+        var.to_ast(program),
+        set_declaration,
+        state.body,
     )
     program._add_statement(stmt)
 
@@ -150,14 +154,20 @@ class Range:
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Convert to an ast.RangeDefinition."""
-        return ast.RangeDefinition(
-            to_ast(program, self.start),
-            ast.BinaryExpression(
-                lhs=to_ast(program, self.stop),
-                op=ast.BinaryOperator["-"],
-                rhs=ast.IntegerLiteral(value=1),
+        # Technically, RangeDefinition is not an Expression
+        # but we can treat it like one, since an expression is allowable anywhere
+        # a RangeDefinition is allowed.
+        return cast(
+            ast.Expression,
+            ast.RangeDefinition(
+                to_ast(program, self.start),
+                ast.BinaryExpression(
+                    lhs=to_ast(program, self.stop),
+                    op=ast.BinaryOperator["-"],
+                    rhs=ast.IntegerLiteral(value=1),
+                ),
+                to_ast(program, self.step) if self.step != 1 else None,
             ),
-            to_ast(program, self.step) if self.step != 1 else None,
         )
 
 
