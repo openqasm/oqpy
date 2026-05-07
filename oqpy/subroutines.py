@@ -249,14 +249,14 @@ def declare_extern(
             if k_idx < len(call_args):
                 raise TypeError(f"{name}() got multiple values for argument '{k}'.")
 
-            if type(arg_types[k_idx]) == ast.DurationType:
+            if type(arg_types[k_idx]) in (ast.DurationType, ast.StretchType):
                 new_args[k_idx] = convert_float_to_duration(call_kwargs[k])
             else:
                 new_args[k_idx] = call_kwargs[k]
 
         # Casting floats into durations for the non-keyword arguments
         for i, a in enumerate(call_args):
-            if type(arg_types[i]) == ast.DurationType:
+            if type(arg_types[i]) in (ast.DurationType, ast.StretchType):
                 new_args[i] = convert_float_to_duration(a)
         return OQFunctionCall(
             name, {k: v for k, v in zip(arg_names, new_args)}, return_type, extern_decl=extern_decl

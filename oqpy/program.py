@@ -639,7 +639,7 @@ class Program:
 
     def _do_assignment(self, var: AstConvertible, op: str, value: AstConvertible) -> None:
         """Helper function for variable assignment operations."""
-        if isinstance(var, classical_types.DurationVar):
+        if isinstance(var, (classical_types.DurationVar, classical_types.StretchVar)):
             value = convert_float_to_duration(value)
         var_ast = to_ast(self, var)
         if isinstance(var_ast, ast.IndexExpression):

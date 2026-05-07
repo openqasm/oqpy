@@ -562,6 +562,67 @@ def test_binary_expressions():
     _check_respects_type_hints(prog)
 
 
+def test_stretch_as_duration():
+    prog = Program()
+    s = StretchVar(1e-6, "s")
+    d = DurationVar(1e-7, "d")
+
+    myext = declare_extern(
+        "myext",
+        [("dd", oqpy.duration), ("ss", oqpy.stretch)],
+    )
+
+    prog.do_expression(myext(s, 2e-8))
+    prog.delay(s)
+    with Box(prog, s + d):
+        prog.delay(s / 2)
+    prog.set(s, 3e-6)
+    prog.set(s, s + d)
+    prog.set(d, s)
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        extern myext(duration, stretch);
+        stretch s = 1.0us;
+        duration d = 100.0ns;
+        myext(s, 20.0ns);
+        delay[s];
+        box[s + d] {
+            delay[s / 2];
+        }
+        s = 3.0us;
+        s = s + d;
+        d = s;
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)
+
+
+def test_stretch_arithmetic_types():
+    s = StretchVar(name="s")
+    d = DurationVar(1e-7, name="d")
+
+    assert isinstance((s + s).type, ast.StretchType)
+    assert isinstance((s + d).type, ast.StretchType)
+    assert isinstance((d + s).type, ast.DurationType)
+    assert isinstance((2 * s).type, ast.StretchType)
+    assert isinstance((s * 2).type, ast.StretchType)
+    assert isinstance((s / 2).type, ast.StretchType)
+    assert isinstance((s / s).type, ast.FloatType)
+    assert isinstance((s / d).type, ast.FloatType)
+    assert isinstance((d / s).type, ast.FloatType)
+
+    with pytest.raises(TypeError):
+        s * d
+    with pytest.raises(TypeError):
+        2 / s
+    with pytest.raises(TypeError):
+        s * 1j
+
+
 @pytest.mark.xfail
 def test_add_incomptible_type():
     # This test should fail since we add float to a duration and then don't type cast things
