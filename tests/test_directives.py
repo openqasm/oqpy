@@ -2794,3 +2794,62 @@ def test_expr_matches_with_numpy_array_attributes():
     # Non-matching tuple lengths should return False.
     x2.data = ("sweep",)
     assert not expr_matches(x1, x2)
+
+
+def test_qubit_ast_convertible():
+    @dataclass(frozen=True)
+    class MyQubit:
+        # Custom user qubit class converted via _to_oqpy_expression.
+        index: int
+
+        def _to_oqpy_expression(self):
+            return PhysicalQubits[self.index]
+
+    @dataclass(frozen=True)
+    class DirectQubit:
+        # Custom user qubit class converted via to_ast directly.
+        name: str
+
+        def to_ast(self, program):
+            return ast.Identifier(self.name)
+
+    q0 = MyQubit(0)
+    q1 = MyQubit(1)
+    d = DirectQubit("foo")
+
+    prog = oqpy.Program()
+    prog.reset(q0)
+    prog.gate(q0, "h")
+    prog.gate([q0, q1], "cnot")
+    prog.gate(q1, "x", control=q0)
+    prog.gate(q1, "x", control=[q0])
+    prog.measure(q0)
+    prog.reset(d)
+    prog.gate(d, "h")
+
+    bit = oqpy.BitVar(name="b")
+    prog.measure(q1, bit)
+
+    with oqpy.defcal(prog, [q0, q1], "mycx"):
+        prog.gate(q0, "h")
+
+    expected = textwrap.dedent(
+        """
+        OPENQASM 3.0;
+        bit b;
+        reset $0;
+        h $0;
+        cnot $0, $1;
+        ctrl @ x $0, $1;
+        ctrl @ x $0, $1;
+        measure $0;
+        reset foo;
+        h foo;
+        b = measure $1;
+        defcal mycx $0, $1 {
+            h $0;
+        }
+        """
+    ).strip()
+    assert prog.to_qasm() == expected
+    _check_respects_type_hints(prog)

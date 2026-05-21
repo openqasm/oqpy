@@ -107,7 +107,7 @@ class IndexedQubitArray:
 @contextlib.contextmanager
 def gate(
     program: Program,
-    qubits: Union[Qubit, list[Qubit]],
+    qubits: Union[AstConvertible, list[AstConvertible]],
     name: str,
     arguments: Optional[list[AstConvertible]] = None,
     declare_here: bool = False,
@@ -121,7 +121,7 @@ def gate(
             program.gate(q1, "Rz", theta)
             program.gate(q1, "H")
     """
-    if isinstance(qubits, Qubit):
+    if not isinstance(qubits, list):
         qubits = [qubits]
 
     arguments_ast = []
@@ -143,10 +143,11 @@ def gate(
         yield None
     state = program._pop()
 
+    qubits_ast = [to_ast(program, q) for q in qubits]
     stmt = ast.QuantumGateDefinition(
         name=ast.Identifier(name),
         arguments=arguments_ast,
-        qubits=[ast.Identifier(q.name) for q in qubits],
+        qubits=qubits_ast,
         body=state.body,
     )
     if declare_here:
@@ -157,7 +158,7 @@ def gate(
 @contextlib.contextmanager
 def defcal(
     program: Program,
-    qubits: Union[Qubit, list[Qubit]],
+    qubits: Union[AstConvertible, list[AstConvertible]],
     name: str,
     arguments: Optional[list[AstConvertible]] = None,
     return_type: Optional[ast.ClassicalType] = None,
@@ -169,7 +170,7 @@ def defcal(
         with defcal(program, q1, "X", [AngleVar(name="theta"), oqpy.pi/2], oqpy.bit) as theta:
             program.play(frame, waveform)
     """
-    if isinstance(qubits, Qubit):
+    if not isinstance(qubits, list):
         qubits = [qubits]
     assert return_type is None or isinstance(return_type, ast.ClassicalType)
 
@@ -195,16 +196,17 @@ def defcal(
         yield None
     state = program._pop()
 
+    qubits_ast = [to_ast(program, q) for q in qubits]
     stmt = ast.CalibrationDefinition(
         ast.Identifier(name),
         arguments_ast,
-        [ast.Identifier(q.name) for q in qubits],
+        qubits_ast,
         return_type,
         state.body,
     )
     program._add_statement(stmt)
     program._add_defcal(
-        [qubit.name for qubit in qubits], name, [dumps(a) for a in arguments_ast], stmt
+        [dumps(q) for q in qubits_ast], name, [dumps(a) for a in arguments_ast], stmt
     )
 
 
