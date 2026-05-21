@@ -499,8 +499,8 @@ class Program:
 
     def _create_modifiers_ast(
         self,
-        control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
-        neg_control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None,
+        control: AstConvertible | Iterable[AstConvertible] | None,
+        neg_control: AstConvertible | Iterable[AstConvertible] | None,
         inv: bool,
         exp: AstConvertible,
     ) -> tuple[list[ast.QuantumGateModifier], list[AstConvertible]]:
@@ -509,7 +509,9 @@ class Program:
         modifiers: list[ast.QuantumGateModifier] = []
 
         control = control if control is not None else []
-        control = {control} if isinstance(control, quantum_types.Qubit) else set(control)
+        if not isinstance(control, Iterable):
+            control = [control]
+        control = set(control)
         if control:
             modifiers.append(
                 ast.QuantumGateModifier(
@@ -520,9 +522,9 @@ class Program:
             used_qubits.extend(sorted(control))
 
         neg_control = neg_control if neg_control is not None else []
-        neg_control = (
-            {neg_control} if isinstance(neg_control, quantum_types.Qubit) else set(neg_control)
-        )
+        if not isinstance(neg_control, Iterable):
+            neg_control = [neg_control]
+        neg_control = set(neg_control)
         if neg_control:
             modifiers.append(
                 ast.QuantumGateModifier(
@@ -556,8 +558,8 @@ class Program:
         qubits: AstConvertible | Iterable[AstConvertible],
         name: str,
         *args: Any,
-        control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
-        neg_control: quantum_types.Qubit | Iterable[quantum_types.Qubit] | None = None,
+        control: AstConvertible | Iterable[AstConvertible] | None = None,
+        neg_control: AstConvertible | Iterable[AstConvertible] | None = None,
         inv: bool = False,
         exp: AstConvertible = 1,
     ) -> Program:
@@ -568,9 +570,9 @@ class Program:
                 to which the gate will be applied
             name (str): The gate name
             *args (Any): A list of parameters passed to the gate
-            control (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+            control (AstConvertible | Iterable[AstConvertible] | None): The list
                 of control qubits (default: None)
-            neg_control: (quantum_types.Qubit | Iterable[quantum_types.Qubit] | None): The list
+            neg_control: (AstConvertible | Iterable[AstConvertible] | None): The list
                 of negative control qubits (default: None)
             inv (bool): Flag to use the inverse gate (default: False)
             exp (AstConvertible): The exponent used with `pow` gate modifier
@@ -580,9 +582,8 @@ class Program:
         """
         modifiers, used_qubits = self._create_modifiers_ast(control, neg_control, inv, exp)
 
-        if isinstance(qubits, (quantum_types.Qubit, quantum_types.IndexedQubitArray)):
+        if not isinstance(qubits, Iterable):
             qubits = [qubits]
-        assert isinstance(qubits, Iterable)
 
         for qubit in qubits:
             if qubit in used_qubits:
@@ -602,13 +603,13 @@ class Program:
         )
         return self
 
-    def reset(self, qubit: quantum_types.Qubit) -> Program:
+    def reset(self, qubit: AstConvertible) -> Program:
         """Reset a particular qubit."""
-        self._add_statement(ast.QuantumReset(qubits=qubit.to_ast(self)))
+        self._add_statement(ast.QuantumReset(qubits=to_ast(self, qubit)))
         return self
 
     def measure(
-        self, qubit: quantum_types.Qubit, output_location: classical_types.BitVar | None = None
+        self, qubit: AstConvertible, output_location: classical_types.BitVar | None = None
     ) -> Program:
         """Measure a particular qubit.
 
@@ -616,7 +617,7 @@ class Program:
         """
         self._add_statement(
             ast.QuantumMeasurementStatement(
-                measure=ast.QuantumMeasurement(ast.Identifier(qubit.name)),
+                measure=ast.QuantumMeasurement(to_ast(self, qubit)),
                 target=optional_ast(self, output_location),
             )
         )
