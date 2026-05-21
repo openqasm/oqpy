@@ -236,7 +236,7 @@ class _ClassicalVar(Var, OQPyExpression):
         stmt.annotations = make_annotations(self.annotations)
         return stmt
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"<{self.__class__.__name__} name={self.name} init_expression={self.init_expression}>"
         )
