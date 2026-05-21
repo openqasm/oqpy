@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union, cast
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -143,7 +143,7 @@ def gate(
         yield None
     state = program._pop()
 
-    qubits_ast = [to_ast(program, q) for q in qubits]
+    qubits_ast = cast("list[ast.Identifier]", [to_ast(program, q) for q in qubits])
     stmt = ast.QuantumGateDefinition(
         name=ast.Identifier(name),
         arguments=arguments_ast,
@@ -196,7 +196,7 @@ def defcal(
         yield None
     state = program._pop()
 
-    qubits_ast = [to_ast(program, q) for q in qubits]
+    qubits_ast = cast("list[ast.Identifier]", [to_ast(program, q) for q in qubits])
     stmt = ast.CalibrationDefinition(
         ast.Identifier(name),
         arguments_ast,
