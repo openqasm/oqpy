@@ -237,7 +237,9 @@ class _ClassicalVar(Var, OQPyExpression):
         return stmt
 
     def __str__(self):
-        return f"<{self.__class__.__name__} name={self.name} init_expression={self.init_expression}>"
+        return (
+            f"<{self.__class__.__name__} name={self.name} init_expression={self.init_expression}>"
+        )
 
 
 class BoolVar(_ClassicalVar):
