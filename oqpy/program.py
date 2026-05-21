@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any, Hashable, Iterable, Iterator, Optional, cast
+from typing import Any, Hashable, Iterable, Iterator, Optional
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -519,7 +519,7 @@ class Program:
                     argument=to_ast(self, len(control)) if len(control) > 1 else None,
                 )
             )
-            used_qubits.extend(sorted(control))  # type: ignore[type-var]
+            used_qubits.extend(sorted(control))
 
         neg_control = neg_control if neg_control is not None else []
         if not isinstance(neg_control, Iterable):
@@ -532,7 +532,7 @@ class Program:
                     argument=to_ast(self, len(neg_control)) if len(neg_control) > 1 else None,
                 )
             )
-            for qubit in sorted(neg_control):  # type: ignore[type-var]
+            for qubit in sorted(neg_control):
                 if qubit in used_qubits:
                     raise ValueError(f"Qubit {qubit} has already been defined as a control qubit.")
                 else:
@@ -615,10 +615,9 @@ class Program:
 
         If provided, store the result in the given output location.
         """
-        qubit_ast = cast("ast.Identifier | ast.IndexedIdentifier", to_ast(self, qubit))
         self._add_statement(
             ast.QuantumMeasurementStatement(
-                measure=ast.QuantumMeasurement(qubit_ast),
+                measure=ast.QuantumMeasurement(to_ast(self, qubit)),
                 target=optional_ast(self, output_location),
             )
         )
