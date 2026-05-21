@@ -40,40 +40,34 @@ jobs:
       - name: Check out OQpy
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Install poetry
-        run: |
-          make install-poetry
-          poetry --version
-          poetry config virtualenvs.in-project true
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: poetry install --no-root
+        run: uv sync --python ${{ matrix.python-version }} --frozen
 
       - name: Run black
-        run: poetry run make check-format
+        run: uv run --python ${{ matrix.python-version }} make check-format
 
       - name: Run mypy
-        run: poetry run make check-mypy
+        run: uv run --python ${{ matrix.python-version }} make check-mypy
 
       - name: Run pylint
-        run: poetry run make check-pylint
+        run: uv run --python ${{ matrix.python-version }} make check-pylint
 
       - name: Run pydocstyle
-        run: poetry run make check-pydocstyle
+        run: uv run --python ${{ matrix.python-version }} make check-pydocstyle
 
       - name: Run cffconvert
-        run: poetry run make check-citation
-
-      - name: Install OQpy using pip
-        run: poetry run pip install .
+        run: uv run --python ${{ matrix.python-version }} make check-citation
 
       - name: Build and check docs
-        run: poetry run make docs
+        run: uv run --python ${{ matrix.python-version }} make docs
 
   check-tests:
     strategy:
@@ -85,23 +79,16 @@ jobs:
       - name: Check out OQpy
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        id: setup-python
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Install poetry
-        run: |
-          make install-poetry poetry_version=1.5.1
-          poetry --version
-          poetry config virtualenvs.in-project true
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: poetry install --no-root
-
-      - name: Install OQpy using pip
-        run: poetry run pip install .
+        run: uv sync --python ${{ matrix.python-version }} --frozen
 
       - name: Run pytest
-        run: poetry run make check-tests
+        run: uv run --python ${{ matrix.python-version }} make check-tests
