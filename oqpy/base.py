@@ -187,8 +187,10 @@ class OQPyExpression:
         return expr_matches(self.__dict__, other.__dict__)
 
 
-def _get_type(val: AstConvertible) -> Optional[ast.ClassicalType]:
+def _get_type(val: AstConvertible) -> ast.ClassicalType:
     if isinstance(val, OQPyExpression):
+        if val.type is None:
+            raise ValueError(f"Expression {val} has no type")
         return val.type
     elif isinstance(val, int):
         return ast.IntType()
@@ -252,7 +254,7 @@ def compute_product_types(left: AstConvertible, right: AstConvertible) -> ast.Cl
         raise TypeError(f"Could not identify types for product {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
-    return result_type
+    return cast(ast.ClassicalType, result_type)
 
 
 def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.ClassicalType:
@@ -306,7 +308,7 @@ def compute_quotient_types(left: AstConvertible, right: AstConvertible) -> ast.C
         raise TypeError(f"Could not identify types for quotient {left} and {right}") from e
     if isinstance(result_type, Exception):
         raise result_type
-    return result_type
+    return cast(ast.ClassicalType, result_type)
 
 
 def logical_and(first: AstConvertible, second: AstConvertible) -> OQPyBinaryExpression:
@@ -474,7 +476,8 @@ AstConvertible = Union[
     int,
     float,
     complex,
-    Iterable,
+    slice,
+    Iterable[Any],
     ExpressionConvertible,
     CachedExpressionConvertible,
     ast.Expression,
@@ -519,6 +522,7 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
             return ast.UnaryExpression(ast.UnaryOperator["-"], ast.IntegerLiteral(-item))
         return ast.IntegerLiteral(item)
     if isinstance(item, (float, np.floating)):
+        item = float(item)
         if item < 0:
             if program.simplify_constants:
                 neg_ast_term = detect_and_convert_constants(-item, program)
@@ -529,10 +533,15 @@ def to_ast(program: Program, item: AstConvertible) -> ast.Expression:
             return detect_and_convert_constants(item, program)
         return ast.FloatLiteral(item)
     if isinstance(item, slice):
-        return ast.RangeDefinition(
-            to_ast(program, item.start) if item.start is not None else None,
-            to_ast(program, item.stop - 1) if item.stop is not None else None,
-            to_ast(program, item.step) if item.step is not None else None,
+        # RangeDefinition is not strictly an Expression but is accepted at AST
+        # nodes that take an IndexElement (e.g. IndexExpression, ForInLoop).
+        return cast(
+            ast.Expression,
+            ast.RangeDefinition(
+                to_ast(program, item.start) if item.start is not None else None,
+                to_ast(program, item.stop - 1) if item.stop is not None else None,
+                to_ast(program, item.step) if item.step is not None else None,
+            ),
         )
     if isinstance(item, Iterable):
         return ast.ArrayLiteral([to_ast(program, i) for i in item])
@@ -569,6 +578,7 @@ def make_annotations(vals: Sequence[str | tuple[str, str]]) -> list[ast.Annotati
 
 def detect_and_convert_constants(val: float | np.floating[Any], program: Program) -> ast.Expression:
     """Construct a float ast expression which is either a literal or an expression using constants."""
+    val = float(val)
     if val == 0:
         return ast.FloatLiteral(val)
     if val < 0.5 or val > 100:
