@@ -366,6 +366,29 @@ def test_array_declaration():
     _check_respects_type_hints(prog)
 
 
+def test_complex_array_indexing():
+    prog = oqpy.Program(version=None)
+    arr = oqpy.ArrayVar(
+        name="arr",
+        init_expression=[1 + 0j, 0 + 1j],
+        dimensions=[2],
+        base_type=oqpy.ComplexVar,
+    )
+    idx = oqpy.IntVar(name="idx", init_expression=0)
+    prog.declare([idx, arr])
+    prog.do_expression(arr[idx])
+
+    expected = textwrap.dedent(
+        """
+        int[32] idx = 0;
+        array[complex[float[64]], 2] arr = {1.0, 1.0im};
+        arr[idx];
+        """
+    ).strip()
+
+    assert prog.to_qasm() == expected
+
+
 def test_non_trivial_array_access():
     prog = oqpy.Program()
     port = oqpy.PortVar(name="my_port")

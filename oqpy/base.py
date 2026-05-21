@@ -189,9 +189,8 @@ class OQPyExpression:
 
 def _get_type(val: AstConvertible) -> ast.ClassicalType:
     if isinstance(val, OQPyExpression):
-        if val.type is None:
-            raise ValueError(f"Expression {val} has no type")
-        return val.type
+        # All OQPyExpression subclasses that reach _get_type set .type during init.
+        return cast(ast.ClassicalType, val.type)
     elif isinstance(val, int):
         return ast.IntType()
     elif isinstance(val, float):
