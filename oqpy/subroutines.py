@@ -20,7 +20,16 @@ from __future__ import annotations
 import functools
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    TypeVar,
+    cast,
+    get_type_hints,
+)
 
 from mypy_extensions import VarArg
 from openpulse import ast
@@ -110,7 +119,7 @@ def subroutine(
     argnames = list(inspect.signature(func).parameters.keys())
     type_hints = get_type_hints(func)
     inputs = {}  # used as inputs when calling the actual python function
-    arguments = []  # used in the ast definition of the subroutine
+    arguments: list[ast.ClassicalArgument | ast.QuantumArgument] = []
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
@@ -131,6 +140,7 @@ def subroutine(
         input_ = inputs[argname] = type_hints[argname](name=argname)
 
         if isinstance(input_, _ClassicalVar):
+            assert input_.type is not None
             arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
         elif isinstance(input_, Qubit):
             arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
@@ -161,7 +171,7 @@ def subroutine(
         identifier,
         arguments=arguments,
         return_type=return_type,
-        body=body,
+        body=cast("list[ast.Statement]", body),
     )
     stmt.annotations = make_annotations(annotations)
 

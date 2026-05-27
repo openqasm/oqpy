@@ -40,7 +40,7 @@ pip install oqpy
 To instead install OQpy from source, do the following from within the repository after cloning it:
 
 ```
-poetry install
+uv sync
 ```
 
 Next, check out the following example to get a sense of the kinds of programs we can write with

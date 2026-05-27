@@ -15,26 +15,17 @@ jobs:
       - name: Check out OQpy
         uses: actions/checkout@v3
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Set up Python ${{ matrix.python-version }}
-        id: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
-      - name: Install poetry
-        run: |
-          make install-poetry poetry_version=1.5.1
-          poetry --version
-          poetry config virtualenvs.in-project true
-
-      - name: Build lock file
-        run: poetry lock
+      - name: Rebuild lock file
+        run: uv lock --python ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: poetry install --no-root
-
-      - name: Install OQpy using pip
-        run: poetry run pip install .
+        run: uv sync --python ${{ matrix.python-version }}
 
       - name: Run pytest
-        run: poetry run make check-tests
+        run: uv run --python ${{ matrix.python-version }} make check-tests

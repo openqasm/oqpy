@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Union, cast
 
 from openpulse import ast
 from openpulse.printer import dumps
@@ -99,9 +99,9 @@ class IndexedQubitArray:
 
     def to_ast(self, program: Program) -> ast.IndexedIdentifier:
         """Converts this indexed qubit array into an ast node."""
-        return ast.IndexedIdentifier(
-            name=to_ast(program, self.collection), indices=[[to_ast(program, self.index)]]
-        )
+        name_ast = to_ast(program, self.collection)
+        assert isinstance(name_ast, ast.Identifier)
+        return ast.IndexedIdentifier(name=name_ast, indices=[[to_ast(program, self.index)]])
 
 
 @contextlib.contextmanager
@@ -147,7 +147,7 @@ def gate(
         name=ast.Identifier(name),
         arguments=arguments_ast,
         qubits=[ast.Identifier(q.name) for q in qubits],
-        body=state.body,
+        body=cast("list[ast.QuantumStatement]", state.body),
     )
     if declare_here:
         program._add_statement(stmt)
@@ -173,11 +173,12 @@ def defcal(
         qubits = [qubits]
     assert return_type is None or isinstance(return_type, ast.ClassicalType)
 
-    arguments_ast = []
+    arguments_ast: list[ast.ClassicalArgument | ast.Expression] = []
     variables = []
     if arguments is not None:
         for arg in arguments:
             if isinstance(arg, _ClassicalVar):
+                assert arg.type is not None
                 arguments_ast.append(
                     ast.ClassicalArgument(type=arg.type, name=ast.Identifier(name=arg.name))
                 )
@@ -200,7 +201,7 @@ def defcal(
         arguments_ast,
         [ast.Identifier(q.name) for q in qubits],
         return_type,
-        state.body,
+        cast("list[ast.Statement]", state.body),
     )
     program._add_statement(stmt)
     program._add_defcal(

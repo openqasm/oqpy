@@ -47,7 +47,9 @@ def Box(program: Program, duration: AstConvertible | None = None) -> Iterator[No
     program._push()
     yield
     state = program._pop()
-    program._add_statement(ast.Box(optional_ast(program, duration), state.body))
+    program._add_statement(
+        ast.Box(optional_ast(program, duration), cast("list[ast.QuantumStatement]", state.body))
+    )
 
 
 def make_duration(time: AstConvertible) -> HasToAst:

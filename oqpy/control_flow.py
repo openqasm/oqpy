@@ -18,7 +18,16 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from openpulse import ast
 
@@ -55,7 +64,9 @@ def If(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._state.add_if_clause(to_ast(program, condition), state.body)
+    program._state.add_if_clause(
+        to_ast(program, condition), cast("list[ast.Statement]", state.body)
+    )
 
 
 @contextlib.contextmanager
@@ -74,7 +85,7 @@ def Else(program: Program) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._state.add_else_clause(state.body)
+    program._state.add_else_clause(cast("list[ast.Statement]", state.body))
 
 
 # Overloads needed due mypy bug, see
@@ -118,6 +129,7 @@ def ForIn(
     yield var
     state = program._pop()
 
+    set_declaration: Union[ast.RangeDefinition, ast.DiscreteSet, ast.Expression]
     if isinstance(iterator, range):
         # A range can only be iterated over integers.
         assert identifier_type is IntVar, "A range can only be looped over an integer."
@@ -131,7 +143,10 @@ def ForIn(
         set_declaration = to_ast(program, iterator)
 
     stmt = ast.ForInLoop(
-        identifier_type.type_cls(), var.to_ast(program), set_declaration, state.body
+        identifier_type.type_cls(),
+        var.to_ast(program),
+        set_declaration,
+        cast("list[ast.Statement]", state.body),
     )
     program._add_statement(stmt)
 
@@ -150,14 +165,19 @@ class Range:
 
     def to_ast(self, program: Program) -> ast.Expression:
         """Convert to an ast.RangeDefinition."""
-        return ast.RangeDefinition(
-            to_ast(program, self.start),
-            ast.BinaryExpression(
-                lhs=to_ast(program, self.stop),
-                op=ast.BinaryOperator["-"],
-                rhs=ast.IntegerLiteral(value=1),
+        # RangeDefinition is not strictly an Expression but is accepted at AST
+        # nodes that take an IndexElement (e.g. ForInLoop set_declaration).
+        return cast(
+            ast.Expression,
+            ast.RangeDefinition(
+                to_ast(program, self.start),
+                ast.BinaryExpression(
+                    lhs=to_ast(program, self.stop),
+                    op=ast.BinaryOperator["-"],
+                    rhs=ast.IntegerLiteral(value=1),
+                ),
+                to_ast(program, self.step) if self.step != 1 else None,
             ),
-            to_ast(program, self.step) if self.step != 1 else None,
         )
 
 
@@ -175,4 +195,6 @@ def While(program: Program, condition: OQPyExpression) -> Iterator[None]:
     program._push()
     yield
     state = program._pop()
-    program._add_statement(ast.WhileLoop(to_ast(program, condition), state.body))
+    program._add_statement(
+        ast.WhileLoop(to_ast(program, condition), cast("list[ast.Statement]", state.body))
+    )
