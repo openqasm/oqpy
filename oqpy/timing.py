@@ -91,7 +91,9 @@ def convert_float_to_duration(time: AstConvertible, require_nonnegative: bool = 
 
 
 def convert_duration_to_float(value: AstConvertible) -> AstConvertible:
-    if isinstance(value, OQPyExpression) and isinstance(value.type, (ast.DurationType, ast.StretchType)):
+    if isinstance(value, OQPyExpression) and isinstance(
+        value.type, (ast.DurationType, ast.StretchType)
+    ):
         value = value / OQDurationLiteral(1)
     return value
 
