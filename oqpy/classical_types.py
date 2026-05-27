@@ -236,6 +236,11 @@ class _ClassicalVar(Var, OQPyExpression):
         stmt.annotations = make_annotations(self.annotations)
         return stmt
 
+    def __str__(self) -> str:
+        return (
+            f"<{self.__class__.__name__} name={self.name} init_expression={self.init_expression}>"
+        )
+
 
 class BoolVar(_ClassicalVar):
     """An (unsized) oqpy variable with bool type."""
@@ -372,6 +377,17 @@ class StretchVar(_ClassicalVar):
     """An oqpy variable with stretch type."""
 
     type_cls = ast.StretchType
+
+    def __init__(
+        self,
+        init_expression: AstConvertible | Literal["input", "output"] | None = None,
+        name: str | None = None,
+        *args: Any,
+        **type_kwargs: Any,
+    ) -> None:
+        if init_expression is not None and not isinstance(init_expression, str):
+            init_expression = convert_float_to_duration(init_expression)
+        super().__init__(init_expression, name, *args, **type_kwargs)
 
 
 AllowedArrayTypes = Union[_SizedVar, DurationVar, BoolVar, ComplexVar]
