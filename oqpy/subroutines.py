@@ -110,7 +110,7 @@ def subroutine(
     argnames = list(inspect.signature(func).parameters.keys())
     type_hints = get_type_hints(func)
     inputs = {}  # used as inputs when calling the actual python function
-    arguments = []  # used in the ast definition of the subroutine
+    arguments: list[ast.ClassicalArgument | ast.QuantumArgument] = []
     for argname in argnames[1:]:  # arg 0 should be program
         if argname not in type_hints:
             raise ValueError(f"No type hint provided for {argname} on subroutine {name}.")
@@ -131,6 +131,7 @@ def subroutine(
         input_ = inputs[argname] = type_hints[argname](name=argname)
 
         if isinstance(input_, _ClassicalVar):
+            assert input_.type is not None
             arguments.append(ast.ClassicalArgument(input_.type, ast.Identifier(argname)))
         elif isinstance(input_, Qubit):
             arguments.append(ast.QuantumArgument(ast.Identifier(input_.name), None))
@@ -141,10 +142,9 @@ def subroutine(
     output = func(inner_prog, **inputs)
     inner_prog.autodeclare()
     inner_prog._state.finalize_if_clause()
-    body = inner_prog._state.body
     if isinstance(output, OQPyExpression):
         return_type = output.type
-        body.append(ast.ReturnStatement(to_ast(inner_prog, output)))
+        inner_prog._state.body.append(ast.ReturnStatement(to_ast(inner_prog, output)))
     elif output is None:
         return_type = None
         if type_hints.get("return", False):
@@ -161,7 +161,7 @@ def subroutine(
         identifier,
         arguments=arguments,
         return_type=return_type,
-        body=body,
+        body=inner_prog._state.body,
     )
     stmt.annotations = make_annotations(annotations)
 
